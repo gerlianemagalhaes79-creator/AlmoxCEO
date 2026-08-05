@@ -32,8 +32,8 @@
 
   <!-- CENTER TEXT (Main Institutional Title) -->
   <g transform="translate(600, 42)" text-anchor="middle">
-    <text x="0" y="0" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="21" fill="#0F172A" letter-spacing="-0.3">
-      POLICLÍNICA BERNARDO FÉLIX DA SILVA
+    <text x="0" y="0" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="20" fill="#0F172A" letter-spacing="-0.3">
+      CENTRO DE ESPECIALIDADES ODONTOLÓGICAS — CEO
     </text>
     <text x="0" y="24" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="13" fill="#0284C7" letter-spacing="0.2">
       CONSÓRCIO PÚBLICO DE SAÚDE DA MICRORREGIÃO DE SOBRAL — CPSMS
@@ -46,9 +46,9 @@
   <!-- CENTER DIVIDER RIGHT -->
   <line x1="920" y1="25" x2="920" y2="115" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4,4" />
 
-  <!-- RIGHT LOGOS (Logo 2 & Logo 3: Policlínica & CPSMS Badge) -->
+  <!-- RIGHT LOGOS (Logo 2 & Logo 3: CEO & CPSMS Badge) -->
   <g transform="translate(945, 28)">
-    <!-- Logo 2: Policlínica Icon -->
+    <!-- Logo 2: CEO Icon -->
     <rect x="0" y="0" width="38" height="38" rx="10" fill="#0284C7" />
     <path d="M19,9 L19,29 M9,19 L29,19" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" />
     
@@ -61,7 +61,7 @@
     </g>
 
     <!-- Sublabel right -->
-    <text x="0" y="58" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="11" fill="#0369A1">POLICLÍNICA</text>
+    <text x="0" y="58" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="11" fill="#0369A1">CEO</text>
     <text x="0" y="71" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="11" fill="#EA580C">CPSMS SOBRAL</text>
   </g>
 

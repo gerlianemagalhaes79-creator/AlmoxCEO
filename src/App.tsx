@@ -124,39 +124,22 @@ const getSafeDocId = (name: string | null | undefined) => {
 };
 
 const SECTORS = [
-  'Imagem', 'Ilha', 'Pé Diabético', 'Direção', 'Setor Pessoal', 
-  'CER', 'Setor de Terapias', 'SSVV', 'Recepção', 
-  'Higienização', 'Manutenção', 'Almoxarifado',
-  'Telefonia', 'Marcação', 'Entrega de Exames', 'Regulação',
-  'Farmácia', 'CME', 'Envase', 'SESMT', 'Ouvidoria', 'Copa', 'Escritório da Qualidade', 'TI', 'SAME'
+  'CPSMS', 'CME', 'Clínica Geral', 'Higienização', 'Direção', 
+  'Recepção', 'SAME', 'Copa', 'Administrativo', 'TI', 'Regulação'
 ];
 
 const SECTOR_COLORS: Record<string, string> = {
-  'Imagem': '#3b82f6',
-  'Ilha': '#10b981',
-  'Pé Diabético': '#f59e0b',
-  'Direção': '#ef4444',
-  'Setor Pessoal': '#8b5cf6',
-  'CER': '#ec4899',
-  'Setor de Terapias': '#06b6d4',
-  'SSVV': '#f97316',
-  'Recepção': '#14b8a6',
-  'Higienização': '#6366f1',
-  'Manutenção': '#84cc16',
-  'Almoxarifado': '#1c1917',
-  'Telefonia': '#d946ef',
-  'Marcação': '#a855f7',
-  'Entrega de Exames': '#f43f5e',
-  'Regulação': '#fb923c',
-  'Farmácia': '#059669',
+  'CPSMS': '#0284c7',
   'CME': '#7c3aed',
-  'Envase': '#db2777',
-  'SESMT': '#ea580c',
-  'Ouvidoria': '#2563eb',
+  'Clínica Geral': '#059669',
+  'Higienização': '#6366f1',
+  'Direção': '#ef4444',
+  'Recepção': '#14b8a6',
+  'SAME': '#7c2d12',
   'Copa': '#84cc16',
-  'Escritório da Qualidade': '#4b5563',
+  'Administrativo': '#8b5cf6',
   'TI': '#1e293b',
-  'SAME': '#7c2d12'
+  'Regulação': '#fb923c'
 };
 
 const ROOMS = ['Sala A', 'Sala B', 'Almoxarifado Principal', 'Farmácia'];
@@ -3207,7 +3190,7 @@ export default function App() {
               responsibleEmail: user?.email || '',
               exitReason: exitReason,
               expiryReason: (exitReason === 'vencido' || exitReason === 'perda') ? expiryReason : null,
-              donationUnitName: exitReason === 'doacao' ? (donationUnitName || 'Policlínica de Sobral') : null,
+              donationUnitName: exitReason === 'doacao' ? (donationUnitName || 'CEO - Centro de Especialidades Odontológicas') : null,
               donationUnitAddress: exitReason === 'doacao' ? donationUnitAddress : null,
               donationUnitCNPJ: exitReason === 'doacao' ? donationUnitCNPJ : null,
               donationRevisionDate: exitReason === 'doacao' ? donationRevisionDate : null,
@@ -3337,7 +3320,7 @@ export default function App() {
           const currentDonationNumber = `${(uniqueDonations.size + 1).toString().padStart(2, '0')}/${currentYear}`;
 
           handleExportDonationTermPDF({
-            donatingUnitName: donationUnitName || 'Policlínica de Sobral',
+            donatingUnitName: donationUnitName || 'CEO - Centro de Especialidades Odontológicas',
             receivingUnit: {
               name: selectedSector || 'Unidade Receptora',
               address: donationUnitAddress,
@@ -3672,7 +3655,7 @@ export default function App() {
       const startY = drawPDFLetterhead(
         doc,
         'Catálogo de Materiais em Estoque',
-        `Policlínica de Sobral • Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`
+        `CEO - Centro de Especialidades Odontológicas • Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`
       );
       
       // Filter unique items across all batches and locations
@@ -4152,7 +4135,7 @@ export default function App() {
       months,
       monthColors,
       sectors: finalSectors,
-      title: quantitativoTitle || (quantitativoCategory === 'Todos' ? 'QUANTITATIVO GERAL DE MATERIAIS DISPENSADOS PARA OS SETORES DA POLICLÍNICA' : `QUANTITATIVO DE ${quantitativoCategory.toUpperCase()} DISPENSADOS PARA OS SETORES DA POLICLÍNICA`),
+      title: quantitativoTitle || (quantitativoCategory === 'Todos' ? 'QUANTITATIVO GERAL DE MATERIAIS DISPENSADOS PARA OS SETORES DO CEO' : `QUANTITATIVO DE ${quantitativoCategory.toUpperCase()} DISPENSADOS PARA OS SETORES DO CEO`),
       criticalAnalysis: quantitativoCriticalAnalysis.trim() !== '' ? quantitativoCriticalAnalysis : autoAnalysis
     };
   }, [quantitativoSource, quantitativoPeriodPreset, quantitativoCustomStart, quantitativoCustomEnd, quantitativoCategory, quantitativoTitle, quantitativoCriticalAnalysis, transactions, requests, allRequestItems, items]);
@@ -4297,7 +4280,7 @@ export default function App() {
       doc.setFontSize(16);
       doc.setTextColor(28, 25, 23);
       doc.setFont('helvetica', 'bold');
-      doc.text('POLICLÍNICA', 28, 17);
+      doc.text('CEO', 28, 17);
       
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
@@ -4545,7 +4528,7 @@ export default function App() {
           pdfDoc.setFontSize(8);
           pdfDoc.setFont('helvetica', 'bold');
           pdfDoc.setTextColor(3, 105, 161);
-          pdfDoc.text('POLICLÍNICA DE SOBRAL', centerX + (logoWidth / 2), logoY + 10, { align: 'center' });
+          pdfDoc.text('CEO - CENTRO DE ESPECIALIDADES ODONTOLÓGICAS', centerX + (logoWidth / 2), logoY + 10, { align: 'center' });
         }
 
         // 3. LOGO CONSÓRCIO CPSMS (Right - Rectangular)
@@ -4577,7 +4560,7 @@ export default function App() {
         pdfDoc.setFontSize(7.5);
         pdfDoc.setTextColor(120, 113, 108);
         pdfDoc.setFont('helvetica', 'normal');
-        const footer1 = 'Policlínica de Sobral. Av. Monsenhor Aloísio Pinto, 481, CEP 62050-255, Sobral-CE';
+        const footer1 = 'CEO - Centro de Especialidades Odontológicas.';
         const footer2 = 'Fone: (88) 3614-3156 | Fax: (88) 3614-3245 | cpsms.ce.gov.br';
         pdfDoc.text(footer1, pageWidth / 2, pageHeight - 12, { align: 'center' });
         pdfDoc.text(footer2, pageWidth / 2, pageHeight - 8, { align: 'center' });
@@ -4593,7 +4576,7 @@ export default function App() {
         }).join(' ');
       };
 
-      const donorName = formatTitleCase(data.donatingUnitName || 'Policlínica de Sobral');
+      const donorName = formatTitleCase(data.donatingUnitName || 'CEO - Centro de Especialidades Odontológicas');
       const receivingName = formatTitleCase(data.receivingUnit.name);
       const receivingAddress = data.receivingUnit.address;
       const receivingCNPJ = data.receivingUnit.cnpj;
@@ -4775,7 +4758,7 @@ export default function App() {
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(3, 105, 161);
-        doc.text('POLICLÍNICA DE SOBRAL', centerX + (logoWidth / 2), logoY + 10, { align: 'center' });
+        doc.text('CEO - CENTRO DE ESPECIALIDADES ODONTOLÓGICAS', centerX + (logoWidth / 2), logoY + 10, { align: 'center' });
       }
 
       // 3. RIGHT LOGO: Logo do Consórcio CPSMS (Rectangular)
@@ -5023,10 +5006,10 @@ export default function App() {
         localStorage.setItem('policlinica_logo_base64', base64);
         try {
           await setDoc(doc(db, 'settings', 'general'), { policlinicaLogo: base64 }, { merge: true });
-          showToast("Logo da Policlínica atualizada com sucesso!", "success");
+          showToast("Logo do CEO atualizada com sucesso!", "success");
         } catch (err) {
           console.error("Erro ao salvar no Firestore:", err);
-          showToast("Logo da Policlínica atualizada!", "success");
+          showToast("Logo do CEO atualizada!", "success");
         }
       };
       reader.readAsDataURL(file);
@@ -5038,10 +5021,10 @@ export default function App() {
     localStorage.removeItem('policlinica_logo_base64');
     try {
       await setDoc(doc(db, 'settings', 'general'), { policlinicaLogo: deleteField() }, { merge: true });
-      showToast("Logo da Policlínica removida com sucesso!", "success");
+      showToast("Logo do CEO removida com sucesso!", "success");
     } catch (err) {
       console.error("Erro ao remover logo da Policlínica do Firestore:", err);
-      showToast("Logo da Policlínica removida!", "success");
+      showToast("Logo do CEO removida!", "success");
     }
   };
 
@@ -5134,7 +5117,7 @@ export default function App() {
           pdfDoc.setFontSize(8);
           pdfDoc.setFont('helvetica', 'bold');
           pdfDoc.setTextColor(3, 105, 161);
-          pdfDoc.text('POLICLÍNICA DE SOBRAL', centerX + (logoWidth / 2), logoY + 10, { align: 'center' });
+          pdfDoc.text('CEO - CENTRO DE ESPECIALIDADES ODONTOLÓGICAS', centerX + (logoWidth / 2), logoY + 10, { align: 'center' });
         }
 
         // 3. LOGO CONSÓRCIO CPSMS (Right - Rectangular)
@@ -5166,7 +5149,7 @@ export default function App() {
         pdfDoc.setFontSize(7.5);
         pdfDoc.setTextColor(120, 113, 108);
         pdfDoc.setFont('helvetica', 'normal');
-        const footer1 = 'Policlínica de Sobral. Av. Monsenhor Aloísio Pinto, 481, CEP 62050-255, Sobral-CE';
+        const footer1 = 'CEO - Centro de Especialidades Odontológicas.';
         const footer2 = 'Fone: (88) 3614-3156 | Fax: (88) 3614-3245 | cpsms.ce.gov.br';
         pdfDoc.text(footer1, pageWidth / 2, pageHeight - 12, { align: 'center' });
         pdfDoc.text(footer2, pageWidth / 2, pageHeight - 8, { align: 'center' });
@@ -5287,7 +5270,7 @@ export default function App() {
       doc.setDrawColor(226, 232, 240);
       doc.line(14, pageHeight - 20, pageWidth - 14, pageHeight - 20);
       
-      const footerLine1 = 'Policlínica de Sobral. Av. Monsenhor Aloísio Pinto, 481, Dom Expedito CEP 62050-255, Sobral Ceará.';
+      const footerLine1 = 'CEO - Centro de Especialidades Odontológicas.';
       const footerLine2 = 'Fone: (88) 3614-3156 . Fax: (88) 3614-3245';
       doc.text(footerLine1, pageWidth / 2, pageHeight - 12, { align: 'center' });
       doc.text(footerLine2, pageWidth / 2, pageHeight - 8, { align: 'center' });
@@ -5317,7 +5300,7 @@ export default function App() {
       doc.setFontSize(16);
       doc.setTextColor(28, 25, 23); // dark stone
       doc.setFont('helvetica', 'bold');
-      doc.text('POLICLÍNICA', 28, 17);
+      doc.text('CEO', 28, 17);
       
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
@@ -5445,7 +5428,7 @@ export default function App() {
         }
       });
       
-      const fileName = `Relatorio_Consumo_Policlinica_${format(new Date(), 'dd-MM-yyyy')}.pdf`;
+      const fileName = `Relatorio_Consumo_CEO_${format(new Date(), 'dd-MM-yyyy')}.pdf`;
       doc.save(fileName);
       showToast("Relatório profissional exportado!", "success");
     } catch (error) {
@@ -5909,7 +5892,7 @@ export default function App() {
           <div className="text-center mb-8">
             {loginLogo ? (
               <div className="w-full max-w-[260px] h-24 rounded-2xl overflow-hidden bg-white border border-blue-200/80 p-2.5 shadow-md mx-auto mb-6 flex items-center justify-center ring-4 ring-blue-500/10">
-                <img src={loginLogo} alt="Logo Policlínica" className="max-w-full max-h-full object-contain" />
+                <img src={loginLogo} alt="Logo CEO" className="max-w-full max-h-full object-contain" />
               </div>
             ) : (
               <div className="bg-gradient-to-br from-blue-700 via-blue-800 to-indigo-900 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl overflow-hidden border-4 border-white ring-4 ring-blue-500/10 text-white">
@@ -5917,12 +5900,9 @@ export default function App() {
               </div>
             )}
             <div className="mb-4 text-center">
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase leading-tight">
-                Policlínica
+              <h1 className="text-3xl font-black tracking-tight text-slate-900 uppercase">
+                CEO
               </h1>
-              <h2 className="text-sm font-black text-blue-700 uppercase tracking-wider mt-0.5">
-                de Sobral
-              </h2>
             </div>
             <div className="h-0.5 w-12 bg-blue-100 mx-auto mb-4 rounded-full" />
             <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest bg-blue-50 border border-blue-100/80 px-3 py-1 rounded-full w-fit mx-auto">
@@ -6086,16 +6066,16 @@ export default function App() {
         <div className="flex items-center gap-2.5">
           {appLogo ? (
             <div className="w-9 h-9 rounded-xl overflow-hidden bg-white p-0.5 border border-slate-700 shadow-sm flex items-center justify-center shrink-0">
-              <img src={appLogo} alt="Logo Policlínica" className="w-full h-full object-contain" />
+              <img src={appLogo} alt="Logo CEO" className="w-full h-full object-contain" />
             </div>
           ) : (
             <div className="bg-gradient-to-br from-blue-600 to-indigo-800 p-2 rounded-xl text-white shadow-sm shrink-0">
               <Package className="w-5 h-5" />
             </div>
           )}
-          <div className="flex items-baseline gap-1.5">
-            <h1 className="font-black text-lg tracking-tight text-white">Policlínica</h1>
-            <span className="text-[10px] font-black text-blue-300 tracking-wider uppercase">Almoxarifado</span>
+          <div className="flex flex-col min-w-0">
+            <h1 className="font-black text-xl tracking-tight text-white leading-none">CEO</h1>
+            <span className="text-[10px] font-black text-blue-300 tracking-wider uppercase mt-0.5">Almoxarifado</span>
           </div>
         </div>
         <button 
@@ -6125,15 +6105,15 @@ export default function App() {
           <div className="flex items-center gap-3">
             {appLogo ? (
               <div className="w-11 h-11 rounded-2xl overflow-hidden bg-white border border-blue-200/80 p-1 shadow-md shadow-blue-500/10 flex items-center justify-center shrink-0 ring-2 ring-blue-500/10">
-                <img src={appLogo} alt="Logo Policlínica" className="w-full h-full object-contain" />
+                <img src={appLogo} alt="Logo CEO" className="w-full h-full object-contain" />
               </div>
             ) : (
               <div className="bg-gradient-to-br from-blue-700 via-blue-800 to-indigo-900 p-2.5 rounded-2xl shadow-md shadow-blue-500/20 text-white ring-2 ring-blue-500/20 shrink-0">
                 <Package className="w-6 h-6" />
               </div>
             )}
-            <div className="flex flex-col">
-              <h1 className="font-black text-xl tracking-tight text-slate-900 leading-none">Policlínica</h1>
+            <div className="flex flex-col min-w-0">
+              <h1 className="font-black text-2xl tracking-tight text-slate-900 leading-none">CEO</h1>
               <span className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md uppercase tracking-widest leading-none block w-fit mt-1">
                 Almoxarifado
               </span>
@@ -9066,7 +9046,7 @@ export default function App() {
                       {/* Official Document Footer */}
                       <div className="pt-4 border-t border-slate-200 text-center text-[10px] font-bold space-y-0.5" style={{ color: '#64748b' }}>
                         <p>
-                          Policlínica de Sobral. Av. Monsenhor Aloísio Pinto, 481, Dom Expedito CEP 62050-255, Sobral Ceará.
+                          CEO - Centro de Especialidades Odontológicas.
                         </p>
                         <p>Fone: (88) 3614-3156 . Fax: (88) 3614-3245</p>
                       </div>
@@ -11122,9 +11102,9 @@ export default function App() {
                           <input 
                             required
                             type="text"
-                            placeholder="Policlínica de Sobral"
+                            placeholder="CEO - Centro de Especialidades Odontológicas"
                             className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
-                            value={donationUnitName || 'Policlínica de Sobral'}
+                            value={donationUnitName || 'CEO - Centro de Especialidades Odontológicas'}
                             onChange={e => setDonationUnitName(e.target.value)}
                           />
                         </div>
@@ -11691,7 +11671,7 @@ export default function App() {
                       Gerenciamento Completo de Logotipos
                     </h4>
                     <p className="text-xs leading-relaxed text-blue-700 font-medium">
-                      Cadastre os logotipos oficiais da <strong>Policlínica</strong>, do <strong>Consórcio CPSMS</strong>, do <strong>Governo/SUS</strong> e do <strong>Sistema</strong>. Eles serão inseridos automaticamente em todos os documentos PDF, relatórios e recibos.
+                      Cadastre os logotipos oficiais do <strong>CEO</strong>, do <strong>Consórcio CPSMS</strong>, do <strong>Governo/SUS</strong> e do <strong>Sistema</strong>. Eles serão inseridos automaticamente em todos os documentos PDF, relatórios e recibos.
                     </p>
                   </div>
 
@@ -11719,12 +11699,12 @@ export default function App() {
                           )}
                         </div>
 
-                        {/* 2. Logo Policlínica (Center - Rectangular) */}
+                        {/* 2. Logo CEO (Center - Rectangular) */}
                         <div className="flex-1 h-12 bg-sky-50/50 border border-sky-100 rounded-xl p-1.5 flex items-center justify-center overflow-hidden">
                           {policlinicaLogo ? (
-                            <img src={policlinicaLogo} alt="Logo Policlínica" className="max-h-full max-w-full object-contain" />
+                            <img src={policlinicaLogo} alt="Logo CEO" className="max-h-full max-w-full object-contain" />
                           ) : (
-                            <div className="text-[9px] font-black text-sky-800 uppercase tracking-tight text-center">POLICLÍNICA DE SOBRAL</div>
+                            <div className="text-[9px] font-black text-sky-800 uppercase tracking-tight text-center">CEO - CENTRO DE ESPECIALIDADES ODONTOLÓGICAS</div>
                           )}
                         </div>
 
@@ -11761,10 +11741,10 @@ export default function App() {
                         <div>
                           <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>
-                            Logo Oficial da Policlínica
+                            Logo Oficial do CEO
                           </h4>
                           <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                            Substitui a marca da Policlínica no canto superior do cabeçalho dos documentos.
+                            Substitui a marca do CEO no canto superior do cabeçalho dos documentos.
                           </p>
                         </div>
                         {policlinicaLogo && (
@@ -11781,9 +11761,9 @@ export default function App() {
                         <div className={`overflow-hidden rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${policlinicaLogo ? 'border-sky-300 bg-sky-50/20 hover:bg-sky-50/40' : 'border-slate-300 hover:border-sky-500 hover:bg-slate-50'}`}>
                           {policlinicaLogo ? (
                             <div className="flex flex-col items-center gap-2">
-                              <img src={policlinicaLogo} alt="Logo Policlínica" className="max-h-16 object-contain" />
+                              <img src={policlinicaLogo} alt="Logo CEO" className="max-h-16 object-contain" />
                               <span className="text-xs font-bold text-sky-700 bg-sky-100/80 px-3 py-1 rounded-full flex items-center gap-1.5">
-                                <Upload size={13} /> Alterar Logo da Policlínica
+                                <Upload size={13} /> Alterar Logo do CEO
                               </span>
                             </div>
                           ) : (
@@ -11792,7 +11772,7 @@ export default function App() {
                                 <Upload size={18} />
                               </div>
                               <div>
-                                <p className="text-xs font-black text-slate-800">Clique para enviar a logo da Policlínica</p>
+                                <p className="text-xs font-black text-slate-800">Clique para enviar a logo do CEO</p>
                                 <p className="text-[10px] font-bold text-slate-400">PNG, JPG ou SVG (Máx. 2MB)</p>
                               </div>
                             </div>
