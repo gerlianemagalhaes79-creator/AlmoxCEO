@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "SETOR"] },
+        "sector": { "type": "string", "description": "Sector name for SETOR users" }
+      },
+      "required": ["email", "role"]
+    },
+    "Request": {
+      "title": "Request",
+      "description": "Material request from a sector",
+      "type": "object",
+      "properties": {
+        "sector": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["PENDENTE", "APROVADO", "SEPARADO", "ENTREGUE", "RECUSADO"] },
+        "observation": { "type": "string" },
+        "requesterEmail": { "type": "string" }
+      },
+      "required": ["sector", "date", "status"]
+    },
+    "RequestItem": {
+      "title": "RequestItem",
+      "description": "Item within a material request",
+      "type": "object",
+      "properties": {
+        "request_id": { "type": "string" },
+        "product_id": { "type": "string" },
+        "product_name": { "type": "string" },
+        "quantity_requested": { "type": "number" },
+        "quantity_approved": { "type": "number" }
+      },
+      "required": ["request_id", "product_id", "quantity_requested"]
+    },
+    "Item": {
+      "title": "Item",
+      "description": "Inventory item batch",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the item" },
+        "description": { "type": "string", "description": "Optional description" },
+        "quantity": { "type": "number", "description": "Current quantity in this batch" },
+        "min_quantity": { "type": "number", "description": "Minimum quantity for alerts" },
+        "expiry_date": { "type": "string", "format": "date", "description": "Expiry date" },
+        "origin": { "type": "string", "enum": ["contract", "extra"], "description": "Origin of the item" },
+        "unit_price": { "type": "number", "description": "Unit price" },
+        "supplier": { "type": "string", "description": "Supplier name" },
+        "category": { "type": "string", "description": "Category" },
+        "batch_number": { "type": "string", "description": "Batch number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "quantity", "min_quantity"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Inventory movement",
+      "type": "object",
+      "properties": {
+        "item_id": { "type": "string", "description": "ID of the item document" },
+        "item_name": { "type": "string", "description": "Name of the item at time of transaction" },
+        "type": { "type": "string", "enum": ["entry", "exit"], "description": "Type of movement" },
+        "origin": { "type": "string", "enum": ["contract", "extra"], "description": "Origin of the item (contract or extra)" },
+        "quantity": { "type": "number", "description": "Quantity moved" },
+        "sector": { "type": "string", "description": "Destination sector for exits" },
+        "date": { "type": "string", "format": "date-time", "description": "Transaction date" }
+      },
+      "required": ["item_id", "type", "quantity", "date"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System notification for users",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" },
+        "requestId": { "type": "string" }
+      },
+      "required": ["userId", "title", "message", "date", "read"]
+    },
+    "DismissedStockAlert": {
+      "title": "DismissedStockAlert",
+      "description": "Dismissed zero stock Alerts",
+      "type": "object",
+      "properties": {
+        "itemName": { "type": "string" },
+        "dismissedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["itemName", "dismissedAt"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "System configuration and settings like appLogo",
+      "type": "object",
+      "properties": {
+        "appLogo": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users": {
+      "schema": "User",
+      "description": "Collection of system users"
+    },
+    "/requests": {
+      "schema": "Request",
+      "description": "Collection of material requests"
+    },
+    "/request_items": {
+      "schema": "RequestItem",
+      "description": "Collection of items in requests"
+    },
+    "/items": {
+      "schema": "Item",
+      "description": "Collection of inventory items"
+    },
+    "/transactions": {
+      "schema": "Transaction",
+      "description": "Collection of inventory transactions"
+    },
+    "/notifications": {
+      "schema": "Notification",
+      "description": "Collection of system notifications"
+    },
+    "/dismissed_stock_alerts": {
+      "schema": "DismissedStockAlert",
+      "description": "Collection of dismissed zero stock alerts"
+    },
+    "/settings": {
+      "schema": "Setting",
+      "description": "Collection of system global settings"
+    }
+  }
+}
