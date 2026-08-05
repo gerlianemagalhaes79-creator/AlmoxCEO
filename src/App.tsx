@@ -381,6 +381,10 @@ export default function App() {
   const [targetItemName, setTargetItemName] = useState('');
   const [isMerging, setIsMerging] = useState(false);
   const [showUserDeleteConfirm, setShowUserDeleteConfirm] = useState<{show: boolean, user?: UserProfile}>({ show: false });
+  const [showDeleteTestDataModal, setShowDeleteTestDataModal] = useState(false);
+  const [deleteTestTarget, setDeleteTestTarget] = useState<'entries_only' | 'entries_and_stock' | 'all_test_data'>('entries_only');
+  const [deleteTestConfirmInput, setDeleteTestConfirmInput] = useState('');
+  const [isDeletingTestData, setIsDeletingTestData] = useState(false);
   const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error' | 'info'}>({ show: false, message: '', type: 'info' });
   const [showRequestDetailModal, setShowRequestDetailModal] = useState<{show: boolean, request?: MaterialRequest}>({ show: false });
   const [showDevolutionModal, setShowDevolutionModal] = useState<{show: boolean, request?: MaterialRequest}>({ show: false });
@@ -1078,6 +1082,90 @@ export default function App() {
       showToast(`Erro ao mesclar itens: ${error.message}`, "error");
     } finally {
       setIsMerging(false);
+    }
+  };
+
+  const handleDeleteTestData = async () => {
+    const confirmation = deleteTestConfirmInput.trim().toUpperCase();
+    if (confirmation !== 'TESTE' && confirmation !== 'CONFIRMAR' && confirmation !== 'EXCLUIR') {
+      showToast("Digite CONFIRMAR, TESTE ou EXCLUIR para autorizar a remoção.", "error");
+      return;
+    }
+
+    setIsDeletingTestData(true);
+    try {
+      if (deleteTestTarget === 'entries_only') {
+        const entryTrans = transactions.filter(t => t.type === 'entry');
+        if (entryTrans.length === 0) {
+          showToast("Nenhuma entrada de material encontrada para excluir.", "info");
+          setIsDeletingTestData(false);
+          return;
+        }
+
+        // Delete all entry transactions
+        const docsToDelete = entryTrans.map(t => doc(db, 'transactions', t.id));
+        for (let i = 0; i < docsToDelete.length; i += 400) {
+          const batch = writeBatch(db);
+          docsToDelete.slice(i, i + 400).forEach(d => batch.delete(d));
+          await batch.commit();
+        }
+
+        // Update items stock balance to 0 and clear batches
+        const itemUpdates = items.map(item => ({
+          ref: doc(db, 'items', item.id),
+          data: {
+            quantity: 0,
+            batches: [],
+            updatedAt: serverTimestamp()
+          }
+        }));
+
+        for (let i = 0; i < itemUpdates.length; i += 400) {
+          const batch = writeBatch(db);
+          itemUpdates.slice(i, i + 400).forEach(u => batch.update(u.ref, u.data));
+          await batch.commit();
+        }
+
+        showToast(`${entryTrans.length} entradas de materiais de teste foram excluídas com sucesso!`, "success");
+      } else if (deleteTestTarget === 'entries_and_stock') {
+        const entryTrans = transactions.filter(t => t.type === 'entry');
+        const docsToDelete = [
+          ...entryTrans.map(t => doc(db, 'transactions', t.id)),
+          ...items.map(i => doc(db, 'items', i.id))
+        ];
+
+        for (let i = 0; i < docsToDelete.length; i += 400) {
+          const batch = writeBatch(db);
+          docsToDelete.slice(i, i + 400).forEach(d => batch.delete(d));
+          await batch.commit();
+        }
+
+        showToast(`Todas as entradas e itens de estoque cadastrados como teste foram excluídos!`, "success");
+      } else if (deleteTestTarget === 'all_test_data') {
+        const reqItemsSnap = await getDocs(collection(db, 'request_items'));
+        const docsToDelete = [
+          ...transactions.map(t => doc(db, 'transactions', t.id)),
+          ...items.map(i => doc(db, 'items', i.id)),
+          ...requests.map(r => doc(db, 'requests', r.id)),
+          ...reqItemsSnap.docs.map(d => d.ref)
+        ];
+
+        for (let i = 0; i < docsToDelete.length; i += 400) {
+          const batch = writeBatch(db);
+          docsToDelete.slice(i, i + 400).forEach(d => batch.delete(d));
+          await batch.commit();
+        }
+
+        showToast(`Todos os dados de teste (entradas, saídas, requisições e estoque) foram completamente limpos!`, "success");
+      }
+
+      setShowDeleteTestDataModal(false);
+      setDeleteTestConfirmInput('');
+    } catch (error: any) {
+      console.error("Error deleting test data:", error);
+      showToast(`Erro ao excluir dados de teste: ${error.message}`, "error");
+    } finally {
+      setIsDeletingTestData(false);
     }
   };
 
@@ -12022,6 +12110,30 @@ export default function App() {
                       <Tag size={16} /> Alterar Categoria de Material
                     </button>
                   </div>
+
+                  {/* Section for deleting test entries / test data */}
+                  <div className="mt-6 pt-5 border-t border-blue-200/60">
+                    <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200/80 mb-3">
+                      <h5 className="font-black text-xs text-rose-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <AlertTriangle size={15} className="text-rose-600" />
+                        Limpeza de Registros de Teste
+                      </h5>
+                      <p className="text-xs text-rose-700 font-medium leading-relaxed">
+                        Se você realizou lançamentos ou entradas de materiais como teste, utilize esta ferramenta para excluir o histórico de testes e preparar o sistema para o uso definitivo.
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setShowSettingsModal(false);
+                        setDeleteTestConfirmInput('');
+                        setDeleteTestTarget('entries_only');
+                        setShowDeleteTestDataModal(true);
+                      }}
+                      className="w-full py-3.5 bg-rose-600 text-white rounded-xl font-extrabold text-xs uppercase tracking-wider hover:bg-rose-700 transition-all flex items-center justify-center gap-2 shadow-md shadow-rose-600/20"
+                    >
+                      <Trash2 size={16} /> Excluir Entradas / Dados de Teste
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -12320,6 +12432,185 @@ export default function App() {
                   ) : (
                     <>
                       <CheckCircle size={16} /> Salvar Categoria
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showDeleteTestDataModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-lg rounded-[32px] p-8 shadow-2xl border border-rose-100 flex flex-col max-h-[90vh]"
+          >
+            <div className="flex justify-between items-center mb-5">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Excluir Dados de Teste</h3>
+                  <p className="text-xs text-slate-500 font-medium">Limpeza de registros do período de testes</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowDeleteTestDataModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-slate-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-5 overflow-y-auto pr-1">
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 space-y-1.5">
+                <div className="flex items-center gap-2 font-bold text-xs text-amber-800">
+                  <Info size={16} />
+                  Limpeza de Lançamentos de Teste
+                </div>
+                <p className="text-xs leading-relaxed text-amber-800 font-medium">
+                  Esta ação é recomendada para limpar registros gerados durante os testes do sistema antes da entrada oficial em produção.
+                </p>
+              </div>
+
+              {/* Counters Summary */}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <span className="text-xs text-slate-500 font-bold block">Entradas</span>
+                  <span className="text-lg font-black text-slate-900">
+                    {transactions.filter(t => t.type === 'entry' && !t.deletedAt).length}
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <span className="text-xs text-slate-500 font-bold block">Itens Estoque</span>
+                  <span className="text-lg font-black text-slate-900">{items.length}</span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <span className="text-xs text-slate-500 font-bold block">Requisições</span>
+                  <span className="text-lg font-black text-slate-900">{requests.length}</span>
+                </div>
+              </div>
+
+              {/* Options Selection */}
+              <div className="space-y-2.5">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  Selecione o Nível da Exclusão
+                </label>
+
+                <div 
+                  onClick={() => setDeleteTestTarget('entries_only')}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                    deleteTestTarget === 'entries_only' 
+                      ? 'border-rose-500 bg-rose-50/50' 
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="delete_target" 
+                    checked={deleteTestTarget === 'entries_only'}
+                    onChange={() => setDeleteTestTarget('entries_only')}
+                    className="mt-1 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900">Apenas Entradas de Materiais</h4>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                      Exclui o histórico de notas fiscais, doações e transferências de entrada de teste e zera os saldos de estoque correspondentes.
+                    </p>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => setDeleteTestTarget('entries_and_stock')}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                    deleteTestTarget === 'entries_and_stock' 
+                      ? 'border-rose-500 bg-rose-50/50' 
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="delete_target" 
+                    checked={deleteTestTarget === 'entries_and_stock'}
+                    onChange={() => setDeleteTestTarget('entries_and_stock')}
+                    className="mt-1 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900">Entradas + Catálogo de Itens do Estoque</h4>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                      Exclui todas as entradas de materiais e limpa todos os itens de insumos cadastrados no estoque.
+                    </p>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => setDeleteTestTarget('all_test_data')}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                    deleteTestTarget === 'all_test_data' 
+                      ? 'border-rose-500 bg-rose-50/50' 
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="delete_target" 
+                    checked={deleteTestTarget === 'all_test_data'}
+                    onChange={() => setDeleteTestTarget('all_test_data')}
+                    className="mt-1 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900">Reset Total de Testes (Entradas, Saídas e Requisições)</h4>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                      Limpa todo o histórico de movimentações, solicitações e insumos para começar do zero em produção.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Confirmation Input */}
+              <div>
+                <label className="block text-[10px] font-black text-rose-700 uppercase tracking-widest mb-1.5 ml-1">
+                  Confirmação de Segurança
+                </label>
+                <input 
+                  type="text"
+                  placeholder="Digite TESTE ou CONFIRMAR para habilitar..."
+                  value={deleteTestConfirmInput}
+                  onChange={e => setDeleteTestConfirmInput(e.target.value)}
+                  className="w-full px-4 py-3 bg-rose-50/50 border border-rose-200 rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-sm text-rose-900 placeholder:text-rose-300"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowDeleteTestDataModal(false)}
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-extrabold hover:bg-slate-200 transition-all text-xs"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleDeleteTestData}
+                  disabled={isDeletingTestData || (deleteTestConfirmInput.trim().toUpperCase() !== 'TESTE' && deleteTestConfirmInput.trim().toUpperCase() !== 'CONFIRMAR' && deleteTestConfirmInput.trim().toUpperCase() !== 'EXCLUIR')}
+                  className={`flex-1 py-3.5 bg-rose-600 text-white rounded-2xl font-extrabold transition-all text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 ${
+                    isDeletingTestData || (deleteTestConfirmInput.trim().toUpperCase() !== 'TESTE' && deleteTestConfirmInput.trim().toUpperCase() !== 'CONFIRMAR' && deleteTestConfirmInput.trim().toUpperCase() !== 'EXCLUIR')
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-rose-700'
+                  }`}
+                >
+                  {isDeletingTestData ? (
+                    <>
+                      <RotateCcw className="animate-spin" size={16} /> Excluindo Dados...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} /> Excluir Registros de Teste
                     </>
                   )}
                 </button>
