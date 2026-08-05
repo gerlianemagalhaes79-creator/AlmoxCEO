@@ -408,7 +408,6 @@ export default function App() {
 
   const isAdmin = userProfile?.role === 'ADMIN' || 
                   user?.email === 'gerlianemagalhaes79@gmail.com' || 
-                  user?.email === 'poli.almoxarifado@gmail.com' || 
                   userProfile?.sector === 'Almoxarifado';
 
   useEffect(() => {
@@ -1196,11 +1195,11 @@ export default function App() {
             console.warn("Could not fetch user profile from Firestore:", e?.message || e);
           }
 
-          if (userSnap && !userSnap.exists() && (userEmail === 'gerlianemagalhaes79@gmail.com' || userEmail === 'poli.almoxarifado@gmail.com')) {
+          if (userSnap && !userSnap.exists() && userEmail === 'gerlianemagalhaes79@gmail.com') {
             try {
               await setDoc(userRef, {
                 email: userEmail,
-                name: user.displayName || (userEmail === 'gerlianemagalhaes79@gmail.com' ? 'Admin' : 'Poli Almoxarifado'),
+                name: user.displayName || 'Admin',
                 role: 'ADMIN',
                 sector: 'Almoxarifado',
                 uid: user.uid,
@@ -1219,11 +1218,11 @@ export default function App() {
             } catch (e) {
               console.warn("Could not update last login timestamp:", e);
             }
-          } else if (!userSnap && (userEmail === 'gerlianemagalhaes79@gmail.com' || userEmail === 'poli.almoxarifado@gmail.com')) {
+          } else if (!userSnap && userEmail === 'gerlianemagalhaes79@gmail.com') {
             // Fallback for master admins when quota limit is exceeded
             setUserProfile({
               id: userEmail,
-              name: user.displayName || (userEmail === 'gerlianemagalhaes79@gmail.com' ? 'Admin' : 'Poli Almoxarifado'),
+              name: user.displayName || 'Admin',
               role: 'ADMIN',
               sector: 'Almoxarifado',
               email: userEmail
@@ -1455,10 +1454,9 @@ export default function App() {
     
     let unsubscribeUsers = () => {};
     if (user.email === 'gerlianemagalhaes79@gmail.com' || userProfile.role === 'ADMIN' || selectedSector === 'Almoxarifado') {
-      // Ensure master admins are in the database so they appear in the list
+      // Ensure master admin exists in the database
       const masterAdmins = [
-        { email: 'gerlianemagalhaes79@gmail.com', name: 'Admin' },
-        { email: 'poli.almoxarifado@gmail.com', name: 'Poli Almoxarifado' }
+        { email: 'gerlianemagalhaes79@gmail.com', name: 'Admin' }
       ];
 
       masterAdmins.forEach(async (admin) => {
@@ -1474,6 +1472,19 @@ export default function App() {
           });
         }
       });
+
+      // Purge poli.almoxarifado@gmail.com from Firestore users collection if present
+      (async () => {
+        try {
+          const poliRef = doc(db, 'users', 'poli.almoxarifado@gmail.com');
+          const poliSnap = await getDoc(poliRef);
+          if (poliSnap.exists()) {
+            await deleteDoc(poliRef);
+          }
+        } catch (err) {
+          console.warn("Could not remove poli.almoxarifado@gmail.com:", err);
+        }
+      })();
 
       const qUsers = query(collection(db, 'users'), orderBy('name', 'asc'));
       unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
@@ -5530,7 +5541,6 @@ export default function App() {
     const end = endOfDay(parseISO(reportRange.end));
     const isAdmin = userProfile?.role === 'ADMIN' || 
                     user?.email === 'gerlianemagalhaes79@gmail.com' || 
-                    user?.email === 'poli.almoxarifado@gmail.com' || 
                     userProfile?.sector === 'Almoxarifado';
     const effectiveSectorFilter = isAdmin ? reportSectorFilter : (selectedSector || 'none');
 
@@ -9429,7 +9439,9 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E7E5E4]">
-                    {usersList.map(u => (
+                    {usersList
+                      .filter(u => u.email?.toLowerCase() !== 'gerlianemagalhaes79@gmail.com' && u.email?.toLowerCase() !== 'poli.almoxarifado@gmail.com')
+                      .map(u => (
                       <tr key={u.id} className="hover:bg-[#FAFAF9] transition-all">
                         <td className="px-6 py-4 font-bold text-sm">{u.name}</td>
                         <td className="px-6 py-4 text-sm text-[#78716C]">{u.email}</td>
