@@ -145,6 +145,7 @@ const SECTOR_COLORS: Record<string, string> = {
 const ROOMS = ['Sala A', 'Sala B', 'Almoxarifado Principal', 'Farmácia'];
 
 const CATEGORY_COLORS: Record<string, string> = {
+  'Odontológico': '#0284c7',
   'Médico Hospitalar': '#ef4444',
   'Alimentício': '#f59e0b',
   'Expediente': '#3b82f6',
@@ -615,7 +616,7 @@ export default function App() {
       medication_type: ''
     }]
   });
-  const [categories, setCategories] = useState<string[]>(['Médico Hospitalar', 'Alimentício', 'Expediente', 'Higiene', 'Radiológico', 'Saneante', 'Copa & Cozinha', 'Papelaria', 'EPI', 'Gráfica', 'Informática', 'Limpeza', 'Anestésico', 'Medicamentos', 'Fisioterápicos', 'Manutenção']);
+  const [categories, setCategories] = useState<string[]>(['Odontológico', 'Médico Hospitalar', 'Alimentício', 'Expediente', 'Higiene', 'Radiológico', 'Saneante', 'Copa & Cozinha', 'Papelaria', 'EPI', 'Gráfica', 'Informática', 'Limpeza', 'Anestésico', 'Medicamentos', 'Fisioterápicos', 'Manutenção']);
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
