@@ -33,6 +33,7 @@ export interface RequestItem {
   quantity_approved: number;
   quantity_returned?: number;
   batch_id?: string;
+  batch_number?: string;
 }
 
 export interface Notification {

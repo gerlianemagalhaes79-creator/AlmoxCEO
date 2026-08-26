@@ -1,4 +1,4 @@
-import * as React from 'react';
+ï»¿import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Package, 
@@ -388,7 +388,6 @@ export default function App() {
   const [isDeletingTestData, setIsDeletingTestData] = useState(false);
   const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error' | 'info'}>({ show: false, message: '', type: 'info' });
   const [showRequestDetailModal, setShowRequestDetailModal] = useState<{show: boolean, request?: MaterialRequest}>({ show: false });
-  const [deliverySector, setDeliverySector] = useState<string>('');
   const [showDevolutionModal, setShowDevolutionModal] = useState<{show: boolean, request?: MaterialRequest}>({ show: false });
   const [devolutionBasket, setDevolutionBasket] = useState<Array<{ product_id: string, product_name: string, quantity: number, maxQty: number, selectedBatchId: string }>>([]);
   const [selectedDevProduct, setSelectedDevProduct] = useState('');
@@ -443,7 +442,7 @@ export default function App() {
   }, [transactions]);
 
   // Request states
-  const [requestBasket, setRequestBasket] = useState<{product_id: string, product_name: string, quantity: number, batch_id?: string}[]>([]);
+  const [requestBasket, setRequestBasket] = useState<{product_id: string, product_name: string, quantity: number}[]>([]);
   const [requestObservation, setRequestObservation] = useState('');
   const [adminObservation, setAdminObservation] = useState('');
   const [isSyncingStock, setIsSyncingStock] = useState(false);
@@ -773,10 +772,8 @@ export default function App() {
   useEffect(() => {
     if (showRequestDetailModal.show && showRequestDetailModal.request) {
       setAdminObservation(showRequestDetailModal.request.adminObservation || '');
-      setDeliverySector(showRequestDetailModal.request.sector || '');
     } else {
       setAdminObservation('');
-      setDeliverySector('');
     }
   }, [showRequestDetailModal.show, showRequestDetailModal.request]);
 
@@ -1788,8 +1785,7 @@ export default function App() {
           product_id: item.product_id,
           product_name: item.product_name,
           quantity_requested: Math.max(1, Math.floor(Number(item.quantity) || 1)),
-          quantity_approved: Math.max(1, Math.floor(Number(item.quantity) || 1)),
-          batch_id: item.batch_id || ''
+          quantity_approved: Math.max(1, Math.floor(Number(item.quantity) || 1))
         });
       });
 
@@ -1835,12 +1831,11 @@ export default function App() {
 
   const handleEditRequest = (request: MaterialRequest) => {
     setSelectedSector(request.sector);
-    const reqItems = allRequestItems.filter(ri => ri.request_id === request.id);
-    setRequestBasket(reqItems.map(i => ({
+    const items = allRequestItems.filter(ri => ri.request_id === request.id);
+    setRequestBasket(items.map(i => ({
       product_id: i.product_id,
       product_name: i.product_name,
-      quantity: i.quantity_requested,
-      batch_id: i.batch_id || ''
+      quantity: i.quantity_requested
     })));
     setRequestObservation(request.observation || '');
     setEditingRequest(request);
@@ -1963,7 +1958,7 @@ export default function App() {
         </head>
         <body>
           ${filteredRequests.map((req, idx) => {
-            const reqItems = allRequestItems.filter(ri => ri.request_id === req.id);
+            const items = allRequestItems.filter(ri => ri.request_id === req.id);
             return `
               <div class="request-card">
                 <h1>SolicitaÃ§Ã£o de Material</h1>
@@ -1993,48 +1988,14 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    ${reqItems.map(item => {
-                      const activeBatches = items.filter((it: any) => !it.deletedAt && normalizeString(it.name) === normalizeString(item.product_name) && (it.quantity || 0) > 0);
-                      const hasMultipleBatches = activeBatches.length > 1;
-                      const selectedBatch = item.batch_id ? items.find((it: any) => it.id === item.batch_id) : null;
-                      
-                      let lotesInfoHtml = '';
-                      if (selectedBatch) {
-                        lotesInfoHtml = `<div style="font-size: 8px; color: #1D4ED8; font-weight: bold; margin-top: 2px;">â€¢ Lote Solicitado: <strong>${selectedBatch.batch_number || 'Sem Lote'}</strong> (Disp: ${selectedBatch.quantity} un | Venc: ${selectedBatch.expiry_date || 'Indet.'})</div>`;
-                      } else if (hasMultipleBatches) {
-                        lotesInfoHtml = `
-                          <div style="font-size: 8px; color: #B45309; font-weight: bold; margin-top: 2px; background-color: #FEF3C7; padding: 2px 4px; border-radius: 3px; display: inline-block;">
-                            âš ï¸ AtenÃ§Ã£o: ${activeBatches.length} Lotes no Estoque
-                          </div>
-                          <div style="font-size: 7.5px; color: #44403C; margin-top: 2px; padding-left: 4px; border-left: 2px solid #F59E0B;">
-                            ${activeBatches.map((b: any) => `â€¢ Lote: <strong>${b.batch_number || 'S/L'}</strong> (Disp: ${b.quantity} un | Venc: ${b.expiry_date || 'Indet.'})`).join('<br/>')}
-                          </div>
-                        `;
-                      } else if (activeBatches.length === 1 && activeBatches[0].batch_number) {
-                        lotesInfoHtml = `<div style="font-size: 8px; color: #57534E; margin-top: 2px;">â€¢ Lote: ${activeBatches[0].batch_number} (Disp: ${activeBatches[0].quantity} un | Venc: ${activeBatches[0].expiry_date || 'Indet.'})</div>`;
-                      }
-
-                      let obsLoteCol = '';
-                      if (selectedBatch) {
-                        obsLoteCol = `<strong>${selectedBatch.batch_number || '---'}</strong>`;
-                      } else if (hasMultipleBatches) {
-                        obsLoteCol = `<span style="font-size: 7.5px; color: #B45309; font-weight: bold;">[MÃºltiplos Lotes]<br/>Anotar Lote: _________</span>`;
-                      } else if (activeBatches.length === 1) {
-                        obsLoteCol = activeBatches[0].batch_number || '---';
-                      }
-
-                      return `
-                        <tr>
-                          <td style="font-size: 8.5px; vertical-align: top;">
-                            <strong>${item.product_name}</strong>
-                            ${lotesInfoHtml}
-                          </td>
-                          <td style="text-align: center; font-size: 8.5px; font-weight: bold; vertical-align: top;">${item.quantity_requested}</td>
-                          <td class="blank-col" style="border-bottom: 1px solid #1C1917; vertical-align: top;"></td>
-                          <td style="border-bottom: 1px solid #1C1917; font-size: 8px; vertical-align: top;">${obsLoteCol}</td>
-                        </tr>
-                      `;
-                    }).join('')}
+                    ${items.map(item => `
+                      <tr>
+                        <td style="font-weight: bold; font-size: 8.5px;">${item.product_name}</td>
+                        <td style="text-align: center; font-size: 8.5px; font-weight: bold;">${item.quantity_requested}</td>
+                        <td class="blank-col" style="border-bottom: 1px solid #1C1917;"></td>
+                        <td style="border-bottom: 1px solid #1C1917;"></td>
+                      </tr>
+                    `).join('')}
                   </tbody>
                 </table>
 
@@ -2136,7 +2097,7 @@ export default function App() {
       return;
     }
 
-    const reqItems = allRequestItems.filter(ri => ri.request_id === request.id);
+    const items = allRequestItems.filter(ri => ri.request_id === request.id);
     const dateStr = new Date(request.date).toLocaleDateString('pt-BR');
 
     const content = `
@@ -2188,48 +2149,14 @@ export default function App() {
               </tr>
             </thead>
             <tbody>
-              ${reqItems.map(item => {
-                const activeBatches = items.filter((it: any) => !it.deletedAt && normalizeString(it.name) === normalizeString(item.product_name) && (it.quantity || 0) > 0);
-                const hasMultipleBatches = activeBatches.length > 1;
-                const selectedBatch = item.batch_id ? items.find((it: any) => it.id === item.batch_id) : null;
-                
-                let lotesInfoHtml = '';
-                if (selectedBatch) {
-                  lotesInfoHtml = `<div style="font-size: 11px; color: #1D4ED8; font-weight: bold; margin-top: 4px;">â€¢ Lote Solicitado: <strong>${selectedBatch.batch_number || 'Sem Lote'}</strong> (Disp: ${selectedBatch.quantity} un | Venc: ${selectedBatch.expiry_date || 'Indeterminado'})</div>`;
-                } else if (hasMultipleBatches) {
-                  lotesInfoHtml = `
-                    <div style="font-size: 11px; color: #B45309; font-weight: bold; margin-top: 4px; background-color: #FEF3C7; padding: 4px 8px; border-radius: 4px; display: inline-block;">
-                      âš ï¸ AtenÃ§Ã£o: Material com ${activeBatches.length} Lotes no Estoque
-                    </div>
-                    <div style="font-size: 10.5px; color: #44403C; margin-top: 4px; padding-left: 6px; border-left: 3px solid #F59E0B;">
-                      ${activeBatches.map((b: any) => `â€¢ Lote: <strong>${b.batch_number || 'S/L'}</strong> (Saldo: ${b.quantity} un | Venc: ${b.expiry_date || 'Indeterminado'})`).join('<br/>')}
-                    </div>
-                  `;
-                } else if (activeBatches.length === 1 && activeBatches[0].batch_number) {
-                  lotesInfoHtml = `<div style="font-size: 11px; color: #57534E; margin-top: 3px;">â€¢ Lote DisponÃ­vel: ${activeBatches[0].batch_number} (Saldo: ${activeBatches[0].quantity} un | Venc: ${activeBatches[0].expiry_date || 'Indet.'})</div>`;
-                }
-
-                let obsLoteCol = '';
-                if (selectedBatch) {
-                  obsLoteCol = `<strong>${selectedBatch.batch_number || '---'}</strong>`;
-                } else if (hasMultipleBatches) {
-                  obsLoteCol = `<span style="font-size: 10px; color: #B45309; font-weight: bold;">[MÃºltiplos Lotes]<br/>Anotar Lote: _____________</span>`;
-                } else if (activeBatches.length === 1) {
-                  obsLoteCol = activeBatches[0].batch_number || '---';
-                }
-
-                return `
-                  <tr>
-                    <td style="font-size: 12px; vertical-align: top;">
-                      <strong>${item.product_name}</strong>
-                      ${lotesInfoHtml}
-                    </td>
-                    <td style="text-align: center; font-size: 13px; font-weight: bold; vertical-align: top;">${item.quantity_requested}</td>
-                    <td class="blank-col" style="border-bottom: 1px solid #1C1917; vertical-align: top;"></td>
-                    <td style="border-bottom: 1px solid #1C1917; font-size: 11px; vertical-align: top;">${obsLoteCol}</td>
-                  </tr>
-                `;
-              }).join('')}
+              ${items.map(item => `
+                <tr>
+                  <td style="font-weight: bold;">${item.product_name}</td>
+                  <td style="text-align: center; font-size: 14px; font-weight: bold;">${item.quantity_requested}</td>
+                  <td class="blank-col" style="border-bottom: 1px solid #1C1917;"></td>
+                  <td style="border-bottom: 1px solid #1C1917;"></td>
+                </tr>
+              `).join('')}
             </tbody>
           </table>
 
@@ -2260,7 +2187,7 @@ export default function App() {
     printWindow.document.close();
   };
 
-  const handleApproveAndDeliverNewRequest = async (requestId: string, currentRequestItems: RequestItem[], targetSector?: string) => {
+  const handleApproveAndDeliverNewRequest = async (requestId: string, currentRequestItems: RequestItem[]) => {
     try {
       showToast("Processando aprovaÃ§Ã£o e baixa no estoque...", "info");
       
@@ -2296,15 +2223,9 @@ export default function App() {
           if (b.expiry_date === 'Indeterminada' || !b.expiry_date) return -1;
           return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
         });
-        if (reqItem.batch_id) {
-          const chosenBatch = batches.find(b => b.id === reqItem.batch_id);
-          if (chosenBatch) {
-            batches = [chosenBatch, ...batches.filter(b => b.id !== reqItem.batch_id)];
-          }
-        }
 
         let pharmItems: any[] = [];
-        if (finalDestinationSector === 'FarmÃ¡cia') {
+        if (requestData.sector === 'FarmÃ¡cia') {
           pharmItems = allActiveItems
             .filter(item => normalizeString(item.name) === normalizedReqName && item.location === 'FarmÃ¡cia')
             .map(item => ({ id: item.id, batch_number: item.batch_number, ref: doc(db, 'items', item.id) }));
@@ -2312,8 +2233,6 @@ export default function App() {
 
         itemsStockData.push({ reqItem, batches, pharmItems });
       }
-
-      const itemBatchesAllocated: Record<string, string[]> = {};
 
       await runTransaction(db, async (transaction) => {
         // Collect all batch and pharmacy refs to read them all first
@@ -2338,7 +2257,6 @@ export default function App() {
         // First update the main request document
         transaction.update(requestRef, { 
           status: 'ENTREGUE',
-          sector: finalDestinationSector,
           adminObservation: adminObservation,
           deliveredAt: new Date().toISOString(),
           deliveredBy: user?.email,
@@ -2372,15 +2290,6 @@ export default function App() {
               updatedAt: serverTimestamp()
             });
 
-            if (batch.batch_number) {
-              if (!itemBatchesAllocated[reqItem.product_name]) {
-                itemBatchesAllocated[reqItem.product_name] = [];
-              }
-              if (!itemBatchesAllocated[reqItem.product_name].includes(batch.batch_number)) {
-                itemBatchesAllocated[reqItem.product_name].push(batch.batch_number);
-              }
-            }
-
             // Log Transaction
             const transRef = doc(collection(db, 'transactions'));
             transaction.set(transRef, {
@@ -2389,7 +2298,7 @@ export default function App() {
               type: 'exit',
               origin: batch.origin || 'extra',
               quantity: toTake,
-              sector: finalDestinationSector,
+              sector: requestData.sector,
               location: batch.location || 'Almoxarifado',
               date: new Date().toISOString(),
               responsible: user?.displayName || user?.email,
@@ -2399,7 +2308,7 @@ export default function App() {
               expiry_date: batch.expiry_date
             });
 
-            if (finalDestinationSector === 'FarmÃ¡cia' && batch.location !== 'FarmÃ¡cia') {
+            if (requestData.sector === 'FarmÃ¡cia' && batch.location !== 'FarmÃ¡cia') {
               const existingPharm = pharmItems.find((p: any) => p.batch_number === batch.batch_number);
               if (existingPharm) {
                 const tPharmRef = existingPharm.ref;
@@ -2455,16 +2364,32 @@ export default function App() {
       }
 
       // Receipt
-      const itemsForReceipt = currentRequestItems.filter(i => i.quantity_approved > 0).map(i => ({
-        product_name: i.product_name,
-        quantity: i.quantity_approved,
-        batch_number: (itemBatchesAllocated[i.product_name] && itemBatchesAllocated[i.product_name].length > 0)
-          ? itemBatchesAllocated[i.product_name].join(', ')
-          : (items.find(it => it.name === i.product_name && it.batch_number)?.batch_number || '---')
-      }));
+      const itemsForReceipt: { product_name: string; quantity: number; batch_number: string }[] = [];
+      for (const { reqItem, batches } of itemsStockData) {
+        let remaining = reqItem.quantity_approved;
+        for (const batch of batches) {
+          if (remaining <= 0) break;
+          const available = batch.quantity || 0;
+          if (available <= 0) continue;
+          const toTake = Math.min(available, remaining);
+          itemsForReceipt.push({
+            product_name: reqItem.product_name,
+            quantity: toTake,
+            batch_number: batch.batch_number || '---'
+          });
+          remaining -= toTake;
+        }
+        if (remaining > 0 && !itemsForReceipt.some(i => i.product_name === reqItem.product_name)) {
+          itemsForReceipt.push({
+            product_name: reqItem.product_name,
+            quantity: reqItem.quantity_approved,
+            batch_number: '---'
+          });
+        }
+      }
       if (itemsForReceipt.length > 0) {
         handleExportDeliveryReceiptPDF({
-          sector: finalDestinationSector,
+          sector: requestData.sector,
           items: itemsForReceipt,
           requestId: requestId,
           date: new Date().toISOString()
@@ -2934,7 +2859,7 @@ export default function App() {
     }
   };
 
-  const handleDeliverRequest = async (requestId: string, requestItems: RequestItem[], targetSector?: string) => {
+  const handleDeliverRequest = async (requestId: string, requestItems: RequestItem[]) => {
     try {
       showToast("Processando entrega... Aguarde.", "info");
       
@@ -2970,15 +2895,9 @@ export default function App() {
           if (b.expiry_date === 'Indeterminada' || !b.expiry_date) return -1;
           return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
         });
-        if (reqItem.batch_id) {
-          const chosenBatch = batches.find(b => b.id === reqItem.batch_id);
-          if (chosenBatch) {
-            batches = [chosenBatch, ...batches.filter(b => b.id !== reqItem.batch_id)];
-          }
-        }
 
         let pharmItems: any[] = [];
-        if (finalDestinationSector === 'FarmÃ¡cia') {
+        if (requestData.sector === 'FarmÃ¡cia') {
           pharmItems = allActiveItems
             .filter(item => normalizeString(item.name) === normalizedReqName && item.location === 'FarmÃ¡cia')
             .map(item => ({ id: item.id, batch_number: item.batch_number, ref: doc(db, 'items', item.id) }));
@@ -2986,8 +2905,6 @@ export default function App() {
 
         itemsStockData.push({ reqItem, batches, pharmItems });
       }
-
-      const itemBatchesAllocated: Record<string, string[]> = {};
 
       await runTransaction(db, async (transaction) => {
         // Collect all batch and pharmacy refs to read them all first
@@ -3011,7 +2928,6 @@ export default function App() {
         // 2. Perform ALL writes
         transaction.update(requestRef, { 
           status: 'ENTREGUE',
-          sector: finalDestinationSector,
           deliveredAt: new Date().toISOString(),
           deliveredBy: user?.email,
           updatedAt: serverTimestamp()
@@ -3038,15 +2954,6 @@ export default function App() {
               updatedAt: serverTimestamp()
             });
 
-            if (batch.batch_number) {
-              if (!itemBatchesAllocated[reqItem.product_name]) {
-                itemBatchesAllocated[reqItem.product_name] = [];
-              }
-              if (!itemBatchesAllocated[reqItem.product_name].includes(batch.batch_number)) {
-                itemBatchesAllocated[reqItem.product_name].push(batch.batch_number);
-              }
-            }
-
             // Log Transaction
             const transRef = doc(collection(db, 'transactions'));
             transaction.set(transRef, {
@@ -3055,7 +2962,7 @@ export default function App() {
               type: 'exit',
               origin: batch.origin || 'extra',
               quantity: toTake,
-              sector: finalDestinationSector,
+              sector: requestData.sector,
               location: batch.location || 'Almoxarifado',
               date: new Date().toISOString(),
               responsible: user?.displayName || user?.email,
@@ -3065,7 +2972,7 @@ export default function App() {
               expiry_date: batch.expiry_date
             });
 
-            if (finalDestinationSector === 'FarmÃ¡cia' && batch.location !== 'FarmÃ¡cia') {
+            if (requestData.sector === 'FarmÃ¡cia' && batch.location !== 'FarmÃ¡cia') {
               const existingPharm = pharmItems.find((p: any) => p.batch_number === batch.batch_number);
               if (existingPharm) {
                 const tPharmRef = existingPharm.ref;
@@ -3121,13 +3028,29 @@ export default function App() {
       }
 
       // Receipt
-      const itemsForReceipt = requestItems.filter(i => i.quantity_approved > 0).map(i => ({
-        product_name: i.product_name,
-        quantity: i.quantity_approved,
-        batch_number: (itemBatchesAllocated[i.product_name] && itemBatchesAllocated[i.product_name].length > 0)
-          ? itemBatchesAllocated[i.product_name].join(', ')
-          : (items.find(it => it.name === i.product_name && it.batch_number)?.batch_number || '---')
-      }));
+      const itemsForReceipt: { product_name: string; quantity: number; batch_number: string }[] = [];
+      for (const { reqItem, batches } of itemsStockData) {
+        let remaining = reqItem.quantity_approved;
+        for (const batch of batches) {
+          if (remaining <= 0) break;
+          const available = batch.quantity || 0;
+          if (available <= 0) continue;
+          const toTake = Math.min(available, remaining);
+          itemsForReceipt.push({
+            product_name: reqItem.product_name,
+            quantity: toTake,
+            batch_number: batch.batch_number || '---'
+          });
+          remaining -= toTake;
+        }
+        if (remaining > 0 && !itemsForReceipt.some(i => i.product_name === reqItem.product_name)) {
+          itemsForReceipt.push({
+            product_name: reqItem.product_name,
+            quantity: reqItem.quantity_approved,
+            batch_number: '---'
+          });
+        }
+      }
       handleExportDeliveryReceiptPDF({
         sector: requestData.sector,
         items: itemsForReceipt,
@@ -3515,8 +3438,7 @@ export default function App() {
           return {
             product_name: foundItem?.name || 'Produto NÃ£o Identificado',
             quantity: b.quantity,
-            batch_number: foundItem?.batch_number || '',
-            expiry_date: foundItem?.expiry_date || ''
+            batch_number: foundItem?.batch_number || '---'
           };
         });
         
@@ -4673,7 +4595,7 @@ export default function App() {
   const handleExportDonationTermPDF = async (data: {
     donatingUnitName?: string;
     receivingUnit: { name: string; address: string; cnpj: string };
-    items: { product_name: string; quantity: number; batch_number?: string; expiry_date?: string }[];
+    items: { product_name: string; quantity: number; batch_number?: string }[];
     revisionDate: string;
     donationNumber?: string;
     date: string;
@@ -4856,7 +4778,7 @@ export default function App() {
         head: [['DescriÃ§Ã£o do Material', 'Lote', 'Qtd Doada', 'ConferÃªncia']],
         body: data.items.map(i => [
           i.product_name, 
-          (i.batch_number && i.batch_number.trim() !== '') ? i.batch_number : '---',
+          (i.batch_number || '---').toUpperCase(), 
           i.quantity.toString(), 
           ' '
         ]),
@@ -4879,7 +4801,7 @@ export default function App() {
         },
         columnStyles: {
           0: { cellWidth: 'auto' },
-           1: { cellWidth: 32, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
           2: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
           3: { cellWidth: 35, halign: 'center' }
         },
@@ -5292,7 +5214,7 @@ export default function App() {
 
   const handleExportDeliveryReceiptPDF = async (data: {
     sector: string;
-    items: { product_name: string; quantity: number; batch_number?: string; expiry_date?: string; unit_measure?: string }[];
+    items: { product_name: string; quantity: number; batch_number?: string }[];
     requestId?: string;
     date: string;
   }) => {
@@ -5425,7 +5347,7 @@ export default function App() {
       // Materials Table
       const tableData = data.items.map(i => [
         i.product_name.toUpperCase(), 
-        (i.batch_number && i.batch_number.trim() !== '') ? i.batch_number.toUpperCase() : '---',
+        (i.batch_number || '---').toUpperCase(),
         i.quantity.toString(), 
         '_________________'
       ]);
@@ -5450,7 +5372,7 @@ export default function App() {
         },
         columnStyles: {
           0: { cellWidth: 'auto' },
-           1: { cellWidth: 32, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
           2: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
           3: { cellWidth: 40, halign: 'center' }
         },
@@ -8051,12 +7973,7 @@ export default function App() {
                                         address: t.donationUnitAddress || '',
                                         cnpj: t.donationUnitCNPJ || ''
                                       },
-                                      items: [{ 
-                                        product_name: t.item_name, 
-                                        quantity: t.quantity,
-                                        batch_number: t.batch_number || '',
-                                        expiry_date: t.expiry_date || ''
-                                      }],
+                                      items: [{ product_name: t.item_name, quantity: t.quantity, batch_number: t.batch_number || '---' }],
                                       revisionDate: t.donationRevisionDate || '',
                                       donationNumber: t.donationNumber,
                                       date: t.date
@@ -8064,12 +7981,7 @@ export default function App() {
                                   } else {
                                     handleExportDeliveryReceiptPDF({
                                       sector: t.sector || 'Sem Setor',
-                                      items: [{ 
-                                        product_name: t.item_name, 
-                                        quantity: t.quantity,
-                                        batch_number: t.batch_number || '',
-                                        expiry_date: t.expiry_date || ''
-                                      }],
+                                      items: [{ product_name: t.item_name, quantity: t.quantity, batch_number: t.batch_number || '---' }],
                                       date: t.date
                                     });
                                   }
@@ -10254,46 +10166,31 @@ export default function App() {
                               );
                             }
 
-                            return filtered.map(group => {
-                              const groupBatches = items.filter(i => !i.deletedAt && normalizeString(i.name) === normalizeString(group.name) && (i.quantity || 0) > 0);
-                              const groupTotal = groupBatches.reduce((s, i) => s + (i.quantity || 0), 0);
-                              const hasMulti = groupBatches.length > 1;
-
-                              return (
-                                <button
-                                  key={group.name}
-                                  type="button"
-                                  onClick={() => {
-                                    const existing = requestBasket.find(bi => bi.product_name === group.name);
-                                    if (existing) {
-                                      setRequestBasket(requestBasket.map(bi => bi.product_name === group.name ? { ...bi, quantity: bi.quantity + 1 } : bi));
-                                    } else {
-                                      setRequestBasket([...requestBasket, { product_id: group.id, product_name: group.name, quantity: 1 }]);
-                                    }
-                                    setRequestSearchTerm('');
-                                  }}
-                                  className="w-full px-6 py-4 text-left hover:bg-[#F5F5F4] transition-all flex items-center justify-between border-b border-[#F5F5F4] last:border-none"
-                                >
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <p className="font-bold text-[#1C1917]">{group.name}</p>
-                                      {hasMulti && (
-                                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-black uppercase rounded">
-                                          {groupBatches.length} lotes
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">
-                                      {group.category} â€¢ Saldo: {groupTotal} un
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-emerald-600">
-                                    <Plus size={16} />
-                                    <span className="text-xs font-bold">Adicionar</span>
-                                  </div>
-                                </button>
-                              );
-                            });
+                            return filtered.map(group => (
+                              <button
+                                key={group.name}
+                                type="button"
+                                onClick={() => {
+                                  const existing = requestBasket.find(bi => bi.product_name === group.name);
+                                  if (existing) {
+                                    setRequestBasket(requestBasket.map(bi => bi.product_name === group.name ? { ...bi, quantity: bi.quantity + 1 } : bi));
+                                  } else {
+                                    setRequestBasket([...requestBasket, { product_id: group.id, product_name: group.name, quantity: 1 }]);
+                                  }
+                                  setRequestSearchTerm('');
+                                }}
+                                className="w-full px-6 py-4 text-left hover:bg-[#F5F5F4] transition-all flex items-center justify-between border-b border-[#F5F5F4] last:border-none"
+                              >
+                                <div>
+                                  <p className="font-bold text-[#1C1917]">{group.name}</p>
+                                  <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">{group.category}</p>
+                                </div>
+                                <div className="flex items-center gap-2 text-emerald-600">
+                                  <Plus size={16} />
+                                  <span className="text-xs font-bold">Adicionar</span>
+                                </div>
+                              </button>
+                            ));
                           })()}
                         </motion.div>
                       )}
@@ -10303,62 +10200,26 @@ export default function App() {
                   {requestBasket.length > 0 && (
                     <div className="space-y-3">
                       <label className="block text-xs font-bold text-[#A8A29E] uppercase tracking-widest">Itens na Cesta</label>
-                      {requestBasket.map(item => {
-                        const productBatches = items.filter(i => !i.deletedAt && normalizeString(i.name) === normalizeString(item.product_name) && (i.quantity || 0) > 0);
-                        const hasMultipleBatches = productBatches.length > 1;
-
-                        return (
-                          <div key={item.product_id} className="p-4 bg-[#FAFAF9] rounded-2xl border border-[#E7E5E4] space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-bold text-sm text-[#1C1917]">{item.product_name}</p>
-                                {hasMultipleBatches ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md mt-1">
-                                    ğŸ·ï¸ {productBatches.length} Lotes DisponÃ­veis
-                                  </span>
-                                ) : productBatches.length === 1 && productBatches[0].batch_number ? (
-                                  <span className="text-[11px] font-medium text-[#78716C]">
-                                    Lote: {productBatches[0].batch_number} (Venc: {productBatches[0].expiry_date || 'Indet.'})
-                                  </span>
-                                ) : null}
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <input 
-                                  type="number" 
-                                  min="1"
-                                  value={item.quantity}
-                                  onChange={(e) => setRequestBasket(requestBasket.map(bi => bi.product_id === item.product_id ? { ...bi, quantity: parseInt(e.target.value) || 1 } : bi))}
-                                  className="w-20 px-3 py-1 bg-white border border-[#E7E5E4] rounded-lg text-center font-bold text-sm"
-                                />
-                                <button 
-                                  onClick={() => setRequestBasket(requestBasket.filter(bi => bi.product_id !== item.product_id))}
-                                  className="text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition-all"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
-                            </div>
-                            
-                            {hasMultipleBatches && (
-                              <div className="pt-2 border-t border-[#E7E5E4] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                <label className="text-[11px] font-bold text-[#57534E]">Escolha o Lote Desejado:</label>
-                                <select
-                                  value={item.batch_id || ''}
-                                  onChange={(e) => setRequestBasket(requestBasket.map(bi => bi.product_id === item.product_id ? { ...bi, batch_id: e.target.value } : bi))}
-                                  className="text-xs font-bold bg-white border border-amber-200 text-amber-950 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-amber-500/20"
-                                >
-                                  <option value="">AutomÃ¡tico (FEFO - Primeiro que vence)</option>
-                                  {productBatches.map(b => (
-                                    <option key={b.id} value={b.id}>
-                                      Lote {b.batch_number || 'Sem Lote'} ({b.quantity} un - Venc: {b.expiry_date || 'Indet.'})
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            )}
+                      {requestBasket.map(item => (
+                        <div key={item.product_id} className="flex items-center justify-between p-4 bg-[#FAFAF9] rounded-2xl border border-[#E7E5E4]">
+                          <p className="font-bold text-sm">{item.product_name}</p>
+                          <div className="flex items-center gap-4">
+                            <input 
+                              type="number" 
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => setRequestBasket(requestBasket.map(bi => bi.product_id === item.product_id ? { ...bi, quantity: parseInt(e.target.value) || 1 } : bi))}
+                              className="w-20 px-3 py-1 bg-white border border-[#E7E5E4] rounded-lg text-center font-bold text-sm"
+                            />
+                            <button 
+                              onClick={() => setRequestBasket(requestBasket.filter(bi => bi.product_id !== item.product_id))}
+                              className="text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition-all"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -10508,125 +10369,267 @@ export default function App() {
               {/* Subtab Content */}
               {devolutionSubTab === 'my_returns' && (
                 <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-                  <div className="p-6 border-b border-slate-10xœì}MsÛH–à}~E–Ê;¤ºMŠ¢$hdyU’ìv-©$¹¦7"RÚ À@}´J±‡=íiö´·Ú>tLGô©b.sÕ?™_²ïe&€™HP”- »dòó½—ïûõæÖÿ(®µ“%2ğ8ŞqFôÉ\BÏ“Î‘SrğÉw»ûNB;{½¹õßyqrıkäBâRrúŞÀKœë¿^ÿñÎ=ı	|ÿK¸¶p²¤éx\é÷<–»Zéõø FÔõ&£¹õA8;Á	%!qŞ’à·±ÑˆëÄ$®ÇÍ‡CÜÄtÿ%aÔ][«Æ¶¶àz§ëÿ ú~G=î,“x´:î< ñØĞÎEgI³Î—ıÓ„ÆI¬ü•î±ç'4jGäÉ:‰º1ÀÉ“'O`¬>|¡î¿õÿ?{ñ>M&Q€ß¾‹º.<Ol$óºÖGÎ¸#ÀÆ/5Ï2ƒ8!ğØ‹„bò„8¾¿Ï‡ÍîdcôØ ½®˜Ó;Ïe#…¯]Ïÿ'mt[û€XbÃï„| O.yWWæ'¥:fPµğ GÂÈxáÿˆ_ú=öÓIxJ£Uñ‹3:‚¿ğ‰ÂIàR·Ó?÷I¶í+$‰œ ö/:°XéËCñ"t¶@ìÓsö§3}|‘}Â3üìáÂv Ê0?NâÄ;¾èÑäŒÒ€èjÎ0G5¬ÖRZ„Fû|4‹PÕ7Ïä,rÆ¤0vk¿¶EhF-š" ‚C`=ÏN 32>ïô»+d|ÑYÌ6ÄêvÓb0„|/@©Ù íÎÊ|7	_Ç4Ú*Ø¿ªŸĞÎhŠ‰›h^LGŞQè»Vsø¯ıä2 gdÚ@4ïºğ'ò28>ÅÛIäÃvkœt~Øoİâ´.ß³ù¼YìÏßÊ§lŞRqë'€2\ë8€Kƒ0ÈÎ™—o'¹§§Wù…s'™ÄŒµ¶¶Ú}ùzsc÷İŞöÎÖöÎáv‹<%-	1ùªóo{)EÈ¾EVoÔïÆŞşîO[i¿tD#Çw³ÓïRßé­ô¾¿½ùú@ê=
-cšuÍ¾Hı²ïÖ¶2RºØëÉ°+µ˜¡`«¶Á«÷W6 ~i¹Ãù›¹ØîŸø²{ãVû"¾4ouvÈË–•ŸÊûÔ‰CÆP˜ç¬%1+ =P/ÉqBÎ¿ è,<êIô¼ÿ¤dadGõy&Şi¸ZEıÙ/Q-©Ô³‹…§ÌG)‹¸‰Å±Ì÷³dÈØá9Œ™ıÆ1
-_cL”âLÊ·Pwæ¦g²æğ•)n}|â¸á°O±åæòá£Ğ’wŒî
-ŸDa0¬8#ãsëmşŞŸ&NxÉÅ;Á¢R÷jvœ½nÓ¿5tÌ<‡G1Nä&íğĞJ†YX›lÃÇN-ÛKàgU[¸hÉ?Í•G~eâWÓ%QÊ]òU³¬6‹ºv4IXÉšÂ`–çÃ“Ëö<âH†'á™{¶hâxş«Ğuüö%Àpx¶
-lÊ„Ş'®Vñ¹ª…•(ò8Å’Œ¹]F4ëK¤6§Š‘™‘cWIÈoğxÜ¡‹¢û,¸uÖ%—‚)y×ê¶ë'h×Ê?¡:—_k|WLŠÍÕı¬•/qÌ²÷Œ„ì®OƒarÂ^ì™0µª/XìóÛPBÕL@3 ŞÚ~L İœÉ-Î;Î$	å— ƒIìıXòåŞY049®ÊcÙéJLŞÜúN&#GVµü%,kZhpê9®£S²¨zV°¹õ×‰çÃ<H$*Á¶İÏ¥š§HÖ8Í¡6È´z@îá·Õa°:şp2"#h:òŸ8Ğ–?
-ÏÈ;”1Ö •Jì×<¯¼]ÜK¾”ˆÑ“£Cçˆs’bßÅI8øĞRC^æ²ƒ:¥)KŠßç<YN;ÌûğùÄs](a²
-áÒVl”iTÀü1¶gÖ›Àöà6“öe—ñÜŸò Û†M¡8:r`NœÈ…Å#2\ÇHÚ^0ğ'±wJÉ)ÆóBÙÃÛáí¨%ÛüØÓ	Ù\%8˜D,¾ |ä	×ş¤•iµhş—SO„Zíƒm¯ë‡Î)ÈòÏ?“véC‹gN4ºşeà9'JmH¿ÎÏ{÷2¶‘¬“æ18~4¿xÇ¤]]©Âa1oĞ¾Ú*Gg|°v÷ Çœ!Ù‰ÂêTa`…ˆMsÄ6jëuê“a‹Grœ‚ÅÇÔqÇ/"±ãÃïùî“0ÆQ½q„¡Ašx"‹SÏCBá$5ÇŞxğ	èQÀŸ,!ÖéşéùØ‹¨‹ØoóÏì]ƒNŸ¿P'b/\°ww²¯éëÁ&É³–FË÷â´ÓíßP_¯ÈL¿V~*èôV*Š¼¢ƒİ]Bõ^mÃ«ò>Z#³t,W•¨*cŠíHZJ“­Æ¬t¼zo’Õ¦3¨ ææ.›TŠÔ–1P[˜ZÅZYÈ^“•C€[Ğæ'WÁäSUŞÈäSÉGÕBç)?Õúå«ö}Xì•)9Ğ(_Í6­µÑX²©lø4JY†>œÄb9	ògg¹Erv«-Y$Åvi½3ªw×Üñ=V(Ù‹®=yzÆK?óÕ.XÌrƒZuÅÓ_Ò5o´â–+»="ÀçİA3Cc‰¶vd?2™ˆ
-ğâBŞ^Õ:%Z.5©lu%Èï$ğ’w#êÄ“ˆ¢d×‚n«áitä$ƒ“wÁ‘ÌúDZgó—ab=‡ù4äÓÁ®ÕˆBxÙœ¬v<\¼C>“fË÷¾C™ö@2Pƒ‘8®£Ñig¢~uö—ïóéß“ªV~º<`†bq'[Úqs„ò Í¾³\Åz)ñÖLõ
- hnez½œøMÚolüR3˜ç®!æÜoğ²yâEühójŠ­âµô«Í«#çüÇ©^LU;? Š½È§ZïDğÖ  æ­K‹ÏíÄm	ÂÂ`{Eù„R2‰ÃVÓ¶wsc˜ÔÁûW©PèQÅpoZ”yÃ´Ú³òÑUYäª¶+{ûÖå{+C?×ol¶Ò1HĞµ…ãµÄ]¹ä‚í0ç¸sK…x›
-¸œ9,4˜3•R‹uÛc”iëÍw’MIğˆËŒGÜ’TÔ’ŠúšøÔ¿\Í«=õnÅC}oèùôŸ`u<Õ¶˜í ‰èĞ‰	Ußû³ƒ^Ø0ÇÜíØM{F­ì‘Ç:>r¼ó+fcñ‚	ı-ÍŒ.Ÿ±ï·ìY¶½s¸¿ıüõvë›#¸éÉïş…ù|	Ş‚L}9ßÌÑ›AÌ°j¥¸ F”/ğ}t´*s ¥öêP«îVÉûÍı@”Õ³¹³ÚŒ»ã¤i#îqúëøuÜî„Är%×FñÃÏ?“^½$“õ‘ã°Ì•1Œ§Ğ`§Ü·Më4=¿8jX=ÚÈº—_•ˆ+¯Ö1üÊWsÁ¬ßK%
-¥+ı2|õ½€v’Üğ¤êWß¤#.jpºZòÊ-ŸnÓÙ?ë½÷ùeƒ¦xÙ©VÕ®¿íËl¥¯.Õp{E\/wu¼Oñ²%âi$¿ê@k$é‘O¢™â¤áˆ©¤R¦¯@¾8«wây3%]rs7#\¼mnL÷DãŠ“ Şß1È+83ej5ÎúzÀµ€ŒrÚY(uf§,«K£µk"Wfûa÷bªløZE-£æZxPqçŞôŞ>íòZ6ìÊ»Ë`P ?è,fòpI/ô“0ÌÚ1LZ‰“ğì0tâ¤=wºaœ{&¹ }9©<Lşxıœu‘3"I˜8>J§¢/: vçî“9/8ç€§Å2Õ/J.-É”ZÜêkg¥S­ÌPÃ:WP6 `â—JÛ¨ÔÅÆ#…ÎU£½YA¦kzrïË	$°ÓØ|‹*àQ)ƒ…^ÿı”úph€ÏÙD¤ùàà /v®Y¦J„®şäúï¨LlÏ¥Û57ÏQ½È”#ûo_ÿ­ãs}§pı„1ÅgF!"s·ô¨ôØÚÂFà¡÷ú^DcXcš>ïÂùœq¢—¿!ŒÂÅä7éë—Hë6\—ıP„ÖŠíkæ°è¦âa4ˆùÂ¿náÎ$B˜ø3)W5N©L|w@y-Ÿj‘1&#ñÿÉ%fT1¬’^÷ñ}B0ş¥W&»_é…EéñÅòã*Õş÷/^§sÖYò›Râ7ËÌ­°U’±øƒ'7{§'os5ÿC<™¢÷[©©(«k8:ê<ª€55|)Œ h©(ëïŞ|¿¸¹øxñá[n@-Ksú­Öı+ôÍ÷=\|°ù¶¨ïßDK`%]ÿ§Ÿxc_âv˜	à”şYlJìĞÊMêğ¿°ÛÇ õT›òÛÏÏÓ7ß?[ÿ-¿-zI‡ë ôÃ(.Ÿ•Šuúƒ ³ıåj„î›ï7môo¿«R`õÉ¨.×€GfÜyÉ“Ë'p}
-sGfìJ¥E®B‡Íp4‚µ}æQß	|{‘ÓŠ¬¿ª9Ökş÷ñâQ*K}D•¢¶÷Í÷Û·W¶ai‡ğ÷ø3î,’‘»ší(}]fj»Š³¯<xŞè Z@£ß[ó#8ä)ø¡¤Í®"H
-Øw3;/á`~‚´: .ZÌX'Êî½`<Ñèy‘3A[¶òGÎ-ØD„ï¡i2B×°I8äWr16§îms¤'pšÓèÉÜN²¯¢Ä!æ nUZ6A$S†uINï¹ÄÏ‡ƒI¼ŠŠb´jä_2rÄ’î¤ü†z,§?Ü:šøt]tÓÅQ³á@% 9†ğTâ‡ôÍöe·ÛÍÚ¹OÒ†V	í&N4¤I—uV22(Ï{7¥aî40zcl‰d„´7¹›µçÌ›@[u™MŒÿØ¡g¢õ‹5ôN¾ª€rÔöÃŞ5à¿$„1<UíşÓ! ¿Jx|ê ,›häëÓ1‰®UÌÙ)¾Ü.¢‰Q‘Š<Ñ3œ¯ö“<R¯:åÛÈŸ3-C#õ*ª}JÖM"oÔ¯WúÀr¥èCã6È+§ØßF9İã(aÃèhÑ~‡?ß'ê®ŞÎÏ×ª LT-•XÕ´_¯àPì¼…²EğceD|™ùm$Õ-eE`UAÕ(›c¤VŒê‰=§WÌ²t¶Ã$X|ñ×=rE†	[î9«œê6!>ÎöŠDËdş1AÀå Cnfd¯õy|ÖÂ1ã¯™UŞ¸J§Ÿ×ÙßµşŒ©oSæšµ¾ûŸ‚˜ê0µªÆÃA%ŒÅÔÖja³*ÍİŸ™ÚèN³»‘7¤#£h¢KwZÂ 4zšÔdho¦Lê ƒ5!Ò8`
-:Â:ÇU¬ƒdn}“}JB3)½Û9së{h‹KB²_5à†3ÁÌ­o…È¬]O¡Ôê%è£î‚»_‚€Ü@q‘ªC–-´
-µš95†,W”>ñH¯Ó#ÖÜ:NÎòX€Z¹ee&Š^OË3*î¸.Â.®ë~x¦wcÂ9C²Ì<¢¹ô”\Ô¸/æ4^~¸hSMTÊ2¡ç®ó®'\w'I28SÂ±îÛRëLeÌm5jhJœ#Ÿ*ÈcêWDÑ¢‘ÑF$ı„ ½Íh-9¡«=­’¨²Ç>=NL2vrRPªf»l
-	ÍÔ ¦sÅ:gĞÀ#ÖÂÈ]7úL?·j¯pƒÖ’ı|%·é½¢°Ù<¹.à#Lô¬³ô ›í"Ÿ\ª‰IcÌ4q„eÔ}>ê×7] Û££®yÌS,Åyt«‡ŞF‘T,<Ì=Á“ÌÈô·K„Iä†Ÿ'T­|/|xÕ8ô4ŸÖ«ë¿·0t;èÃÁŠá¹Ÿl Ë½¹õ4JöÓ­Â#ä§èõ_Cò:¸4°¬…©sø-Ò†Sb-9
-İ]£­õ2Dæ~uŸx ºçófAO m’Û!€ÿØèÀ½–¸¥åì×$f¡½V…Œ—Ñˆ“_Üœƒ3«7åä—/¥ugÌ9ûºw•"Ø‡Å‚}T°ÆsIØV¢WÑµØ'=b¥#ÂKÈfy
-œšçKâÙdŒ‘)—ÛN²IÛjİ'4ÚF5^(£ü8Îš`¾rB}ÀTd—#2blÛ{…ÌRjf&¼^eşs”déò€')AJöİ¾>’'—Â¹ßÄ›ş#¤RG²Q/nUZU'&y¤¦¢5ÊØ©)‚­‰Wí]Ï/ß´FC€¨ÖhÀşyıÿò;>şıo­·Œ42à°LÉzVÏŠğìÀÎËß^ó'_=ÖÓË§Y~Êæ„;dÛ„+¿¤Ø–S®üòwÒÛ]¸ñ¿xÉI»EZ¶â%Oé·€§¤e?³é£¦'Üè&]ÕCy=íÛµ@­ÛlzOóÅ<Æà°¤/GáçŠ~K2ıH‡ÎÃ<TĞ‚Ç¥¬fE§ÚŒ@Øa…m¼Ìo`§ßlzÕ'··Ška}>dz+Œ!5£ÒègË)5HX…œd¯ä{]ù~ú…Óq7Œé­Òqìà¯{ù ã¸Ñ_—ÔÆõnc¥LÊå'î1·GÑOBÌ-2vµ¶hÇxÍJT1Éğ‹VÒ……¿,åö)Ãz§•‹2r.i¾Ã3ÇÖÕƒ“­Ø\j¾©mƒ[%c£”L¦ÛíÚ¸K(›ÙÛİ?ÜØ±A––—çÖåoS7¹¹ûjoÿÅ«[»sëùç©›Ûxµ·ûrcnÿ;u3»/__ÿ¯ëÿ	ƒÊ>Ş¼1r°·¿ñ?¤&ùlÇ«­ÜüwêfïB#ø÷»øòúï¿`{È?Ù6UïzÃŸ2ÓP36F+]¦Y´$ŠŸ“Â°Ş´RÛUûõÎ<2ø{Î N£½·yÈ¾o:Ş¹CÚ›`ßEN<IûÙ>ûº1‡>ü
-ØÊ¾ÿàÅ3„?<g7¶ƒSê‡@ÛÛ;?±;Ïƒ_ÛÏ_²¯û¡_ö_Š¾#è˜7ıŠ¢ºıŠ}ùqâácÿÌ}é±ŸD49 Œ°²%.Ûê\­-›$O‰æíÂ"Ù´´JZÌŒ^›¯™"×6/l?È#ÅC©FA‚½‰Ì¾ô =(å…ÄÍ²	V¾"Ô™r–ıÂ¤l:®Û«æ,,R\¤r2~³¦¼¥ÃDB\8R¤oS6˜c>†¶¥Ÿ§lL"sëÒ—)›“	0Ò·),P®¹õÂ×)›,Ò>9”¿OÙ¨D>áÈÏ¿LÙ\F~çÖ³SÃ'Ş{üÓ”e”n=û8eSù¹utÒÏS6–;è¡&>N»ìxhÁ’ã?S6ÁèóÜ:wÖj»ŞëÊl`9$;¶íò»¯ˆA°2&Z™Å›Ø®KÖëíxbŞ±‡.-˜ƒîÈñQ¹[æÄ¯*gŠ¶ÎBê0]\Æa.IÙ"Q­ãA­8Ùfr{uWf'´—x‚†{ÕûF
-¤›*~fê«Á!——¨Û<ä“¹ÅFŞ?&µ²K€%)MôöU…4,¼ãó–Òdv£¢†õñJO6Ëä)fd4K×˜Ñ€Fäá]ši3ëawå¯³rõ(·[AÎöc¡w)ŒfìD1}$åxÇ›¸‡Üzwj‰]Ğañ†¨–2ÓVğ±@‚´
-ğÛ°h‰<Î´ Ë¤{ù—Y¼ÜægîÜ™tP>¥ûº±~q>s…83‚.¹Í™úĞM5ËuI¥õ™\½©û‹WÏÿ¹^ŒÁnêú¿óòZA	}ÇKŒÔóz \äÖÖg¬Êæ´*R11nÆKuUfÇKÎœVÅXjJ e>£Î8ô,glÁ.¼Á	|8
-Ïmİ°Y"'yÄm
-&ÃÈ¹`§i)‡”Mã8›ƒv.Oİ…¼İbLÖu‹òV‡¦²#‚ÆŸin½PÌ63º6ÖV~¨Ææ?åÑ\Í'Uz­ÁÑlÇYÆ	kÙí5“³z÷{µ$ç³:Æs&’	òãÈĞ"™ßŸÕŸ·hÇ>>óCç.0S±Sí´LîİÔ1¯ä’çNÆ>º[TvÈ‚„•ÒŞñò@°+,c½ä^ÅîÊZ±;+E…Xm´miÖ^âCÇ[|üÏÂ2…­oÁe[PßÍp|a—¯A¼`éU‰f©^×É¢]éFkÈhî´Y‚ˆ`Ë¤îĞ¡†V!­š:j7ƒBöÙj;Ÿ¼µÃÈ‰OúMÀÂ0jõ†Ç®>2Oïïèâòà'äÂ-S. YtcÕˆç*ÂÕT]\*R[åñ¬Ç\‚çççÙ-w_ç/]H•ÃëH¤ÌØåNªVf(æR7Me’EåTá4üÓ„ˆçùcË¹ÄÙDâ™ÌBl@›”oKàdÅå’J—*-†‚ÕQ¬)S´jT=@†l¹PÆKËY+ÒºÖ%Õ^l:Á€úN¤Ømö‡ºåŠYÎVÕr•gı¦ÿVš·.¡™z=¤è?î¯ô+*ñ\‹O9·Ú·HåŒĞ´d·ŠkÎiZÃ¼ÏR“g ç`ÅÁ(¶Ç\šÃöŠ§?±ŞQ[[À„¹ò=u–íÂ«y.y–²r?G/‚Stb.f<ûÍƒŞÛ/)}öÈ-TÊÄÁyæì'Ç®fV¥Á.`‡}i¼µ½ˆ)gªµ5£<'%{À~åŒ,§ÙÚ{a”8eO9U‚í”p¨‰fúRò©O1-ómRÆïêÿP@ÎÊX­³Rk’-)6HÍvÜRr22òQ†Ë«:äÀñ­ş¤<RÖê¾!íìåşîî«^w	vÌÀÀxLh@Çe*€D”¯@@a}k9TUÅç%}Ù–Ù‰›ÕJ'È½ËXê”QÂ¼>šò°Êøñ[KÔ8“éâÎšRü‰[-]3mŠ
-ıÊšØcf›³ì“Àü3Ï‡_#’¥r­¡—7X~T.mW%a™”©óõ)ÕXÓ$›¦X±<‰f­şf‰ò†Ù&àŠjø2£¨ÍR£á´ÕÀ”Ëä$gqÕz÷LC#)…Æ èÌğ2ÊæŠs§0XRƒlÛÀ¨+ºöoæ“2(cšdõĞYr×·F·f+Oj}ßš%•„¸òP?\;ó@´¿i}ªµ:mÚŠP´¼¼Ü[ÚÔ)fõÆƒIaÔO-‘69›rG_pi¾Íë„lŸ)-¬ÙŞÖ³˜cÔ0p°#üŒKuŸ¨‘@íuÛ¢zK‰ŸX$NéêÌ%âTª(ÅÏ)Õ[@ÖY¨ìÍŞÒ­æòî!®3Èªäuñæ·zQ`F/ğN[*J!ÆAZ)ıªw…ÿ2[L»@ƒ]kŸ½˜ñ‡BÃØñüîƒÕÔJ®ÇUÙµø³²4‘4ey¢Ì¢Ê%*“ã«ÛceAuµG*±jµ³‡­«céGÂSš™ÊĞ)ëä•*9-ÂÈ\ğ|Ë‹Ça jõÒBx«†ÅÊj§^a¾!–K7Vİ4´¶}Áƒf;a©²TÌÒ¹¾òpeiyû­Hdª	 şyfY£—EmHm­mMês³óeÊs½\#Äé3~áZóÿÏÌß´­	c0}iãıÉdÄılâş/%ã“(ıkÌí+Ûh²Ì“²#|¯	Ê1˜´Ñyt•T}.Y,ÇÎÂFëjtÈe£º¦1ÖNZïbarÒc¤²HÖ´i…y%ê"úª¡êÒ=a.‹Ærò„İFT­wõP°s<«ÒÔ÷íLúU™F"½?&íWNr |Ş%)ü@´hr¬)—Å>9Á?2{ŒIÔX…ÕEÙ¦Ïoa^µRxTZI¶u+q+¹‹·9¥0+‡=àw´`_SœÃJ‡SçŸVı#ÈHqçšĞX8è¼õ‘Ğô,!CU&ô¬³ÔçpÌNFKCšÿÇ†X¤)áBì¾Ğ¦EdÒ‚ŞuX¯#ùHZBÊßR~õ8ùÛ©pR{éª*Üø<Òs‚rFuo’ö
-9 #'pbSAÄ:ªbCS
-¬›?˜ø F…†à×ÁEÖûª|T%¤xå	¬ü¼¡Î#!íúÌƒ<«çèˆ^¢âÇù¿c/pSï#Ï-Ôyç«Q]‹*ll§NmÍGuFéÿb«q<_¶Ï½oÄo2æğ-£Ìæ$M&Q 7¸Nz°tŒğ¨ç·¥Ÿ~CVæUÁcÓé¡³Î[†t‡Wóm]îŠbãvLıY—¾Ün’¦9T:O¯_2›³`qId‡µu€şkÙÀ-êS”Ÿ`ìƒ»·Nb C2¸ş±7d0G×¿$<àféÕü¾FtÖV+ßSÒöæùôé[¡ª¯ÂÄ;…5p„z©×^1ÅÇ£JÅèZ~}¶Ü€‰4 <3@8Ú-¤“QhNş#ÉÔX×*ŒÚÛ›‡»ûoz&+—!)OÉà¿T)Âdoğ§Ùl¸.Ñ46ÿB¡?{¿8Â´ö~7²É:­œğ‰ÇS7ì@cL1õi€EÌâÎÃJZÆî3–S<·!´lÑxàD	]ø	ßfö§Ú¶YH]Úíİƒ·t!î<ÀıÄú™ÂÛ˜F®ÓÚöğ•…S'òêß¼ë`ÆççL^óÏ^4×LÀtälaLGà$×¿Dc?S2»¡[µ¶–¦€§‹¹‰óò½AŞEë€ì£o0I¨Iédä‡Ô–
-oPU~Ç½dÚ½BÍ2i«%Ë`/…£bš\6Å#³P Æ`al•àÆ6?HQ)³½K:d­Ğ!÷÷Æte¢ğ\Lv]˜}è_ÿ:¨)ğu7T7ü
-œ´¤/ì
-/K€f«FS®ÉWV•û·J]ÚZñ2–ç6‚ò§ô}: c ic¡6³FQæ“B</'ç¤fèIL 6%ßğQÎ4T™‘ùh0Z°d®ŠX[øaö€¾ÛÇk`f n—±bö©Ëç~ÊÆn‘nòãBwÊ§Zf‹	ù†ëF4æ„(‘fÑHÈ¯MíPGƒ?ğnîìış3„Û+J…ÿ-À½Î”©Oî"ôâÜt±…·wñØsÆĞà¡7:Š€Å&íİ1óšñ§ûıŞöó…½çVLˆUÊóq¤špÅ/ÅâÔüµS¿´3×‰Oòè›\—À^Èä%¹İÄ-£‡¤Á¿û ô¤i*˜:Ùrt”aÓ'©R…Œ¤ÊC‡õİ¸êÓ–kI¿9CŠ¢ñFÍ s%Ş	É8s¹LáÓ"ß±m–,›ÊXÒù{>«ØàññdÎÃ‰.üÆâigN<×¥Å;9ÍkSëÂ}Ü`ó«cà÷øi÷Mï­M™84ã¶uõxŸ€àã‚IBÁëûì†m@şz7ehàBCÍÊÂ™ğ²“mÑ&°5?!NLâ0Ë]58ş³o9‰ózÿ%_>›÷ë‘¡¶_y°bq*èl“(ş£¤ÆRlk ÌLÓÄXì` î,slãŸ{
-ÒÏŸC-‰âƒ@FµÜM9İab4ƒ4XÅŒGf–«&«{…m6ŠRå}@!x¹Ó,ğ†ùÍ©âyuÊ³ÀA\ëO…Ñ°nãhğ¤<Ã+‹ÓÁ‡£a/¢§=kv4dÓgÿ„G¤ƒ /H¯qj©@ÍV áÎ1¼HeQauıı0Ä¹S/¾şKxç5mÛç«¤¿¼Ğ[~²ÿà³Ó­¥R[oøw«6w¯^n“ÛøÚ6ÃÌ©j:s­iFÊ¦7.#i{
-Î“	Ç&TŒµƒµĞÉ$—„{ ‡QÕ%Ú%ÿdí–^Sh›rÄiş4ë óÉuœš¬n\x‰®|äa‹€ñƒp’‚·k
-ª«ÙsİkŸEä—î6Ñ‰ÏD>Uôî³0 ºÜ€jV.¿æD£ë_jâ.aäj‚Ë±é´ˆ8nz< [FQgü•<= ÿº~¸½è/u—Ö¦9Ô²|Úîü’‚»ó€îûşÔK>RˆwØÍ^3¼¤0”÷Õ˜3ëğÓ¹õß³hVPùÔA'á&„6¥ĞHdÍ«Ø­‚è(—Ì®˜	¬ÌØg%¼ğÜÀCî¼ÏĞ		Â4æ-0ü…Œ2GaD$œ‡#ø¬exÍGÒhÃ¶bu“´:¬ Ê`¬íZºK%ÿ¦&„·àeIyu®ñÊìù•§†(¼ÕĞ³dzÌ`	 ¹_½…Óøå‘€¥@BÜ>ºO°À¹QKT+ÑF±à’w>hDÄNèi>[2dŒƒ²H^µ\Ú_Xkõ­ªØë4ó.¬çsë,hù)‹ean!GCäÃ §C–G"¬áôªı(¢1„
-zn]Š¥~ª	¦&?§	³Ó0nS7+ä¬vº°&š°n›üâ Ğ³’ ¼cj-1zßìÅ7€ßæëü„Èq©úç0b¹¾ oüıvÖRí[µ:ĞÂÑğˆœÀ²Ú(U%ÕÆQ*r
-±m‹uöÖ:“.™_vººÙWŞ°«nÿD{?®Ûqu§¬{Ö¬¸¥ü³´•ã®®®ã[Ä6É§G£Î:‹ÊaâL3k7
-Ü–ÄUeÕöÌàU§·ü«Lõïşö±Õ^º u~YÛ[¼|oW+ÒN¶ßcËğXîIÎäÖ¼Ê<—Ğ7Vk| Vpäë„ßôª5¡üÁ¾ü†ÍŠßÄéFÒWjáfÇùúÊ‚uN÷ÙõÙM»ÀIÃhO@Ş¶É¥xj¨kX|Éò5xñ€:ÑàD~×9ŠCäÄ§Ç	æ+	ÇÅ…>áGËnqÁn×`®‘©ÔÒI#½Ÿá	Wû¤dªo¶`"Ú£ñŸ&†˜‹ŒXÓEû¨?GíˆÑ	*—Ûñ8'‰ï´rÂßØ¬„WQE»H#mvôüšÊ;&Wj§•ù?[ÿ9×.ı|9c‹t0Æ´¥Wíy‹“ıgz±fËó4 \{·‡nõµß•Vï‰3(«‚Õ³õş¡İqD1ì=v&~bëğ³°@x&I’œ XE#«×„ƒ¦¢D§Á$B&ôP$£öá€‹“v·Y{¼˜»<?ÏZí¢ŠÚàc³›ÌÇpâÑ)íó«ŒCÙ^>!}¶ëe˜µrò©Wâç—A¿bæSéõóK{jôHäOğ_<=xnWÌ’±ª$1Ï ÌÜêrèßÜÕç²ª)7(•ßÏ0Ó‰Ù	şæ­.Y‹|e-‰l‰MœúáèH?zã½¿'çA¼§É€Øºzoë6Çª Ö¢Ì5¯v8Ÿç­/?RsayA›•ŠÃ(i·ûäˆY‡M¶Œ—ãÓÍp„oûH;³jø}ÚXìY=o›Ô2¿êBÄ‹W!	¦å;M‹âÕXÄN/¤Åâ$ŠC8@ğõL;ÏÎ±´ö¡íùÄ/–Q*tğlØ‘.„ğç×¿ •
-şÁl¬ÀOÌìİ–“¢0²=GøÅáÚşÛmeù\ıpŸ\±8«éÊÜ')±`é®Í*]”ù#+Fz:ˆ_4_&K ã]‘ì×góO	şQNùÓ¡ƒdµ Ùª+Xe‡6¾õxÕ‡F6›vÊe½×%J^kÎÑ÷£7íˆ[aŒ<Õã¢ÓéXX”¤Øøüg…v¾w4p­âD‹êZà²8§^”³u3k°.vW\{ğOZFªŞ€Ş4Ë4\šUœE¹/nÕ~‡¥í*åJ–Öïò=_ÀGEuÆ=Ì3$ˆÛÁE¢¾§¤Uğc¾E¡³g4Y;ÕŒ˜¨T¨ÙÎ|2JwVY”ó],·0ßMÂ—ŒcÀŸÏÒ'ö[V{³Åj¸;Ö7@"Û¢¹¬ÿz§n„uŞ
-Rg7ğ[¯¦.›
-JÓ™ãg®áëË>$»vÑ­uŞüº©óMQ¥4mR{~5LmÏ¯)M‹Èu’¢’¨A6ö;àQ­¹A¾×–åÊ5`s­¸3ÛyÔ“ z.v¶Z®ÀŠíœš_Q®áokÕÔ&ZÜi+·Y~ñ*
-µó,i!xiïRªİ”B•LãTÒL«DS±x5ÒËÈ½,ì´®H[Á‚Í+8‹§ä}‡%„[gJöá=2=´Ä¢¦DzÕî€¹;³rúŒñ@6¸7ëÓŒÕä,³º]é¸ôU[Ûn	«­7,p×°¦ºšÔ‹úkåäØíK¦áX%¬
-Û}Ö×jVJéJ_ÌM[9u·E¢,;ûyÕÛ«+æîz±sä³Š›5…¬Î½¤Uµ­ào=ój^¾¯,§¢^qe‹št«B‘bç=ûúa’¼ú@.UŞ|(ä¯4®©ğPêe Lf¨Ü¿08ö¢‘Õ×S/©8oŞ·ï]~¸šWŒà#W—ßê˜Ğ[)´÷­¶<ŸM5½åb¼™u¡øbäµ¨¿}>ğ'^D^ÂÕJ S.¦g¬#§¬{ÆBâD(`ÇÀÁh¸J‹‰£8"dè1’qæ#+A~
-×#ãĞtƒÉ?u|#4N@¸ş5b‰ëiÖDwK3)©çŠ¿ZûÒÌ*|fğDóéVçÌa
-Ø½­È’Ôk¡¯i+‘Á/àú¯üÁı`{X}-ÅE²ÂâhÕÑ%ŠÈÛÂõq%:o—…2¬jS|Ó(é<ª‚†î4V–Hj‘ña._†Íı8LJõˆÓ0(Ú“Èr9xN¾Ò¡Ù.;RÙîw÷Iv.™|ä×1%– ùÊe¬£¹q5y»zgP&w‹&ç««>¶ß<^9={Küáª ˜ğ‰Ÿâxôñe,æ¡.œûh¥Yá\a1YåÔ«Úº¦â#Ğóc´ª`)¤êZ5áú(ÊùX˜ë»+à´Ôz×§,ú*ˆñpO Èwj^X%úÎ¸v¡eîh/ºşõÜ…1qB"E jzkmÀ[œÿØ¡Ç˜|Û!ÿõ¯ÿ‡çv|<Â6P©L\eØ]eji©ÑŸY®ß£­‚ûÕœC:ÂQx,à;fQªÌ»+‚ûã¸(÷úo…{Øœ“T³§+L“JEÂôQdzŒØËµİ_†g¬rÒŞÖ³sás##Ë¥3Œ×ƒ¡t’°‘ã(uTd1:~ê9QsrÍ	¸ôt~3}ìQñPU…=TÔU„VO®Òy¥£qä€ßGcäeëÄAz3ºş;VeŠe,àĞT¥Ü¹'1Qô8µƒÕÉ0Z£ãÉIÉ}¾v«äÍ[%#TJ‰Õ/W \”Òa1’^Ú"Z.â
-’ÓÍ„ñzF3•>ª˜V!Æya¦ƒ…Åsu¡ÄÂ?Çœ‰(j&ŸÕck…aK_Õ›ñ7¥€Ÿ´‘§¼ş\êÉÇn¢êWnS”ÈÍwõàxG#/øÑ¶/¹¢\µ's½9Å¬$ó%Ñ=ÇLhù`ŞóÔ“÷.aÁ™B»ÔµçşSÕ6›Çq¿ˆ™[ óIü.mÍéıbsÚA±¦r/ƒJk%©ÁJ‹ÀMÎİ†€OœVæ%Sù÷~¯§(½‡/ÃQõ’	Çè¦]8íµÏobBºBw‹)!æ_÷$?|M;\&8,(‹Nµl™BĞôn6ì}
-Ç“æQâÉËJ™¸ 5ÌÎ—–b…ÓzÙæ«M¡…MH.É™•Ô[@
-ğÓöÎæ‹­]İsòÂ§mJº¥GÙ²#ÿ¯l$_u’ª4õIœx‘£Zb¢X`ƒV¶ÚÀ¡(<ç‹œÃ¾Å:Ç.¤eÆo6«¼·ıoè\ìí}›µ‹S¾<¾+CyX(ç7©×¹
-Ø†¼kZŸ{f×|Ïü ½z¯IKX¶(¨ÎTnÊµU‚²{—|×ÕŠ4F:;¶˜Õzd10×ÊY‡KÇšR»—ïÏ0Şéÿ@S¬ö2ü[)¿l‘Zb^A`O€üĞéåKQ<ˆæ(·X!eò#*ºÎ§$-–!¼„VÂè¢¥ø•Çèw)yE›VÚ-ƒ§dmÓñià:)[Üï1¶x•Ô…ø›³ó•Ó‚ÚÁÉÇó,rÆUX[ì®˜ã.«´
-x#–V¯  yàËÜú¥­Î#ò1º×/y‰rÆ<wÿºw™’ÉZßÇË”üš]çÌN‡u®uúÜ„1yÜ“°	IëöĞ˜ï°¦eÔ«É7«ôØÍäÛ<PqµN­’Ü=£Ä›Jß™=5HûRö™¯÷æÄ”„Õ‰¨Ä4sÇ‘<UTïĞO;Q‹™dUÚ™Tc•»!mQ»îKRíLÉnøZ D¥3übæŸ+¬¸’Jx•ÖY›õèYt@İ0ª¾şûüZ?§ËéG}©Ù iœÙ™ïYLĞ:Æ¦‘LãÎS›‰Á:ÖèÆ½{)¹=í…È5f¾Å
-¾é½­È¿ú^ê|àèÉ&‘s¾|«òèôS±ÈÈªl.k«l¦gcÕ +jbuJB(3Y#8Â{—§­+Š©CÔK‰¡×•bÔûµk@±²feÛ”&'1dÜÂš$@[c¶­³ôyøeù‰øÃòŞ,õ§T4.•òÁ“bä0==î¼½C¦¦Ü¾”ÇI&f	N"ôúø ·nH¼úwšØR”,Aî{È?§r7?†„’cEì&Ğ)Ç…#—¥dF‡ŒØÚHÒÌÊ_À†6#ÑfSõUÚrª~óQUÏ­Xi£ÛhŸ.Ü»\øÙqN½!KN£˜üfáª*E$T&O}áQ¯ ÿªTc€2»«*¶Ll»İB QE;©\á A;ÕyÑ£ °’Vg1*5¾4÷T\Aœ85Ê5öÎ§å¢Î@[¹ ‘_ZC©MT È]}·zâ)Àyì¾ ŞÃœë†3Ó/eš¡â‘sX-[O¼x‘^	¥·a6ôy.ƒQ†~¬š»K¤€%>r258MP*ÒXì^Ç4ŠëÒ'q z&
->t¢—ßªfèºräÇŸ9bƒşœÈŒ×†„G­£?Å»ö†ße_"Ì‚UU ^ª‰¿†¼éúR*­ÊO‹DÏl‹V*Gr1ó{(Óê²o:ç"ä!—õc!5µ?"©yÔ±R[è|»§Oy8¬¬î¡ÏoTä71ÉŠO9ã‰'VâCu”0½ËšuQ2¾>u\æ’K}E§"ŞH>EÚo:®</%aÌ˜b66{0zñãkğs×7·w¾ùçû…Â ¾ş5x0Ó½ƒWê§#áÂÁëüàÀ¥'òCœï’mD,—ò—I…‘ç¢+  H^Ş€-/ªüHâ!w0a‹“½­g÷y.æÏVÜ;*{‚çk¯Ô‘*K gû|m‰NÉïxµ@Q&«ÂæŠÕ¨$)Û«ş§ÌÁ(õÉ]t8Tk *K|å”!™œ@ÆG&t±Ì¡/×SÈ)±¬`08*Ã8C™IÒä0!I
-ôÁ„øŞO|LNQ§^İ‹®ÿ½ó“O0i“ˆQ Øİtèõ_ÿ¿Å$hĞ»Î¡YÏÇÙrfæél[FZ
-â$õC„y²±lêÄ”&@Qß‰ƒ¡œÅ¿BŞ3kGÙhTX/h¤İGD§ÃpLöQë·ñò%YbÄ2FâïÂQ8¤'1–¹Nœ`ˆ¤A`ª©Ô£@]B|Şb—‰lø£ğÜ‰¼cV™ø%¦åé¤ãšøN4o™.±BV0O©²9 ¤kş&k ˜32
-Éµ|Z“‚‚—Îx,ÍˆM»ÖTƒY}ÁêËW¼‚`eùæ
-R¦Ã’tbª’æ¬‚h†Ş›·<HqİÆøš“,Ó E2Gê’h	æ”“œÏ­o¼|µû‡ıÏ6¶vgP=Ñˆ-}-À8ö&ÁÙ¡	wĞ©¢HêopËè1A4ó½ ¸†°VzS†9X©;o©ÕÕÖpß;0§Ãı]²µM¶ö¶7_l¼|±µ±µ}@v·vww_^ÿÛó›·ŒK)0–˜UÒŞg#¿)`¾Yì.®¼EèdÜ\a˜š@ÅOU1„¢ù.Ä‰6„ÏÂ{èÌ–®1r	Ìyåc‚«Xé»»spıoû›/vSIæ–êËš!áuË;eBíK/ øcI‘9ëaÕÄyaèùG²=òb¬`Êü'È0•gL.lÂlÉe5R&°gæàOVª¹şò,†Ë<6ì§%öüüÀIĞ¤íçøñÕÆáö>P%ÃF¬4òªá×Wjü‚x`ÊwÄŒUr‰ñú«vÁİZæï“–ë.¼zµpùİïVG#S¶éª‰Ö%#ÑˆÄÏAJÇñ/çºKIxˆoâ4hÆ@‘'×Ì»Ùc§*zÏ-¨VEï•jEîª+uÒbúh#2t]M+ƒ/
-ÜŒ>uåÀŠJ5`	ÅšêÎDW
-Y˜¯ö·,ãÂ¢¾ÖX*~9_/ŠãÅ¶}—i©|&‡oïšæ¯U«‰ßmİ‡JQzf¢†×Áäv9™x˜á “ˆÁb¢‚ƒÊÁ“xX(ï´	¹2Ë”ıÒ\¤Ø|‚UØØºœ€6õcJ!~ût|Ë^‰ë5¶ S —`¶Pt‚ä÷Ş".bÉ”•¯Ò94—˜Ç0Ÿl5gôZmòÉºÄQº_5™(C6˜DÀÖuÆ!ÿcáJö.È—ïËŞ'Ur‰!™üƒCÕv¤R¦Z“A	µN÷‚VK"ËK<­û¥€¸µ,¼Ëešº”6ä-å™2v¥ÆÑ|1Ğ"{oj{#¹rñA3Q’u§ÔP*\pDüH €6"fÃ×âI0Î7Ğë±:n70½Ÿ‘Ô=À|:°f,Îœzi ±ğ2]]N#Ó^2<l)ÛƒeW!¦È]e‹…ì#2œÍ¿¾f–Å"¦Ó³èİàVv6{ÄœÍDmg¬ËKƒS Äá`F¬Rvë³…+½Ğ˜v~oçù}òû½çXúà§çèæıËy—ô_ı0oÑ§Å’İš JÒÌCÜSáØóéq:Úâ¡±tá7Ò"4R¦Î”Î8x1fù5„²æÑUè{f,Ã7ñàÄƒL‰6	¡Ÿ‘¸üHEÕâ­É›Mä7‰á›Ä`%1”ß­"©"C®¡—¥†ü®•à Q¨æ²CCıíIÓiüoS|ëú°°UŸZˆÈã+‘%2à.ìÉ7‰ÂZ¢¨øÅ}/ª?ÏF¼(°
-·+\¤–dÌc»¼@^À_áßHÚğ£Šé1|
-S³¹¡Ş¤<¥à‘ú~|“<nAòÓ„O)z4;)lŸ{Gë(Ä*ÆÍ$¢“mà@¿¾#¢ì<cå®I!
-µ[EÊŞlß„‘oÂˆ•0¢t£l•høR¹˜^A&‘n[	%ùóÓH%Óø}Şhbv$å4C
->²|"UŒ7îSJ(ùZ|%â‰Tz²R™ò›€R+ D4Å*ÒÎaÇF`ø&¤L)¤”(ÙíŠ)ËBLùqâ¸‘ƒ%4^Ñ`"KÏ\"aqgßÄ‘[GÒˆÃie=Üu±c„ãÅ–0÷:&Í3o¿À9¥Ã<
-Ë‘JnSÜ¸]ã›`ñM°h$X”¤	F%„(‘fËrDzÏJˆO)AÜ±¡,+d4IàG²ˆìt>¥ .ÄW"&@–6â›€`% ü)E`ˆĞü[± ‡,®.’vYRè¯OT¸}ù`¥Köœ1Œ‡Şè(r\)ME›eÁ‘å™ËY<Ò7!aÖB‚¸Ş0œRL¨—’gĞ]ˆ0q'e†M'Fó„ƒyB˜°Jü8ŒñhiÌf™¤³„yy|z×ÿÉâ†É1›©ËÒ)Üš8ákß¢X‘uô…ø~“2f&e”¡4—6¹ò†øV’8ò»V2Göø4RGu¤ŸLú(EH!%»±¬B`ñJÓéFÜú“t†‹ØŠ‡…İıDR‹—AÅ%üJ˜+
-;óMˆ119Ğ”ıgmnO–ñ%`„cå3\mË2á±Š¸cxV!	Î…¤6­I‹Ïgùëq¼ä	É
-Cã÷øi÷Mï­>'=^X7
-Ÿ‰s6ŠãÿÑÔÆ•¦~^7’é¬PŞ®f'­æä‰^yÉ8SŠÜ
-ÍzĞ8+¤UºI]‰¥Ñü)¨Øt)ñäü¯ı¾–YwXg®$ˆÌ–ÃC/Ò„±j1H¿ú±rBË•JÂÇú›ayD¹ñÁ‹^6&“€UŸGQç8+ËAc2à!Ù„°Po01»wŒ9-±$7¸ãÅW=V”ÔŒAğ`¯ Wñ'*ÑI—dÑ&„îq)U†öÚò¯(—QÁ$ncÑŠ›”£˜bÖ&—Ô˜Y’=uurZ)P«Í•Z4
-<ªÔ0·Mú›W½ŸÒq‚ –ò´„o?LàİœKÓ¾b I¥c¨.wªI´»3@‚µJn@d—¤ÃˆœfnF`"¶9¤ìÁ0QÄSÂ	¯’¼•¤ÏV6†atÁ^x…Æo^lµ¼µCÏÒïõ/Â…#öšõ;8/ÎŒº½¸–$Ñƒµhy†Pµ9P:Ã"@§â¯X`yT§ĞĞªÍ9›(«-„Œ ôâ,¬$°ÏX,×£Xlœ}u19•]6§QÜà8A»@))Yê(´ğ@Ë®©s$§Åoõ\eZyOdõ&»Œc¬=MÂ1N†<ã5Y‹7|%‡°›˜Ì6İû•j¾ñTãjTï¼ôFcúg#ûtˆelBÆ˜Â®Q­¬¡ÏlfàH‹u…’¾Ä˜æ}@Éi8¸ş‰(æRÑ¿'¸ş«#Òvc±Â ÙOÎX8À{ŒÒûd’xğ*ENÓ‘ŠøÀùÀŸx	É	²»¿FŞ€¥^gïb„Â8¢ø >!›©æã“Ç¬Ô©Ö•H+Ë¼zoÏ”-ÄjŠĞÀJ.E£(î×ÒùüµC&>·[‚ ¼ÿÂâÈÀ¼v·uHdF‰¨Ïè€HÇ9ÅñP°{ğb[ úvŠ/©jÂû)ªÄM­G`Õ>éR}¿Y­:°0ÏffÙ\ƒüŒµ>¢‘²™Zœ×”Ğè§…`‹y+X•dh^¡-Úƒ·n‘XGL=şˆ«×	æ¥çÓƒP­},2?¥cVƒrÙß¹õÅn¿Û³HWêëµ"fqƒˆ¨ä:ÍÒé rnáÎŠÎhi€3q¨Ñq[]É´ßŒš[?˜ŒÃ+s-Óà4ôO=v¼›‘Ö×¨ÎWiˆöe' Ü:ş‰Cã‡ÿûpäx~¸„æÇsC²g|¦q}Ì¢êh–2}Y2á5È¼ıª—–õ-ß|¿¸¹øxñáÛ¹u•öJUÙ²aÉ’º±iÉ7ß?[ÿ-¿5•‘üx%"íKQ™ËPÙÔ ‚]VÂ:¼M9%Œ¢""(Á‹®!qšÍ	%T£“‚®½P¸ˆëÑE%a‰ÉE˜ª4¢/QªX6Åœ5.+š#@€öÆ£şãí·†š>xÀ!?òñ(ÈÏÎİÈC«lû€Êësıw7œ×¾Öb!JË¤B$Uœ—HÌaP’“x+¿vH_2^XìU8œ‘Šs?u J\Æá$dˆ©’dr&Mñ¹ğN;3T²&H­<ÀÂ1ÓßğaÌÁ	Œkæátä¡ù'Šhv»İµş¸ª¥ËI€¶ôŒ¶tGÎ¸ãPÕniÏèÅ“Ë÷|ş{—ñÕû«lQ®Öá?S§óŠiëÃöİÂµ>Mï_+ƒ`f\* ¥–66¢„Üğ,`U€*ŒT†.³nt–WæRšÙSWTÖ¾ÛXLˆ}!iï ¤mr8û2šãb3„>,¼s[ı1Ğ™ü 30Ë$«
-­Òêôk7b¡H™ªğjª%pX´òpeiyûmEõÄ€Mâ¾¶n¯lãkF†K›N0 ÀR*VX§×±YîäR\Õj¸^ìùÔ}réÅø4
-~ş™|W<ùØ­"îà­ÒC¨"ªG0Ù¶´Y8Aíw£Š¶·1Gô¡Rò¬Â38ZxF]æ)[4ĞûÙ²-u,Zç»fa„—À>-•1*Nö	${Q8 qŒ® @‰4R·’Fh+õƒÛ<¡ƒ›^4ÈÍ%|B¥r—·€Çl2µRã’âtRPÑ 0¿€oÒÿ)ı—}f¥à¾$_»ô/%‚©O—7@v®i¬v˜«ÙK}•c]—¦Ú€H6á
-w:Be{¦¨Š<
-OYMda¿,p†Ÿ¥¾ AZÖ0‘âE*¼~Bgp¦8ª&Z‚ôÛ*2?N;±"+øÔPQ€TÄ|S’0Ø×uşÏ7µÁ¤6H‘û‹W4ÃíÃÂ;·…Ûx„¸ô”Øª‘ƒê›è¶±\èî–ß–6ÁÌ}…š¶ Íµ)ÀI¶|«ôP.a›°Î E~LEÂM§ÙP‘ ñ°ßt	_¬.Aá”ıM©p‡•
-Vnê„%uÃ‹½bÈğÃ^A@V3¦¹º&JNç+£s­QhMÌJ£ß»JsÂºÑËîÊ¤"sëi\œCrG€“QXŒ‚Km§ÌÉ˜*İ‹Lüwéf3=*ÈâV>å8æú•HrsıOäg'¹ä0a)¹ÈÜt
-‹d¼`Ğò—jÖYÕ¥“b¤„¦D¯iªp$ÉFíÄÎ£²ùÂP—³6¤(ò¨]ÃµQr[·rŞ)ÒÕç˜&zän–Ç°Bmëuƒ”Ë²hƒÃóÖ0L:ıÒMWk^ëÄoŠÕR´£jı®óEEÌ¶”B·›òŞ@L4p¬¨ù„É›7?Ì?ÍV™ãÖå'DK½F@²'Q ÍßQ”U¡õÎ·C'©jZù³ßIû2ŸÏ•.I–i—SÍãj&òï'¢›;á©“ïÓ×D(%¬¶ÓiiÂ¬õA2Ç#›:O_È=@ŒµS!ZÁ@*ø$á~[g›ê~*s{÷ngû_Ş½›[ÿ-@çÚ"R<ãüš!“v—yÄ‹Œ.èE’„$á'xîøÛYÁÜ!’¬“K8ìw‹”{>FK²5J£¡À!–¨MŒ™exN‰:j#¥'€4z2·}¾Jv]˜@è_ÿ:ôá}òÒ|w›¬n$¹jœ³:ÖL›ŠéZ´Ä«†zå	ÒVz%&~šO<V“0­'IøTüª”Uª	~UCÃT)3VÁ6‘”tºX.?×jcûÍÔ±i0Ø]PË2.¬T~öõØu0ªoSb¿¾SÊÕ_jAR¶ ÅĞheû&µl–2¬Q˜¦?,Åñó@M¦½Ñ"4TÙæÄ¹‰Æ¶2ÖÛTİòHÔÇ?ıdz[i’ÖèsRÚ*‚¤§RÚ®|J[ÀS£ÒV•b1ÍÁœeøä	7ß<î¼±šW­¹š.IdUÉ»”¼g
-Ş,ü½V½«Ê9¡ôßº-E¯Ä™†¯cÖg§á•RbHşT!Ú¿¯ÿºRNˆ«ÒU¥DhªÒÍó™Û«tåŒÍüæÃ;¡ç%Yrã‹2¡d¡œQÇArç?gt8ntıãôSdá_1D=:O‹¥i¦Ìn§@É»y¤ËR€¹
-˜â!	€_Ê)R´ét(«Dr*Áâ¨¹9^ÿ;`Ø äÂÀÅ‚ÌÑ‡ÁÃyœcŞrkŠ; šÆiF–¼ÀqX†A×IsÀğØ WEG ¡;aŞÀµ³m¨$k}0`ª	j.‰ü“lÍ¬ıÄí¾yŠ]g5d)*¤‰BôiÔMÃ‰k ãJNë’²²´R¨ÖE£^›i’.
-ı\[‚»|Át%ß%]–xŠºÉ|šş@5@ÍĞ§ÕÚî
-^›:bš}°Kñ¹,Ô>ıÓÄ‹=	=ã…Š m =Ó­•®ì2#¦NDe=a‘rÆ¨(Èméè}Å	‹—lçÜ¹şû)tD˜qj˜&F±BBí§(+åM]©:ÍrÊz%n¨TƒA:Ïá(‹AÒï©-Vni9ıÊªËí•×LùëzR.;Ù´/–&ôË²:
--•İÈRcP¯…3Ã5™¹•|uŞq…¨æÉJî¨R²XÊ:½ì`§ÀU’ÎbIˆ’´ªé†©4¦J–MŸà¾”—ÊœÕ‘©1œ8Ïî•»Áx±¾ĞÎJìX'ñã’[%Á^b6ìc¤|/¾l]šÇB¤µ8ÁK$ŸÆ°Áá¥R<õgŠQ,1‰ß-Æ¾0;U<ÉY¨ŒF»£N.mÌîs+„Ë	Üw0òÁ‡Ï‚zå£ıFÂfAÂòõœ«¥Ï…˜eT´Éõ/¬Ä`–MÍs–ø¶$Ä‘ÂÿÕ™H)nËÉ{4Şƒæ„øwjyy‡$øf÷½)Åúÿ   ÿÿì}ÛnIzæ½Ÿ"T=0‹²Ä£„šERc’¨!ÕÃ!%«RdÎTUÒ™E‘j.|áK?‚-ß,°À\ùÂÆŞòMövÁñÇ9"ãˆ¬*v«g&gº»X•‡ÿüÿ½R,{¤¡V³P+{.g T	Ûç—B¥sú†DA=¾çö©®$^Kä(»û#Ğ@Y6ôÓÅŸ—l½Vä¨!“A‚0ÃFæ]"uIéA1Ñ¢™¤YÌjF¼»ÿÅr•A+cv7ö†Ó0ï—^[OÇ`ê4Ã,F”êù(Ï
-ğ71ÆóŞrÄ¢:}Nuê30yÒiÅÕçÆ(GÌXñ2{Å8ÏŞï½ß\íİƒ·/_¾Ù9äk}Cº*$pF„Íhêa"G§Å´!¨Ó	¡3‘ÀMÌ ø¤ Å…şnL«QñrİG¥<loïp#Ñæ@©ŒE3EÍğÃ÷-÷ìÎªpTvYÙ¨fH‡Æ}uü]kM$îŸ1´&yByè=“±¨›=Q…AŞa%]ÿQìQEaÔ]ìMÊ€híR¢E—ğğxvô™}½õ£ŠXL÷øşßï¾şáÕa\šlì“–»g‹Ì9ôÇ@hÇDÓ?¡ÅÁèp”.?7 óg‘”}çàşƒ™¸ÅÍXdÂıÇ4…°ı‹y|ƒM”Á–åˆ
-mŸÁm]}!<°I³¹g;|ŞU€ŞÏu›,*
-V{‚¢’Ã¢æ™ËŒš"4ªup!ùu1iÓ?œêøéæç«2<ÛÒıÄ£«€Ä6Â«6H=Úr¢¬Ì *;¶Êf†I±Pí3gÛE"ºò=h½Áw·h¸H8B…Õ‚×Í}“]0Ë÷Q6ÌH÷]YM21n%eÖãï?y¼úh÷„0=ÛÔ*©¬O;¤†ä`ëRI!
-Mj@%erbXâÓC¥¦ánø4Ysvx3ÄR„8‹ÓÈÆ—®ß'DÈ@8¨5Â³–ë~U‡§™/ÎD‘Úãïß‡…†Äó5'úá39•X åŠ©ÛçìßÖŠ  í@5ŒÕ1w<¹6G-	´$7‡oXÎT„&M¿X>´‚—xN®"ÅË3‰<WØ:lxÁjÆ*ng8E‘GĞBN©ÖdAÕÂQşCÀÏ²#{Yé5Lx—/£_YCÙê0Ê
-uÖ¨<`W
-PuŸPK3¿´½Y§XöfY)ÏU„eÇßmll¬¬ï`¹_ÖæÑÚª‘ÚÀãËz¦|gûuÙt†P)zBÛ7\“Élç$aE¶‰	K<ÿ•Ô×ZÈÌ>&”ŒKª{ĞÍ¦ä’t÷Åäîëç|ØJL™!óÏJÚ“4'ê¥È­Œ=E«¦OÖ{¦‰‘¶Cÿ÷ôDÓ¨Æé5)Y“€qÓ£KF²V^N†Å8gPu‰I‘lÁ¨Œ¶{YeP¸°^"û£¼:ãÑˆyù÷Ÿ•<_1#eí¨Øyø¹â=EBÖ{äe1œX08X%cÿÑCf6ò&1Ä#¶œTo‘î1İt:iü9ppk)‹¼:,œÂ¤VpJ|Ë8)ÎÎ! »5Û{“U Óû¼ÿS1),õø»½G{ë{«'íÿ)7¿˜}Ò«|pïs¾—×£Y§½m]7â›Ş¨œ_¶Ü ì$yğD@@şçŞÊ°ø/JZYKŒ@Ü…oh{Ğ¢¨)tjVE§¡¬j'È£ıú‡D~qA3œ–×H¬ƒxyñP{ÏD¯÷‡—”Æ«	‘fğCH¡à@Éİâà@òÂ6Ò‰H±èÃHûÌÌ¯{éuTC ùåéGÄŞ?ª%5ˆ“Ø ¿4IGhÛ lW©“zCêë°Ã,Ô8®@ém4ÅÁ!§JY£ÇèrÓÙÖ':Âpx9êFx>T“>Ê/”î•äd/½'Íí¤@#VıÌ\º'ÍúéjÁyTZF$ò‡Ù¶	ÕÓSUµQOxOTñp!,[O·Éymª­C	{ğ^ïö^6ª	|Á½Åè¢ÊkHï \®I/3¨ñøŸÆgÛU…ıÊ¿Æ	29(Éäî“Ë!K»­Ë1”|‡e£WÃë$4á´¹	8Fäîßjÿê¨}DÛ†µ»ÆAˆğÂJ¾r@*­3Š^a	Åè©JY20‘ÓM8¹”?¥.Ü0"ƒoû~ëÕ&Cb?’vÒ””îà­›ñS™ùu¨À×Ìq=Üq…àjy¨º1Õ=^…oj;$—ğ “ık¨ÄlM8¥ –±Dì¸Dügaà±5õBÚ…£_‚g˜™kWRvÊñÚ‰¹WÂåÂ¦ßÊêëØq„øZ}RÆ\ù¦[F…ú®m‘Ë²èÒ’ÎKôÚsßo¯é¦lëı²¿òƒE9·*ğìa#4@üÂ#xşæ^>ÉŠ!Ûl=øÂŸEÆç_ °QT•uŸßwø;¾ÊŸ(ÛC$Û×äÂ6Ø!½¢>ä°¡ÏÉü><ç€{ùçrÈÃ H“ùÛ‘©¦¿ŞúmrI>{%Pv¶¿‹tĞ«i¿ywyÓ‰òº%Ëäfœ_‘=ºCº‘fôxyprxâhJQw
-/ ‚Wp¾l‡ƒÒS÷†ß-ÂX‡ùôZÔÌë5~[ıÉ}•9›
-ÒÄ=˜\‘ññ_ZƒÏˆh–NC¹igûhÿıÁ!ÙÛ§ÿ?zÿêí"ÇÎÕ'—µˆr|ûşpÿ7?ğË©ÇÀœëÁ¨û!<ÙËû­¼O¯ÿ„û‹åŸTxøx$ğP)eE;Pmn/ÿDÙDEÆ™ÈCA´ÌàôÒÕŸtšı8ÑQÇbèl®Ã\®Åâü§cİˆ:÷Ë}ÖÚ=İ\ASô©Tn}(3Ÿ¢ DëË}»’—ŒL6»1ªtÏj>Åñ‰Ø°öwé‘äÁ+tAÛµ	ùKïÕµ¢éçmöïğ5bˆu~_fÕèîk¿È:Ûêc¸a§ƒK¥ílóÿ†Å@ñ_EôÀ¨=Å€HÒVŞK}‡9©€%Ğ'×
-†r­èñÿÍ«ıı-]>ğ36íWÇùšÒìÓêvúYQj½::œ¾íL.!¨Åñèp€›HV¥Ik@“Vm¹€7n)³´Îwûo÷(I¦ä"–$@šJ»áR%˜
-±³u´ÿæÃÑş»ÃİÙÙÅeu14’|ÄßóènçİáÁïvöTWÊ¬lÙxg+ÅÍx7fİXë$Í£³ÃıİŒwò£:ÎÜÍŞşï^ÿ@—éCÒæ IAĞ›ãPÄzîD'úñ\»S¾˜r´C¸ÿ¬Ê¾èûÙ_|I.·½í‰‚•ÿ€í¿!ü‹»¾û§ĞB}<oöÁ¿fıƒoFæ°ôfgú‡ùuf-¸Ù™şaúÎ¼•9<Ò7]c}—l›ˆºz¼öÉaÕ¥W‘qy1ÔÄ&m15-3•+^åÇoJksÌ0~Æìµ²¸R˜Â Ë`æD&J:.ü}¬‹ò´Î«Ï<Åı¿TS=ÓävÀçBøĞšf7û÷’r«Ã¢ÅqàO¥³ºÓbñÀwyû#5ù Õ&¹ù¦%ºKtâñÚ,¬ò™yÍ©DÏ‚¬U%èû8íÓ?Ë––ğôóïi“ózùn*”/3HW¶m
-uˆùÈ‡Âí‹\ ²È5M‰ÀöÆ“\¤è;-›éÅeWDß(EÀçvôËdÓ/ï‚æK‡yÿ²Î¼$ŠY¹
-UyvZ%ÕáÎIó‹’.—®ÜıòëW	œÎÎë©G[ìsU^ñXáÀš)$!TŸQˆ—eE×6/. H]6Š÷d¥­s˜ŒÅ«X!»ªñ¡ğƒÁézŞ+Xb>3Æá`D>öQ6éŸCŞ<8@èÈQ8f´b#5_¶fÁûaÆ> B{¨è1è ş„~¸+Í]IST+ã)}ÀjY”¿¾Je:¤ÀˆLHjô¶@X#_^ñ,G±SQ±÷©*G]ğĞå“®µVl‰Pö)üğa|	RÉ¢\µe9Ì³ñb(¬“wÍ?šĞµG!#)¶ÉJhE;Oı¾,Æİ…%²°zj‹WÆ”¥Ù›à¬[‚¿ı“®ıÙ,‹Ï­—g%———è;£}‹r¡8V³‹-§Ë¥ÀsÿxILæX/zòó‡ì‚>ş9go²zÚ|“-µ*è·ØºŞ"+îıR–(5˜¹îQQ6#‹¤·Aô ±EøüóC»E¦ô€àSÌŞsË¥×øıŠPlÅz.x+à86 ŞhHÂ‹B“-?±l$îÌ´kÎ7>Êt ÇB¤÷èÏõt˜C0l1**²[àxƒbéÍ°¨½›6Ğ®ô€ÒqI¥°wUIi|ş<|°•Ë†5]>ïåğ÷"æëæ#%¦›sfDÀd¦¦5›¸ô 9F1%¬ÿOdïr <+?I˜Ê†U¾ğ•£ÿ{¥â•üø@Œ'W0ßczNœF3Yv{‹µ(x˜–0
-sRáxÅğAË3²fµæ¿•Ã€ñn[ğÙ‚RX£á5u™s5wV³º}”]ÿ6ùf‹Ê¦÷S„±gÿxåK&®Ròqï.[#ù~À¸q¾±Ó­pÙP¾¯÷eVOº÷. 1Ôøäü,#¿¿û
-™ÙˆL òrzËçrø¹ ˜¬ÎéãOe'ºuĞ×Ç^…5€8Çöæ«¢ZÏqnwá-¨å“üsN	`¹ö¬¡$w‚Ï$¶EZĞ=ÛOªË|IŠ/1Ù¢éï>A›€ç*hŸcL8Ğu¼ÒDÑÇ2k—e0ò0+Ğ‚?ç[Ö×¾ˆ$¢DÃÉE„	Â×tºnƒ×øƒ	3\Š-Æ^›6ˆ+ÁÑŒZœ2Ò×oomB÷ÎÖ!Š
-Í×ú˜$ßÚHº,ãh¸ˆØÑl¿6‘yÚw‹G2†óÍ	k~¬¾ln’Ä	Kál™ş¯WØIJ÷‡Üa‘”¢X¬¨°b®•–éçéA•ÏàU2*ÛyZñr‹¬ß€Ù@;ÙqK	û3QD¦=ıë‹!ØˆHIFêTì ì=	ú–$™Y^’lPpL®ÂÌ“„Ç¡ı°,© ,şxN™	lÁ°¸¬‰N6dB¬®À^M‡€v¶J·cûşp¯3
-\âUÿ|TŸ¥új×\~[9éŒ|à™êš…H€Ç½ŞÙŞáÛ*S\wHök:}*¥âxëÎË²\O*%$e+o¦·åYÕ?·ĞgOkïrğetOÊ‹åÕ‡kÄ’UàıêW2 q„áÌ%ì[è]^C‘:•#9•,c8“SŒ@Áå9¯ÃåÕ5 5Ô0î¾ íÆR îÖ‘Œ`¦»WÀÄÂµm¢¼3€®Á—cf(i¶N£ò×º@’÷)ıhR™{¿'k	 ‡³•—‘›¦óÑ–ı7]'ÁÈPÓyiì±ÀC¾Cò#Dè@4¼¿Iñµò ´_å¬ƒ$·ğ„¶µMFomúÂŠ›n#DZ’†;LıøâE½"#<¤¯ƒ!‚Üpã‡üS¢CèoÀ¢Â?ßn“ïÉjK ˆmZèQ6¼ŸÑ1Šq[Ãç]fL:‰a› ÁËé—aãí‹‚ĞÓ
-ß_à³Q€Á%0!l‘Û?‰¯Ÿ?fô;8ı}Ş§¶î:ï¹lá’‹pwÂÜAŞRb.RíØì­5ZŒ{Só„/.{­ËjÒífKä”íÍŒuĞ²<?0oSY´{Ê{·Ã²é‰ßMì	9YÉÆ'eMôå0º-TE+›…İ\ËöÛ||9’=åc€° %«Çie Ÿ4êITo–bµvX\B
-î–$£<„m¯1¡/¯ªFwË>TJ€-ó¾¢a‚º¶Dô åç€Ç/³|…äztßBßáCµ^ì4ûÍíGš4.l®JÊšeÈ´Q:†‰„fà …°¬à
-È¨{1ª†UC§,»	6/DjÔ\b¤‹Î\¢H‡A CqË»!Õ;t}ƒ–áhº§0øä‘á¦õ.–c†`¨6ü%…ÆDmĞ!lƒ´ ¬|öjLÙYn)­âsy½ÆL™6™±‹)Cq”57-—MÀ#¢TÓ¨ŒIx,ç{×	P#qÑôA´JiÃ0»¨eorgDÛšTÎ40bOË	À'¤±©î,6¨¡³ú’*è VZ~D*­÷ÙÃÉùÜ{1yr;,…ßN=±kŠ·‘²¯Ô®É 8r+ÏºaL™Ó«AIb@rÚ—uèP1¶Öj¬3¬øë’¹àD6ø70${ÎØú¾.N|,2ºŸ~prîöhûÅ¸şTù•q”4<›œ–ƒ/æ0)­+”Öñ!F	næ$Á¢yğ¨p,c"ùÃ‡d7ö/‡YÅàÍ Bd.pÌ2H‡e^áœ±Ò­ËQpqª.{S&Bñ
-(K*°®ŠÄ5ÇE6#ßÀ•n…8ğ­CüÆ¢p²‡Ş€ù¿ &3½ı:tÂé_y·[_¨zÊ@TAùµ¡k/E;`¡"æÀè€xJ ¢)á•d4B¤Íó¬~s9œC#Õ¼Š\ÅÚB¾
-®§dŠr1°dÀœÙ Â!4>H¢nG‰ÖqYş¦±on$ŞÏt£&8»Çx¢ÊªÈÙ4æÁ)‘Ùè+¼Ô7ı÷ÉÊŠÇï¸ó¥ˆ6
-aOêëÿÿë¿üçÿû¯!7ŞwK^3J3VUÀão©4!ïŠ.TP§¥‘üÄïØÆCt:Ó–¡Ù’±ñnú²ôÌ«…ÈeÅé ³-ç8˜e&¦•ÎÂ"<¿’“Os¦TR‰y¸¦8Q"ÊzùÕÁ!}OVùJ&œ šŸäÌµn=lWaN:(V£ä¶C`ÅŒûDyŒ¨ùæÍDLrLõ™ÑäFâİ²šÛ‚HWãúòU`ñRß3bÃJ3gDC°vÂ3ë0ÓdcIw:?ŸÖëü<ävÆ2$ÍËÃIS#H¹—põYâŒ1¸´ç/«¿ŒûDøÿb˜êòâ"Ú8¿a¦T4³„ağt}ÃÑVº®"¡Ã+[¤ŸŸ“Òëõªb‰ÈYØ2‡uK  6(¯¯Iõ%yÉ®²bBO=„í•ıî ş9]"J× ·îâ®œÉ#¼/•²»yUÅQùõ+Vó}¬¬º}ú’•\E*~Ê~ÁX·:KÚOTÒ}AX|c¤~˜…O8T9Q^·åÃ§›–kDJaHv˜W^â@]å°ƒ_)|°îÕÙŞ¹œ”£»¯“¢_’îËı—d™¼«ŠQ^Ğå–ñÀdÃ˜aîå
-­p€Nc ß0™tÊ´AoØi£€Ää-BŸjäÆQm~]¸%]ú»dİ·ärL§àwô­ÙsùõEQ}ù Œ=öŠ®â¤·prÿYoÒjâ0T7·Mi­Ñ¥>~hØ*p±F8¾=U©ŒÃV–÷ÍÇ›ëû1ıQ^bÙÂc»Åd$Ÿë¦³İkÚl]ãT)]hÄ"ê8¢Œìua˜{—*ñ’8ÈiïºßXVœçä#ß¿²¾··ÀG¦WŞY°(Û›»ÿÃn(k®9/‚>Ñõ¤¢8›_!²a<İ6á§­Q¤¡_†H¨&ş"Äê`´~²>‹8´/ÍÀ7Y°“¾è4~ßIl!¾a÷h+ÇO%ÁÓ€U5«êüÕxâúEík~’|c*¶Ø8ÛÉò­…Í›WËk+&&¯r‘w…UÌÅèjlZñŸÁú¾æ…˜Á¶MKF²†#­¹‚vµOñˆïÈq$S.÷a 5z’°xş¡yáåÍ+–Á¯»ÉÔ|ƒq3cdSÿp§Ÿ”9y”»–²Ë”rËÂo©æKß¨b"	Ùdˆñd†iÅ|²ì1$ë©’Æ\µ>ø%?2-’cÀÆ6HóÔEÙ«êx†w“Â)+bÊd‡£y«¾µ®¾‰Ì1ShğKË«<”ò0‡àßôÊ´ê«:Ñ–åCø€íLy¬•×T³ŸHe*~á'§/bÀ4:únê ·ùÕËay”O£«ƒ…ºrŠ¿3LÚY›€×ùÇ[,µºy ğ<‚üß=ÿî‰Ã³Œ+P­áRzĞ‰ºU[w‹ª?tâ÷²Š¼ÈŠë,Å3‹3îºŸw£M¹]BåĞü{)u6İºï0xÊ.4ıòb±[HH/Â$›ˆØ1ö8?Èæ2÷OËé4ÅlÌÎÌ
-xW•ı¼®‹ñ™n½%›Ü°Ø¤‡z§¯&Õ'ğTÒ9±R¾8ÊV‘ß§ZCA—Z-âOLšîccè(¾ˆ¶d†}!9$Ôy™‰Câ	™œˆ‰ÏÕD*ær}AU«Éùò&U6•AjØLu¶#z}L£Gi“øcşÁ§$ëˆŸ.ÖG 5t†e[¶r0ŠJ¾²Š‰	Çd‡ò¿WÊßíx‘®¼2W!¦ÿÉÉèl¶/v¿yÉçi4G©v)Í£¹¶Âäòİrü©¨Fô îl°œËéUPJŸŠJ
-’ÆƒÖHß7ĞrfBSL6ú`Uíg…¯‡L ¼ŠT{Gz•çˆ:Ò(è”¢‘4mS³co2LÄš­š
-è§°îrÅ½ç³À{,•¢…Ik«<O×|Wù}•Õçî2_÷‡—Å´ëì'Væï¾ÌSë)MÜ˜¢éàªª×-jZóPó§++yëZS¬UUë@ã0 5Ã|İ”b×& ˆ.|ı(PíÚÄ‘•¯Sª]ˆDN˜Ÿ(ÉúdÅÄiÔÇ†fïı„HÌU{ÍS›ÈßGx}lw‡tƒ“œ&¸’ B+ü5•1àH¬ ²n¥*ÎÎ'ôM”è¹0<¶l:Ô²p5‡¤{®V‰ùŒñå“ÇÁß8HëˆY¦õoóV¹1¡II6ëÔh¨C§önñÕSò$4ë¸ÇÕNšY´æ?'¤C¹¶æ-X”áô4è)¥îÓ%ùĞªñöKgû-UÉL’+îezItµM¤#“8O•“ÎöQò:í¤¤6mEÃ·ÔLCâ²€õ=’V™—8­ü‰×ßG·Û[Jíú9¤OËËItÛ»J²b«U¢)¹mbØ±‰zlL”YÆpòM%İj’Pj|ÕMÇ¨Ï«büÊ;FHKÙŠ ñ¾}€HGÑÕe%İvËQI>]FÉ8H1ß”Ï“+‚±é…	¹'@ñ¯‘êÜ2Y"£A:ì8øäÚ(™†°F’}Î†»é"Ò?‡£’jOÅ'À­!;wÿ³r°ç– Æ	nPšF{Ó²ı¶‚c0Îx³$HÙR?ãèÌíå­Cê:×Ìzée–Mÿ²¬Fäe‘õ–DBıkQ°c'á¬¢
-;üFéƒ-ıç/öãİ»­‘WŒF‡æ †¿ R­·2!Á"c€:Ûƒ…¥à …œbù4UWÜFºNÅm d'ÀÓ…{ÌtÆ'.]Ób‚æRzÑ$e·”´;
-Jıòt„ıâ\^•ÁN?°€Å)?4ÿ–·›Àîb@Ú<J©
-ĞrQİıÇ5•˜i#îW-šSø™*~zCGåù²E“,OfìPÅÎ¶÷ëÍ¦ÖuÇrü¸Šß…±iéCÊùğ<o"&à´Ñ5 ASËÈÄ~ı–ğÄıë-æZ—§À36yÎ‘Aü®DĞHÿ¤ˆ•ïbä*EüÂXúÎ`@–Ğ;+TÈ)Ùç¤ÀP/>$«=ò2‡ B&~’şeUÑ%~¡’‹¨Ej½uõQFÍo`¡¹²jKÌ²ñÎ.8Hã†nÁÀÙ«0ÿ€¥°brÎWÌ0ü2«Fw_ûE¶À13­6Œ_½½Ú ›ÎÏM@E:wkrîTñ(YòÁ‹•ÂçLİ{˜ÿ£(sOh'	ó‘X¥…ìw¥c¯ğR*=¹; ®ğ3€®e];kH<ZÃş6DbÊ›ì¢	jU•‘ßÚEcä·wªjü$ËöèŸt*)o‡ «ÎŸ¯”@QÅjP&Ÿ«ŞyVw-¿Õ¢?5¹vP-Lä5Şò¡ÈV·q¬NøªçØ©Î }<“‹zf§(!4e!Ïf	”óóìŸÀİzK9uƒĞò@’­ßÛ˜\ÏöøµÛø;LjZí0ÚtË­×|!÷›¦ó"À,ö$­‘ÃëÕoÃa°8’ks÷Qâ¢¹šT]/†¬²E.¼Çî¢ùæ—QµXß=Õ¨¿¬åë”PEŸ°ŒN°â³WKa â	NÙåŒ¸\Õâ¦E½ÏŸé²” æ`6zPï”
-'„K×`pªxå•y+	Ì¼£Ÿ ÿ!ÿÒ¤äqên,Fº—è½¬Ê{Ûç[T¢cES5EwÆÛœAÄëW(`šõvÇÙj,ÿê†=yİ1Ç^Ûs¿ŒX³"îİÇgê£l–áU‘c™ÂÁ¿lf?|»p{âíß˜kş°B1óÜl¬B`¨ÆÊğŠVMJà|N·ïØ«Uà«Æ8™³t”ÿÒ…`Œ†. Ÿ­¥>ò7¾°çüÜÄÜî3á'ø–°ŸÁ9¢±àüõ…ÿ~½æcs.ıƒËÃÚ|4ßKJÔ(ñq)¼µ(ÍVP„:“M¤„’pºú·ÅÙù< äE6{ÜMâÁ&IvÊñ"‘UM¯}ØHBt½ò…|&ş>¢Û²4çÚšáş¢0Ÿ´½„ê×˜¡$Œ¸3Ì«ÉûªÈÆg: Ğƒ8-"ˆÓÊE„1Î©£òƒãFÂa"Q”~{q3‹Oå–š‘`ıl_­w‹§ß¨·¡MÌ8“ú™Ïƒ9ãñMÚœ£Pªfp=	ÿª¦,ÅÃ¯=ªæö'Ùˆ®öHm€~9ƒ7¦²yÈ,1E¢£À»s	6¯²¢²¯yE?-'Ì7S’a6`^QpÜp U³šÎİ×åaÓ…Ãî0XdÈpm¡Ó…Â¶cÏo~ä—oåA¦_ã¬V_œ†õ/mûJñ¤D|àÔõìÕå(çğ:§·b;LtÇ«ÖRšyÚsê³Zw0QáŠ‚–ªÉbÀ=ºÕ[o|	øZYpÈºq
-±&ŠLÛYŸôAö¹*¯às°¾wëª8•8Ì[JM‚ˆwõºvÜÿís1Rêx©0˜;VrÓÔyù›scq Êsn¼ƒ_$‰üßÿùïœ03s¼Å]¶oÀ¶Gû“'Å„çYìMÊ×¬Ü!`Šèû¾8\X´:ÿíd@v Z,õíìRpP©x:)U&RòıSê¡À•^æ.«ĞˆMQâ`‰EËÍK¡óqR—ˆ	b
-ìšv„jM7Ÿå¢»yĞÒ×±İ-ö¼,‘=İÓšÙúõ–rÒ]4+B÷z=—,Ée;IÂ9ñŒ¢^ömÁty}tB£TÉ"!Am_Í@.HW*ùaš¶ø1á=Ğ^L¤òâq”ÅËAWSÅõÜ 
-NJBƒiÊIÛ™c¾è˜GƒÌnĞ?û—U]VËãrc/¯¨fˆ¸±_¶4ÆŒ•É¦$Y#wDÕ0Œ£½Ä‘^P‚›SHgçïî¾’øÄ„~Uùº+N¿Ğ±yÅ«ûğ»"l'°»ı ‘VÑŸğl¯£I6dÕ@{R÷„•1x”|Ó+M5zØë [nŠãØaÌ­ß©-Ôê°Úá‡F}@d³ÊAm6•s|Ú9÷B;]Z	§Y$(²xÍ²Cş)ÇÅqf¯½MfXDQH¦HOÆ;Îİñá¤8j<ŸVG.O:^µ]ÔCRMÖ”È‡ôP,~Œ).*ìò²ÚDP¨Zí"¦[›lyy9pzãZ"´Èòø<h§ê^Ø_Qş}jX|[Àq‡vy…‰«	T{Ñ£ÿQHµü¯(v”=j*”ìõE9¾ûãç|h¥ÚšÁœMAšÅ³Ëc˜²1½$Mi¡J0¯C“,
-#DH"³JÂPíÃİ¼0Œp*ÒE²b;Œ®B}ÀğD1ìPŸH±Yµ·EWv5°TÚV3µ/·»¸fë_¾áöê‹a1é.ßÚÂâñÊI¬U­•­Æn•
-˜ì:â„ÑWC÷’-˜Á¤ØHT¿"ªÙÜ•2?Û[kbj¿)`SšÄXÍÔ:SB§ºÑ&5œR7rR¬4Ó åà·DjUKôwõ$Y½boÀ%ÉqyUeS0c§ô'è¤ªP1Ù¥àaüD(G~ğ~íì"^!Ôú
-„ù×¥;å'|¡w39å*P,¿—ÅçáyóV	Mr¥¥Iò~·€[IÔãc³Åx^#tœ±	Íxå=½Ã/¸ß4D¨¸5Õµfäái5İ·¦¶°z~ÈĞoñ—²\jÚ•æU¤1ÃnCBÂ#İ[–bÕj‚SŠ5ì™.¡ÔÆœ[JOÈÄºq˜Õ„
-ò×AámâN³ò Æ¿âuô”;ªY–Î-Ÿ.³9š6\şÃŠ”µ-Ğ‡DV1„)¤	•ø¢
-â0¿óÄv½(¾€IÕçBõXÇ9ÔfwuŞÍ•;ÇÚ,Ú×ªîŞ›»¯×=ÂÇÏÊ¸.şb~
-âÜs_ëeï:îìmÀ’1‘<m‘ü	ÔÈ š–ç^&:½#¥§@pO‰LÏé¯©Ú£O?Iƒ€S’yÒô»OU°Ê§1ˆn’¼-I¨ôNıKQ¬ÈLı‰ZÀ†g®¶!=ía«^{XÜ×™âö±@ÑœÊyËÇÉ-<ô ’KXUš¼c¨ü0ãİÏàŞ6\`§éÎ¯E†@X«­M£Ä(IŒf¿·¢™,s) !Œxµ1–N9Ê ±nNõ>âj‰s‚ÖúÈ$ò«|<"ˆ8—øU~^^ÈrÃ mbèmGÆãMNÌ}1«xpöÀ<Šõ_±S‡7ÌEXB%½}÷s@º«Kv5²LVÛ{Õ[ó‰.a„”X|FU°6¾ğÎÕòrNÿ‰ÚXÖ¢´-­9yul~Ó°ú¬7ñ±éöl Â tQ¬ÆÏÌ>áå¹øuCYÊöÕ²ˆ+ ´?8t~ßFTö—JŠ?j/Ç™Õ…øi*Æ]c°KÖÕZM+øsï4è›8øÖÑ]]cg7R•Èñè	e‡Î9}ÀU#İGËêü¹ñwWÛÄø×ß:·Ø¶T
-ògÍ7~=¾‘dH:EmÎPëäŸ†IR˜»è¦gmLOód|ËÎ²á£Ûİ²*®9jˆå§ÂÓì€5»Zpjá~ÑC5¤İæ#h@–†à<?¥© ÏÈ‹oÄX~Oèç–õª¼-aºeàÍfoN,£ß¼¦ÌµX,™ô®9¦ÑÔ‘f(7bê×}ˆ…¢ÅP.‚‚fël¿ÍÇç—#KSË8±AÙÈšé¡íÏ.¶ulmJ…åKÖ"äYS29Ê¬\Œ~IšğnX7Ø¢!ÎÏW·$¯J"0Cãkáğ¶u®J+5;t‰áÏ•Ô":²l$4ÿ¸JLáŞfÔæ¡ÚAgit5Ww7÷óa£œ
-RYE@4ãu2b•5@9WÖcU¯ÇZs=æQ‡#}-ŒBUâ“êŸ¦Áä·Œ¢ˆo€v¥;î¿dÊ#Ê˜ëÉ/] \’ÃW7ÃC}'¤ñRíĞ³)É|_fT”V€­s ­íğù~WåuN®nñfÏy ¶Ik€kúo*¥A[Ãî­ùu1IjÓLÎàà§%ÒåşÃüÓdyõááz+#‹×ì‹Á7¹rşÆG¼f…•F®q±Àd0µ,_-S>ÎFJŸG³9¾T}Ù‡Ã± ,üÕ1ˆ›áê6“WUY-˜•yc-Àªt¬y§uŸ/aoÆô]èAgÜ†Û/-øÒØ}m„å¤Qg[t2¢c£š›¥é?Bê@>{Ø8Æqú¡Îá¸CÈƒ:ÿìP1Ÿv´àPA;¼ÑŠÿ¨Åpíçx¸áÅ´?~D·uªı#GĞAÏ·uÂ5lı’q2›Š•qĞ%n½ñ@Ã^÷Ô|<†=eòH¯¯Á!}À8Ùf•{«ñXàÚÕòê#Ê˜è¿â5ü$ÄY©?P…Á]Ö¿¥Äy5	?àtåœãpÊÂ?Ô—w_«p£› æ¾tæï?y¼úh÷Úyâø{ª©ôéáÎÌK_¡gâ÷T—ı•TÙ g•ePR9>ÛFN	/8#ãQø­Ï›âã>h)}ºâŠôİWÚ•¬>,“¦¦:u>Ê\dh.ôı±ZBãô„P©‘ãï^nÒÿmœ8°#ÅF¿Û¼¿¹EŒ>Y‘úCV„”‰Êê/ã>	Y› „ß(xTÿ¤ú°_eWYÁ°%i{{e¿;€N—È4Z/,¼K/Ê£¾àA&‘u;òñSp÷Gº'mƒòT8
-:K¤#økmğ–ôY½ò.ã¢[”Ø~	e2èŞ?2ìá¬”GeĞBŠi~¤ı³o½#ß'ïìtĞ¿iêí´*8¦ÓL§ØşGÅhIVÍI>^³‡O2iÜUø<ğ™ÿ!§ë¼ÓÿÃ¸¼¢İÙlBkòşä&‡ÿE`ùSX|"ı¼åŸÁ„Ug‘Pè<P"C*ì»Åİÿ÷‹l:	Ç.ÉÒxë=.İôUo òäõ„J ı‚áQ9¾+µáUŠ=æAƒù‡¡Üv”Ä#[£üB1ıH:&…ö¯«q|U\çç—€Ì—ı%
-?¿+‡“ŸQô±öÊØ°ó¼
-d5†å\%öá5E½{—t`xò®pv¥ ´Í>å,¢öŒî
-ú™Ê]¯º…C‹kà4eµAQŠºÎæè‡HŞXO‹K¦ìzK}
-g!ªşv&[D…sBç«£ºÊşÅÄ!ö[{QÕÜ	Rdm•4¡UÒMEÜÙe\ääE–ŸH„Utö>„Ø qš³üz¼ÚÛ<™¿Ûºb®ü¤“È 7 Ú•$™`¬¸î7 «ÛéÚİşÕ  ÿÿ nN
+                  <div className="p-6 border-b border-slate-100">
+                    <h3 className="text-base font-black text-slate-900">HistÃ³rico de SolicitaÃ§Ãµes de DevoluÃ§Ã£o</h3>
+                    <p className="text-xs text-slate-500 font-medium">Acompanhe o andamento e o parecer das solicitaÃ§Ãµes de devoluÃ§Ã£o do seu setor.</p>
+                  </div>
+
+                  <div className="p-4 sm:p-6 space-y-3">
+                    {requests
+                      .filter(r => r.sector === selectedSector && r.isReturn && !r.deletedAt)
+                      .map(req => {
+                        const reqItems = allRequestItems.filter(ri => ri.request_id === req.id);
+                        return (
+                          <div 
+                            key={req.id} 
+                            className="bg-slate-50/60 border border-slate-200/60 hover:border-amber-200 rounded-2xl p-4 sm:p-5 transition-all hover:bg-amber-50/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                          >
+                            <div className="space-y-2 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-black text-xs text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                                  #{req.id.slice(-5).toUpperCase()}
+                                </span>
+                                <span className="text-xs text-slate-500 font-semibold">
+                                  â€¢ {new Date(req.date).toLocaleDateString('pt-BR')}
+                                </span>
+                                <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border ${
+                                  req.status === 'DEVOLUCAO_PENDENTE' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                  req.status === 'DEVOLUCAO_APROVADA' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                  req.status === 'DEVOLUCAO_RECUSADA' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                  'bg-slate-100 text-slate-700 border-slate-200'
+                                }`}>
+                                  {req.status === 'DEVOLUCAO_PENDENTE' ? 'PENDENTE' :
+                                   req.status === 'DEVOLUCAO_APROVADA' ? 'APROVADO' :
+                                   req.status === 'DEVOLUCAO_RECUSADA' ? 'RECUSADO' :
+                                   req.status}
+                                </span>
+                                {req.returnReason && (
+                                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-md">
+                                    Motivo: {req.returnReason}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {reqItems.map(item => (
+                                  <span key={item.id} className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 shadow-2xs">
+                                    {item.product_name} <strong className="text-amber-700">({item.quantity_requested})</strong>
+                                  </span>
+                                ))}
+                              </div>
+
+                              {req.observation && (
+                                <p className="text-xs text-slate-500 italic bg-white/60 p-2 rounded-xl border border-slate-100">
+                                  "{req.observation}"
+                                </p>
+                              )}
+                            </div>
+
+                            <button 
+                              onClick={() => setShowRequestDetailModal({ show: true, request: req })}
+                              className="bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-xs self-end sm:self-center whitespace-nowrap"
+                            >
+                              Ver Detalhes
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                    {requests.filter(r => r.sector === selectedSector && r.isReturn && !r.deletedAt).length === 0 && (
+                      <div className="p-12 text-center text-slate-500 space-y-2">
+                        <RotateCcw className="mx-auto text-slate-300" size={40} />
+                        <p className="font-bold text-sm text-slate-700">Nenhuma solicitaÃ§Ã£o de devoluÃ§Ã£o enviada.</p>
+                        <p className="text-xs text-slate-500">Utilize o botÃ£o acima "Solicitar DevoluÃ§Ã£o" para registrar o retorno de algum material ao almoxarifado.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {devolutionSubTab === 'sector_stock' && (
+                <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                  <div className="p-6 border-b border-slate-100">
+                    <h3 className="text-base font-black text-slate-900">Itens em Estoque no Setor ({selectedSector})</h3>
+                    <p className="text-xs text-slate-500 font-medium">Selecione qualquer material guardado neste setor (inclusive vencidos) para devolver ao almoxarifado.</p>
+                  </div>
+
+                  <div className="p-4 sm:p-6 space-y-3">
+                    {(() => {
+                      const currentSectorStock = items.filter(i => 
+                        !i.deletedAt && 
+                        (i.location === selectedSector || (selectedSector === 'FarmÃ¡cia' && i.location === 'FarmÃ¡cia')) && 
+                        i.quantity > 0
+                      );
+
+                      if (currentSectorStock.length === 0) {
+                        return (
+                          <div className="p-12 text-center text-slate-500 space-y-2">
+                            <Package className="mx-auto text-slate-300" size={40} />
+                            <p className="font-bold text-sm text-slate-700">Nenhum item em estoque no setor.</p>
+                            <p className="text-xs text-slate-500">Quando a farmÃ¡cia/setor possuir saldo em estoque, os itens aparecerÃ£o aqui para devoluÃ§Ã£o imediata.</p>
+                          </div>
+                        );
+                      }
+
+                      return currentSectorStock.map(item => {
+                        const expired = isExpired(item);
+                        const nearExpiry = isNearExpiry(item);
+
+                        return (
+                          <div 
+                            key={item.id} 
+                            className={`border rounded-2xl p-4 sm:p-5 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                              expired 
+                                ? 'bg-rose-50/50 border-rose-200 hover:border-rose-300' 
+                                : nearExpiry 
+                                ? 'bg-amber-50/40 border-amber-200 hover:border-amber-300' 
+                                : 'bg-slate-50/60 border-slate-200/60 hover:border-amber-200'
+                            }`}
+                          >
+                            <div className="space-y-1.5 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-black text-sm text-slate-900">{item.name}</span>
+                                {item.category && (
+                                  <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                                    {item.category}
+                                  </span>
+                                )}
+                                {expired ? (
+                                  <span className="text-[10px] font-black text-rose-700 bg-rose-100 border border-rose-300 px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                                    <AlertTriangle size={12} /> Vencido
+                                  </span>
+                                ) : nearExpiry ? (
+                                  <span className="text-[10px] font-black text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                                    <AlertTriangle size={12} /> Validade PrÃ³xima
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    Em dia
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-xs text-slate-500 font-medium">
+                                Quantidade no Estoque: <span className="font-bold text-slate-900">{item.quantity} {item.unit_measure || 'unid'}</span>
+                                {item.batch_number && (
+                                  <> â€¢ Lote: <span className="font-bold text-slate-700">{item.batch_number}</span></>
+                                )}
+                                {item.expiry_date && item.expiry_date !== 'Indeterminada' && (
+                                  <> â€¢ Validade: <span className={`font-bold ${expired ? 'text-rose-600' : 'text-slate-700'}`}>{new Date(item.expiry_date).toLocaleDateString('pt-BR')}</span></>
+                                )}
+                              </p>
+                            </div>
+
+                            <button 
+                              onClick={() => {
+                                setDevolutionBasket([{
+                                  product_id: item.id,
+                                  product_name: item.name,
+                                  quantity: item.quantity,
+                                  maxQty: item.quantity,
+                                  selectedBatchId: item.id
+                                }]);
+                                setDevolutionReason(expired ? 'Vencido' : 'NÃ£o teve uso');
+                                setDevolutionObservation(expired ? `Material vencido em ${new Date(item.expiry_date).toLocaleDateString('pt-BR')}` : '');
+                                sxœì}ËRY–à~¾â&©i‚*"^z0	H¥j$H@Ù9†a’~/ù#ÒİƒGQ˜µÙ,f5«Õ¬&§eİf¹*›Moù“ş’9ç^\w¿/	eÊ«Ex¸ßç9ç÷¡éşYt±IÏ#”zQø&r¿sM¸»BÒxDÉÍÌùOD{İÜøN’¼uúüúÃğ²»D†Wİ…Ş2‰£QèR·{é“”^¦İË„œDaÚ=öÁGèİ	GÕu|†ä¸Ñ>“Pÿ¤KC—$Á
+û< aJcrqæ¥4:Ú£‹Ø’Ÿ^¸$ù3§Î°;]?º6Œ™z9ôbêãƒ„¼ ÓÇ§İ8Jh÷q¿OÎ¢s¯äwÀ6=6¾i›öVX{NpLãjƒüV­EÓö|ĞïÏšáıÕ½(uRº1¸ ‰÷gØÃù¥2·FÔÀ¸ˆ‘u?ˆ.Ø;=Ò6·:w<JÓ(Ôuº:çzçê”ğ¨‚Ô›™ÎŒl	ıHoCµ;×n5û£ãç˜<şœLSß;õ}úŞ…O°:M¦É?üé4ûnÔ˜‚íeûY Å"àÅq»°ÄüŸnâÃFtúı¹§}!:N|ø|æ¹.§dkWïmØ}œ·z\m~¾ß—¶ mœ-ŠM0<vZÁZ¼Éz†m…iLO„ìQÇ÷şì¸ğ fŸ¦Q¼:w¶¨èiØèæ)´½(Àz¨ë‚©µ}êÓì%£À!ØÍ{é€{¬ãcÇ»ŒÈĞ‰¤"ì'F
+ÂóÄÍ º·:7”®!‡«Õ]Bê„‹Ì	ÒUwQ±¨×1ıiD“4Q@uïÄórubò|Ä½„`å¬±¤Ôİç· Èàg@ÕQÂAqëíÁŞÖ«w[ş¾‰{ ‘_OgT]Î°ÃÁÔôq…I
+‹úÓk$¬ä9ê¼ÇçÀîöØˆ½^6Á÷ËÆ_{«9UbšâP‚1µõÖšôêù5ïêFÿdsğš{ÜW"ßã‚"ó_8U†_
+Ô] Ô-``¹~”±c	ÿt‘Ï°ÏqtŸ+ÇÕŸFIê\uizAiÈ¯¥)ÍtôÄ¼¦9l.ğÑÌ+@Tİ€ü€]0¶-Aßa¥©©â;ĞRHà!} .b¾XqÿTµ]ƒ!$#SäÛfz‰ïh§»<ÓK£wÃ!7€ĞÉÏ‘ÚÄæpfc,€Ê%4ğ#ßµšËüóÿeT¥—Aˆò6\ò1øB ßGƒà’BzA6a(Z{¸,ÛÑÀñ)şºŸÆ^xÚ™¦İïö¦gn>Øu·B>lÄ	ÒÎàƒ¡—Im†š®W’Á>ÃÆkæœ%ŒÎŒGœìsr‰DQHOuË‹Ó_Ç©ã^í1Z	\ês††½ŸFN˜zéÕû8ÿá/!}_6ÓÀñBXæFƒÎpÑsI·Ş·Më4½¼8jX=šz6T#¥//Q"©Š€dúb!:äW¹š«ÏIßvpxq‰¢`ÈD¢°_}/¤İôwzÖ xV"F~qQƒÓU¡“§ıüø+O7é\¸LLbG~Ù )^6”/¾× ‹îh¾aoHçºXé›¹k9ÜŞ×K†=ïS½l‰¸F)¯ã©ax„GôÏpÙÊ´ıQ¸‡ÛÇç×;šÃIpúiš3}òÅY½»/`'IºÄæîF¸xÛ¸}ç¤ƒ3šd´±àtsêıƒ¼‚ÍF¶›İA å¬¯W\Ø)(§ÑÉ[÷Ü±3Ïmõ:n¥>Z»&òe_)÷ÃîÅÀ¹ü~Œ×r!ˆmÍk>ícüŒâ PuçûG/zü‡ivcƒİu0¨Ğ²Fú°ÏÆf¼Ò0¬çÓğ4=cPÓŸ±Ú}ÔÙDN’v¦"7JüŸK¶.H_N.“?İşg]ì$RÇoÏD_^ëMÍ’)/<‰¦Z€§Å2™— ¡i©‰ü­…¸$Ã©´°G$
+;ÓooÿÁÑvNÉ(‰¦Û¶²sœĞøÜÁiË·M:ÕY’‰Äí?MVÃ:UQ–ZBb¯x•i¥ºØ$è\ÚYĞj>ü]ã`N@dğTÚ~İ¯–QÊ…"ç>46z ×'fÓjh¢æø&gzM¼,T ™EĞ -—]g”Fbƒ‹ mgJâ¥>*‰ÕM›²?²Ş¼±@lô	Šğoix†Š½œˆÁÂœŞşrN}¸G4À§ë¨Ôv²åÂ6ªGˆÁ°9Ã˜¼Ä!¸f…*ºø£Û_P™Ø™Ê·kj†„Ì;2åpí"§§·ÿÖõ¹¾à"èĞQ“P_WŸ	"Dæ^íQá±Õ¹õĞ`]vcšÀÓü9xÎç‚½ûa.!¿›Ë_¿FZ·îºì‡*´6¤hïX3/„Eï2£AsKğşuãhwF1ÂÄŸa‹$&\G–}vW@yµœj•1&#õÿù5fT1¬~ïÙ,‰ !ÿÒ¯“]‡/ˆğÂ¼ğø|ıq™jÿ¢{2ú	¼N÷¢»ä7§Ä‡Kıáå~^±øƒgİÃgıó³£RÍÅO¤¨Õı–j*êªÄÊÇİ§°*‡/‰ -uıİá·óóÏæŸq jy\ZÒo¹î_‚¤‡ß>yúdşñÆQUß¿–ÀJÜş»ŸzC_àv˜	àœşY‚lRìPÊM5I);ÚsÀîœ ÔS	nVÈïBy~ûrş·tTl;ƒápD~'õ³R²N?fdvaéF²bëO×mM5)°üd”	—«À#„·/}~}æ„®OaîÈŒİÈ´ÈMBâ°¬íKúnBğäƒ‰
+´¢è¯iƒõZ‡ÿ=C¼xZ¢Êâ¢JUÛ{øíÖ“­å-XÚÓø{üƒ‹™tçIà®”_ˆ*|]bj»Ç’³¯>xŞè¢Z@¡ß[õc8Ä)ø‘ Ín"HØ#Ô/Ğ 0ø²O÷ÂC¦ñæ—H«ê¢ÅŒu"íŞ‡#…9´eKôáÜ‚M„Aøª‘F§§Ğ5lRù•^3H›’÷6„9Ò38Íiü|êm²¯¡Ä‘ÍAŞª°l‘ÌÖÅRñ¯ÚsŸ=‰£dÅhÕ(¿ähn¾_ªúäc9wüàÖñÈÿˆ¤ëª—/œ*Èq
+oĞŒJ|—¿Ù¹îõzE;³$oh…Ğ^êÄ§4í±ÎjFéy/á¦,Àƒæo!F2B:pœFp"Ìè@[véMŒÿxK/²Ö¯^3ÔxaÍ4sk1öÃŞÕà¿„Ñ<Õìşó! ¿jx|î ,ëÏĞ&,×§£]›˜ó¶úr§Š&ZE*òD/q¾ÊgtòˆYuÊ·‘?§[†VêUTûÔ¬—Æ^Ğ™1+}`¹rô¡Iä•sìo=«ŞIØ0:ZtaãğçY"ïêhfÆ¨‚ĞQµAÖäŠ¢}³‚C²óÊ–Œ«#zÆ—éßÖA’VİRgQ2¬ª¨Z eKŒTÃŠV=±ë’Üáê©^–6h;t‚%YQEM\‘¡Ã–‡GÎ§z¶í(”T‰–Îü£ƒ€ëAÜÌÈ_qzêj4dü5³ŠÂ7ù´ñóû»:ÇŸÑõ=£óêßıÏALUZUíá Æ«bjk•°Ù”æ ‚OLmô YÇØ;¥QÔÑ¥-a šŸzáåŞLÔA†WrB¤pÀÌèèW±Ò©µö)ôT¤ö:lsìL­í¢-.È~mÕ€…Ì3µ¶9·»ı«¶5…’«¤ ºnìŞ¹…â"W‡,YhŒš99†-5”>I ÖÀ©kj'çdòXˆZ¹%i:Šn¦åw\a×u/ºƒ»DK_Ú Qi@cÇwQÌ~Ï¿£½«0r©)yş8zÕ(ÜK/>\µÉ&ª e‘Ğs×ùu×Ë\wFi18“Â±ŠîÛRëBeÌm5rhJcŸJÈcîWDÑ¢QĞF$ı„ µÍh5=£«<­Ò¸±Ç>=Iu2vzVQª»Ìá|éÎ›àŸ©AuçŠv/ §¬…À]Én,0uüÔZ®½ÂZKÏÔC”ğ•Ü¦÷†Âf;heT‘ Ÿ`¢İÅÇÅlçùärML¦“÷õÔq„ŸdÔ|ÔïBÏu`Ôsd+8îéÇ<ÖÀrœG83äğ6ª¤bîIé	Föœ Ÿº=’™DîaøÜho7ø~>xş’qè[ÜŠIŞÜşŞÃĞí@bÖí(¥Ÿm Kı©µŸáç[…§ÈOÑÛ¿Eä]xh`9X]çğ[¬8$æ4§Äjz¹WªFZë>ˆÌıj–x º—3zAO ªÛ°°:§ şC­÷jêÖ–sÁxè…v£
+/­§¼¸9gf6å”—/©ugÈ9{Ó»Rl‘ÃbÅ>š±!Æs	ØV¢WÕµØ'=b¥#Â+“Í
+ÏM“ïUM<1r!çr;ˆÍ’ilkz–´Ğhk5Öx¡Œòı8k2
+½”œQ0Ùå˜Œí`{/‘YjÍL„wÁ«Î)‹‰¨<±H	R³ï.¨#yJ)œûM.<µ@*Ùpd!fq«Ñª4rçğ©œŠ”°S1*R2¶&Y±w=¿>œN¢¦ƒûçİküËïøø÷?O1ÒÈ€Ã¨:,¦Ç…«g³ğìÀÎËß^ó'^­=ÖóË§)Œâ6÷-sÂ.²3Û„+¿ĞT#´eç”+¾üğv†nòO^zÖ™&Ó¶ê%Né÷€§dÚ~zÓ‡¡'Üè6]™ˆ¡¸öíÚNÀè6›_ÕÓ|ÇşôáŒÁa'È‚…_*Vø-Áô#:OÊxĞŒ<+)óu¬:ÕÂ+lãe~ß;müfóKg"(Û3Æµ°Ç¾2½%Î)ÚQiô³å”$¬ÊGN²—Ëóıx?ÿÂé¸%ô^é8vğ•›^şĞqÜèßÔÆõn™c¥NÊÅ'1·GÑÏBÌ-Òvµ:—*ÇxMJTÑÉğóVÒ……¿,åöO)ÃzÇ•«2r)i¾Ç3ÇÖ™ÁÉVl®5ßV‚¶Á­š±QH&ÓëõlÜ%¤Íìîì¬ï½^'‹KKSkâ·±›ÜØy³»÷úÍëÍ©µòóØÍ­¿ÙİÙ^ŸZãÿİÌşÎö»ÛÿqûßaPÅÇ»7Föw÷Öÿ›Ğ$¿q‡íx³¾¹ÿİÌ«hÿŞa·oÿçŞk¶‡ü“mSf×ş”†ê	°†0Zé2íÈ¢%Qü’†F08œÎmWwogÁßupİö}Ãñ.ÒÙø‘}{;É "—{ìëz0Œ|ø°•}ÿÎKBçn|·ÿŠİØ
+Ï©îl½ıİyåøüÚyµÍ¾îE>|ÙÛÎú¡cŞôŠVèÎöåû‘‡ı#otÛc?eĞ$p@ñ0
+Î¥	'Ó(_¾¨“ŒâŒúÛ$YxAoWÉ¦¥2ÍÌèÆDxí¹¶y`ûA©Jf	ö&2/|øvÒƒò 7Ë&Xù†PdÊIö“²éØ´WwÌYX¥¸"H•düfMyk‡‰€¸p¤ßÆl°Ä|mË?Ù˜@8¦Ö„/c6'`„oc6X¡\Sk•¯c6Y¥}r(~³Q|Â‘_~³¹‚üN­Ç†?N¼öø§1*(ÿÔZñqÌ¦Êscj­ü<fcÅ±ƒjÙÇq—-XrügÌ&}ZãÎZ×;õ€Øƒl`9$;¶íú›ßƒ`eL´2‹·±]×¬×[ÉÄ¼]Z0İ±ã£r×æÄ¯&gŠ¶ÎJê0…S1ç0…l‘À¨šxP+N¶ÜŞÜ•É	í5 ¥Än°zßItWÅÏD}58ä†#ô¾2mòùÔ|+ïŒïS£ìb°¥i½u?Z5ŞñeKy2» ªa}¶ÜÍ2eŠÑÍÒufô6ƒFäá}i3ëMƒÈ ıuR®õv(ÀÙşiŒF3tâ„¾Óz¼ã]ÜCî‚	ı	FbWÁtX¼#*pÉåzV`~Û	ò6j(ÀoÀ¢%Êl8ã‚>,“ìÅ_&òb›_¸sgÒ	@ù˜îsèÆú«ó™ãÙ÷8*O
+ºÄ6'êC7Ô,™’J«=
+8³©û‹gæÿ\/Á`7w}MŞ£¿,@_hà=«ya¤	: œçÖÖOg¬*æ´’¥bbÜæ“~+89Xhtâ°,ÆRQê-óIw‡‘gé8cv9àÎèàãqticè®€Í"9+#ns09+všÖrHÙ4¹;h·àòä]ˆÛÉÂºnÜr¥CSİAáÏ4µöº,FØeFWÆÚŠlşcÍÍ|Rµ×ZÍvœe’Ò!°–½~;9«?Û7’œ/ê/™H&Èco@«,dyRG|Ù¢ûøÒœ‡À@Å
+4	µ™°KîİÖ1¯æ’ç†>º[4vÈ‚„ÕÒŞñò@°+,c½à^ÅîUÊZ±;ËU…˜1Ú¶6k/õ¡ãM>ş˜gáŒ˜ÂÖ·à²-¨ïF4¼²Ë×½`éÕˆfÊR½®‘y-iÈhï´Yƒ˜°eBwèÃ«VƒEµ»ÁG!{lÆ£ÀÎ'oõ v’³…6`a†E½ã±«ÌS»Â;ª¸<ø	¹pË”HÔÁX5â¹’p5Y×’ÔVeü+Aà1—à™™v‹çİWùKWRåğ:y3öEº“²•fs1MSšdQ:U8Ñıìy>ÃÄr.I1‘d"³'P&å[Â8Eq¹´Å%K‹¡¦`&Š5fŠVE‚ªÇÈ-UÊx)9kIZWQ’íÅ†¨ïÄ’Qf0-WÂr¶Ê–«>ëÃ…#aŞª„fòõ`áÙÂòBcr%>ëìSÉ­.X¤rFhZ´[ÅÕ}çœæ9qYêqòä¬8çÁö˜ë@qØŞğô'Ö{ !j«s˜0W¼'Ï²]yµÌ%ÏRVîEQğ:<G'æøjÒÉ³÷~Mé³·R)S—™³'œ»™!X–»‚ö¥ñVwc¦œiÖÖÌå)!Ù3 ögÈ`9ÏÆĞÙâÔ©{ÊÉlç„CN4›Ğ—“OuŠi‘o2~7çøc9cµÎJ­H¶$Ù 9ÛqOÉÉHà£WV!uÈ¾ã;JıI}µ¬Õš´³×{;;oöyİ%Ø1S  ã2¡—)’¬|
+ë[É¡Ê*>/ªË°ÌNÜ¬V;A]'B§¼ˆ~àõÑ¤‡UÁod¿Mg5Î„cºº³ºÙ­iU3eŠ
+õÊêØcf›³ì³ÀüKÏ‡_cR¤rN¬¡—7XzZ/mPV%a™¤©óÕ)åXÓ&›f¶beM£şf‘Tò†UÙ&àªjø:£¨ÌbĞpÚjà+ÊÇ%rV²¸r½{¡¡™F£è,ğ"Ê–ŠK§0XRlÛÂ¨ºvƒ7s	”1M²|è,¹ë‘Ö­ÙÊ“Zİ·bÉ²JB\ˆù¨®~ Êß”>ÕJ…²FmC(ZZZê/n êe)fÕÆIaÔO.‘¶9ÛrG¿áÒ*|›×	ÙºSZY³İÍ—0Ç¨aà`üŒK5KäH €vÓ¶ÈŞ’bÀg‰sº:q‰8—**Bñ+ŠGõ&u*{7·v«½¼{€kãŠ*y=¼ùµ^”Bà˜Q¼ã–Š’ˆ±U–J¿òİcá¿ÌV‡Ó®Ğ`7½GO½„ñ‡™†±ãåİ}«©Õ\›²kõgii"a8ÒòDw˜E“K”&Ç—·ÇÊ‚ªj48bÙj[WÇR„§4Ó•¡“ÖÉ«TbZ„@_ğ|ÓK†Q˜ÕêòBx+šÅ*j§Ş`¾!–K5VÕ4”¶uÁƒv;¡©ŠTÌÂ¹¾üdyqië(Kd«	 şyfY­—…1¤ÖèckH}®w>°Ly®–rcDvºãŒ_»Öü¿À3ó7mkÂhL_Êx2
+¸ƒMÜÿµ`|ÊJÿjsûŠ6š"ó¤èˆß!B%“:®¦Ï%‹åx;·>}3CºäºQ=İ“V»Xè£œÔ)-R 4mZa^ÍƒºŠ~•j¨ªtOÂ†KÆ¢±œ2a·UÍ®v§bUS“qßÎ¤ß”iÒû}zÕyã¤g Ê—àQÒÊO Dó:Çš
+q™_ gøGd1‰«°:/Úôù-Ì«VÊ+ÉšY··Rj°x˜Y#±rP~W	ö†âV:“š)ú'##ÕkCc5à òÖGBÓ·„Y™Ğ‹îâw€c®p"ZjÒü?ÓÄ"-aÙî{amZD&Í©]‡Õ:’O„ 5¤ü= åo'?N*"UU…;ŸGjNPÌ¨îé,“}8¡“è
+"š¨ŠM©x°n8ş`äƒi‚_?iöU­ø¨
+HñÆ÷SXùMGB:æÌƒ<«çèˆZ¢âÇù¿/tsï#Ï­Ôyç«V]‹*llÇ¤¶æ£º ô£µ‡Õ8g_¶.½o$‡sxÄ(³>	GLÓQŠ®‘>,#üêùá§ß‘åYğØxzè¢óiMºÃ›™*÷E²ñ;¦ú¬Ë_î´IS2	§×¯™ÍY°¸ ²ÃÚ:@ÿ•là&õ.)ÊÏÇ0öAÄİ[G	ÜşŒØ±
+˜ÁíÏ©¸EAz9¿¯•ÕÁê÷ä‚´½y>ú^¨ê›(õÎaœL½ÔŠko˜â“ Q1ÚÈ¯O–Ğ‘€gF¨“DagéÄ(ˆôÉ™ëZEqgkã`goÿ°¯³ri’òÔş‹"LöZÌ†káòcó¯ú³±÷gG˜ÒŞ¯ãF6ø@Ç•>3à¸‘3pÌpÃNÀh´)¦>°d³xğ°’—±ûBåœ†Ïm	-›48qJç~À·™ıÉØÀ©Ë»}xğ–/Äƒ¸ø@¿PxÒØuÚAÛ.¾2·~îÄùÍ‡f|şÈÄ5ÿâEsÅtGÎ&Æt„Nzûsì1ö3'ó¸ªUë(i
+Hqr@`±˜8/ïÄ”]LïS€}ôæ#‰)´ü°f‚ÊRá-J Šïh£—t»W©Y&ì`³dìå|æ¨˜'WƒMq£X/dc°ˆ0¶Jpc›¤ª”ÙÚ!]²Vèˆû{cº²¬ğ\Bv\˜}äßşı@ÀPàëa¨nø•)pò’¾°+¼,š­ZMÙ¯¬)÷oÖº´µ$â¥-Ï­åÏè{t@‡@ÒÁBmzb6˜Ï
+ñ¼œœ“›ı¡§lÆ”|Àƒ’i¨"#óÉ`Ô°¨¯Šh,ü0y@ß‚íã50P·ËX1ùÔe­s?c·H7ùi¡;çS-³Eˆ„|İucš$-sBÔHsÖHÈ7¦v0ÑàÏ ¼owÿøÂmŸ¥Âÿæà¿~wÌÔ'zqGîºØÂ§ƒÛÇxì:ChğÀc`±IggÈ¼f|àéş¸»õjn÷í++&Ä*eŠş8’M/sÅ¯Åâ˜şÚiÁ Ú…Ç‚ë$geôM)ˆ`ŸÉä5¹İÄ-£‡„Á¿ú ôäi*ë:Ùrt¥aã'©’…ŒäÊM‡æî@\õi
+Ëµ¤_Î)EÑx£fĞ¹o™d\¸\æği‘ïØ6K–Me¬VéüN<ŸN™vx|<Ÿòp¢s¿³xCØ™3ÏuihñNIó:Ôºp7Xã<Äêø=yÑ;ìÙ”‰Cã8¾a[W÷( >>'˜$ä%¼¾ÇnØÖä¯÷¢Q††.4Ô®\!œ	ÛU˜ìdm[3òSâ$$Iñ³ÑM«ã?ëÉ¦“:ïö¶ùòÙ¼oFc>y°bqèl“(ş“¤Æ’lkÌLÛÄXì` î¬plãŸûÒÏŸC-âƒ@ÅFî¦îˆ0
+L V5ãÑã‰%Â2du7PØö`#)U¾ (ä/w^Ş0¿9Y<¯ªByx“Wó©œšá6‰Ïë3¼±8|8vczîÑ‹vGC1}öOtü':HòÂÔñŒˆc¤†­Ô Âƒcx‘Ê¢Âêöû)`ˆsç^rû×èÁkÚ¶.WÈÂÒ\	øÉ…Ç_œn-—ÚØzÃ¿›ÆÜ½j¹MlãShÛ4?2§ªñÌA¶¦!›Ş°Œ\¥iì)8{t&›P1ÖÖB×&“@\ÊÜÈ0Š›F(ÑĞ.ø k_±ôêBÛ¤#Î“ğçY™O®CàÔd]pãÀK|û3à#[ŒDAD*:Ş.¨Î°çª×¾ˆÈ/Üm£Ÿˆ>|¬è/ÜçÌ€êrªU X½üš·?<,ÔÄ]ÂÈkÔ„–cSÿhq–¹éñt€l=ZEñWÊô€üëZşáş¢¿äA^J›şõXDPÉò)CºËKî.ºg	ü¨–|„ï2°›½¦yIb(_cÎ¤ÃO§ÖşÈ¢5XAås„ÛÚœB#‘ÕG¬b·¢w \"»¢$°2CŸ•ğÂsÿ¸ó>>CG$Œò˜c4´À4Ê"ÂˆH4";GğYËğšO¤Ñ†mÅê<gyuXA”ÁXÛFºKÿ¦6„·âeIyU®ñÒìåU¦†¨¼ÕÒ³d|Ì`	 ¹_½…Óøõ±“|„¥@BÜ9%XàR«%ª„•(#GYpÉ{O4’ÅN¨i>[2dŒƒ²H^µTÚ_h´ú6Uì&Í|…kÀùÔZ~ÁbY˜[ÆÑù0Àéˆå‘ˆœ^³I4F¦‚Zb©_(‚©É_ò„‹Åƒy·1ÇÊ9«‡.¬&¬…Û&¿8¨‡ôâ;†$ ï˜Z‹cŒ…Ş·xñğQ¹ÎÏ‰—ª~#–Íı }ãïwŠ–Œou •£á)9ƒÿDµQ®J2ÆQJr
+±mó&{«Iã¤Šcæ—®nò•7ìªÂÆ?—àŞ³gÏLÛ’ƒÇ½1ëµ+.B)ÿì…é¸ÑÕf0¾Glƒ‘|~4*1á¢;ÿ¸&Î4ã°†p£Âm	\UQmO^&½åo°ªÁTıîï¿[å¥
+Pç—%±½wÀ+÷&ãj³´“÷ÀØ²'<–{’3¹FƒWçÊôÍ¨|•ğ›_FÊöå7lVü.N7
+¾‘7ã8Î›+šœî[²ë“7šÌ÷€“†Ñ¼m“ÿJ6ğÜP×²ø’åkğâ>uâÁ™ø®sœDşÈ‰OORÌW»ós„A,»Å»Q]ƒ©V¦RK'Œô~‰'œñIÁ:dn¶b"Ú¥ÉO#CÌ³ŒXãEú¨?ÆíˆÖ	ª”Ûñ8F©ï…´qÂßÙ¬„WUE»@cevôòË;¦TjçÕù?[ÿ1×.ıL=c‹tĞÆ´å—ñ¼ÅÉş#½ÚŒ.ÂV³åyš?Ò+®½ÛÂCwõµßÔVïegPQ«oëıC{Ã˜b&ØMzâŒüÔÖágnğL’$=C°Š«×2'LE‰NƒQŒLèA–ŒÚ‡.I;Óø»ÍÚãÅÜàùÖjU¤Ğ›İd>…Ji_^u*öò9Y`»^‡Y+'³¿¼4êüe0K¯_^ÊS£ObïôÿÅÓƒçvÅL «jAËÂ,Á­*‡şİ]}®;¹š’qƒ™¢²àûf:	;ÁTÉZÄ«h)Ë–ØÆ©oÇ@úÑïÃ#1â#EÄé›¶nsL¡Êa½ ºÏ\ó:y‡3eŞúú#50·Ö‘´Y©$ŠÓNÇ™%ÇŒÈ:l²=`¼ŸnD
+¼ã¬Ø™U{ÀïÓ À|ßêyÛ¤–åe
+¯^•$˜–ï´-^ˆWk;¿g'QÁzŒ¯ÚyvåµmÏ'~±ŒR‘ƒgÃV‚t!‚?ºı­Tğ7tÖ`c~f‡èMc9é8bÛs„_®íß°İQ–/Õ³äšd‹³’¯Ì,É‰Kw­/ Ğè¢ÎY±0Âûãñ@ü² ñüÒYïŠdßœÍ?'øÇ%åÏ„Ò•ŠfËT°Ê7l|ëñ2‡FUÖ›vêe½×Jn4ç¨ûQ›v²[QUŒ<Íã¢ÛíZX”„Øøük…v¾w4t­â²åµÀEq¼L½(fë®fÖ`ï-#¸öáŸ¼&ŒP3¼½i—i¸6«8‹z_ÜªıJÛUÊ:¬­ßõ¾€O«êŒG˜gH·ƒg‰ú^éŠÇó¨
+ı˜=£ÍÚÉfÄD¥JÍvæ“Q»³Â¢˜ïb½…™^m3Îx–éaÚınoÚª`o±X-wÇºñHd[4—õofqL#4y+İÁoİ$L]·”Æ3ÇO\Ã· jøìÚE·š¼ùuWç›ªJiÜ¤öüj™Ú_cš‘ë$U%‘™A6öàQ­¹A¾×–åÊ·`s­¸3Ûy˜I™‹‡m–+°b;ÇæWÇc”ü­QM­s¡Å¶r›å¯¢`œgMÁK{×Ríæ²ª¤`'H39Î<ˆ¶bñj>ä—–{İŸ{;}C:lFÂY¼ º,!Ü
+08c²é±ˆ %5%òË¸úîô.Èù3ÚYãŞ¬N3fÈYfu»Ñqí«²¶İ"V[oYà®eMu9©Ïê¯Õ“cw®™†c…°*l³¬¯•¢”Òº˜›4¶rì"nóDZvöËª·g*æîz‰sì³Š›†BV—^:İ´­ào}ıj^h,§¤^ue«š|+™"ÅÎGöõÃyõ±Xª ¿ù$“¿ò¸¦ÊC¹—4™¡tÿ¢ğÄ‹'6×“/ivŞ|è<º®üp3#Á'®.¿	Ô1¥÷Rhïkmy>!›jzKÕx3ëBñÕÈë¬üÖåÀy1yS	W«N½˜¶œ´î‰ËBá ;FÃ5‚äXLÅ!C‘Œ+0×Y	òC4¸ı72ŒÜ,n0â§®ï`„ÆÈ·YâzZ4%½ÚLjê¹ê¯Ö¾4“
+Ÿ™#<Ñ¼BºU9sèvï+²$÷Áš[È´Èàm'¼ı›Ãp?Ø6_Ëcq‘¬°8Zyt‰$ò¶ò†9®Dåí2W§‘MmŠ†o
+ÒîÓ&h¨NcyQ`¤Væò¥ÙÜOÃ¤48ƒ¢<‰,—ƒWàä«!šú±#”íxí~3Kª°ÓrÉÄ#ßÄ”4X‚ö+W°Œæ&ÍäíòEœ@™ÜMš:ÿµB®üØ>|¶|~qDüÓ•ŒbÂ'~ŠãÑ[=Æ—°˜‡¼pîÓåv…se„Eg•“¬rëšŒ@Ï`EÂRÕµ)ÂõPTò±0×÷	VÀ™–ë]_°è«0ÁÃ=€"ß9Şe¤xa…¨;ãÚ…i}G»ñíß/½ Jˆ!UÑÛô:¼Åù·t@““o;ä?şùñ<ÂGØ:ª"¥)ƒ›ì»+Mm ,5ú3‹õ{”Up·QÍyJ…Ç¾¥Ê¼»b¸?Œ‹roÿ-Ä p›sÒföt‰iRªH?ŠLíÀQ{±¶ûvtÁ*'ín¾4ä˜ŸY.ÓØq=J7º19‰£ ë "‹ÑñsÏˆzT’kNÀ…§Ë›ùcO«ç€¬(ì¡¤>`ĞZU<¹LHçy–^ÃØ€ßCcäeëÄAz#¾ı«2%À2Vph¬RîÜ“˜HzœŒÚAÅê­Ğñ”¤d–¯İ
+9<’2Bµ”Xõ
+„óB:,FÒkÛSÅCËEü±"9İM73š¹ôÑÄ´1.Ë3,,«
+%Î,AÉ+Ì™H€¢¦QêøE=¶i 0lé›z3ş¦ğ“7ò‚×ŸË=ùØMTıŠíbŠñ¡™ºï(ğÂïmû+Ê5{Ò×›Ë"¢˜5€¾$ªç˜	­ÌzòÑ5,8Sh×ºöÜÿÒ´Í–qÜ¯æÀ|¿É[EóC~¿ÚœrP¬©ÒË ÑZÍAh°Ñ"pÓ„s÷»SÀ'N+Ë’©üûB¿/)½‡/ÃQµÍ„ctÓ®œöÊç70!]¥»ùœó¯Ïú‚¾¢.T”ÅÉµl…BP÷n1ì=
+Ç“âQâûéËJY¸¢5,Î—iÉ
+çõ‹Í—›B+›'\3+É·€T6à‡­·¯7wTÏ‰Ÿ·)è–Ëü¿´‘rÕI®ÒT?&,pêÅl‰‰d5ZÙf7„¢ğ\.r	ûëœ|¼–¿Ù¬òîŞí¿üØ#¸Ø[{6k5œBğåÙÃXiÊ“J9_¸ñT¾ÎMÀÖä•XUúÜ3»ææÍÈèÍEZÂºEA.pærS!¨-Ë”=ºæ».¯P¤0ÒÙ±Å¬Ö#Ëˆ¹V.º\:ÖxĞÔÚ½şpñNgøšbµ—áßFùe»ˆÔó
+{rœàÇn¿\ŠêAô¢D¹ù1¨“Ÿ¬¢kåìyQ@Ò|Âkh•]”¿qàh]â®Å#¯J`óJ»Ubğ‚¬n8>]'g‹úŒ-^!¦}v¾zZP;8Ğùx^ÄÎ°	kó½e}ÜeÓ“V™Fà˜¥Õ«(€g…ø2µvmã_«òˆ|†î_ Â-Ô¼D9c^º=ºÎÉ¤Ñ÷ñ:'¿z×9½Ó¡ÉµN›0¡Ç1)›°nO´ùk`ZG=C¾Y©Çn!ß–Šk¬ÅhDh°BJ÷Œo*8j|£÷Ô kÑ#dÆìÍ‰)	›­P‰qæšGâTQ½C?ïD-fRTigRŒUì†t²Úíp_zlG Kv«Á×
+ JáçgøRaÅ•T™'Qm•Y^FqHÔâæK	à¿ï‰/à¨ÕsºÔ×2Ñ‘š&¹‘ù%­sQ¢É8î<ÆLÖ±FwÖ¨¨İû¸HÉíi¯³\cZá;[ÁÃşQCşU÷bòı£§˜DÉùò9¬ˆ£SOÅ"{"«²¹¤¬²™ŸMƒnV³ªSÊt"“øÀ>º8mUQL¢^½ª£Ú¯]Š5««ØÆ49eCÆ-Ü§i
+´5aÛ:I?‘'¿.?ÿ´€¼ÃÅÆ)UKµ|ğ¤ù“™õÏÏ©©´/•1D‚‰YBOG1z}ü? ·nDö½úwÚØR¤¬ŒÜ÷‘7~Ec4ş”n~tJNh³›@§\–’2k#I;+:ŒDëMÕwVi‹©røÍ§M=·d¥µ:n­}ºrïzîwä­sî²éäÀ9NÈïænÌP™Õ@bAeâÔçö+ò¯@(½»ªdË²í‚aw¦hdÑN2G8HĞNuYuÇ¨ ¬ ‚™,F5¢Æ—æ‘Œ+HÊçFÙS…½óE½¨3ĞV.@ç—ÒP*@Ócˆr7ßmx°c»¯÷ĞçºáÌô6¢±H3d<r	«uë‰—¬#ÒË#¡Ô6Ì–>Ïu0J£ÈOäQs	’$°ÄG®àOÆ§ñJR
+‹İ»„Æ‰)}ª—Â¡ÀàC%z©ø­f†®{!G^xòå‘#6è/‰Áxm(Ñ~tSı©Şµ7ü>®ûa¬¦ñZNüäMÕ—TiU:KôÌ¶h¹q$W3Ï°‡
+­.û¦r.BrIÍá1RQû#šGÍ!µõ‡.·[rúÔ‡ÃºÀêêüFU~“¬ø”3xb¥Ş0’G©Ó»¤X)ãëSÇe.¹ÔwPtªâàS¤œñ†ã:ÀóR%Œ)fc#Ñ‰£÷?¾
+?GáéÚÆÖÀ7ÿ<[ù!
+“Û¿Çfº»ÿf_şÔ+á0šÛW> ¸ğDyˆóï=²åƒH€åRş1©0ö\tå ÉË°åE•I#ü!ÂñFlÑ²»ùr–ábş,	a5À½ãº'x¹öR™¦²p¶ÛXàk3ë”üWÌÊd5ØÜ¬A9*	Êö¦ÿ)s0Ê½@JW#Tu‰¯2¤ÈğX‡.–™#Ôåz*9%–”zGc(3	š&$	>ØQ&¾w‡#“S˜Ô«»ñí¿vğ’&mÊb v7œczû7Ç?ÃoI	
+ô6Y"ëù¬XÎÂÜ œmKHKAœ¤~„0OÖ—tèÒHê;q0³ø7È{aí¨ ë…!•ûˆètÉjıÖ··É"#–	êÿÑ)i4J°Ìuê„§Hä&›ŠL	ñqxó=6$²îÑ¥{'¬2ñ6¦åéæãùN<£™*±BQ°L©2W8 äkÿ&j ˜32
+ÉF>­MAÁkg8fÄ¦m4Õ`BV_°ùò¯ ØX¾©Š”é°˜¬d >« ša ÷öã­2;îc|íŠIÖi€$ÏSyI´óŠIÎ§ÖÖ·ßìü¸¾÷úåúæÎª'j±e!Ã`HgƒƒàäĞ„;è4Q$÷7¸gôF šù^\HKX«½)Â¬Ôƒ†·Üêjk¸ï]˜ÓÛƒ½²¹E¶öw·6^¯o¿Ş\ßÜÚ';›;ov¶oÿåÕëõıûÆÅkÌ*éì±‘ß0ç{óËGŒ›‹bS“höSF'¡h¾‹p¢-á³ò^:‹¥k¤ÜBs^ş”àš­tˆİy»û/{¯wrIæêËê!áuÓ;gBí¶Ò|Nci•9[È„Uç…¡äÈVà%XÁ”ùOc`*/˜\Ø†ÙËjäL`_ÏÁŸ-7sı•Y—y¦ÙO-Jìùù“" I[¯Öñã›õƒ­= Jš<[nådà×—~A¼0å;bÆ
+¹Æx}‡U»àn-3³dÚuçŞ¼™»‚‹üá+A KÃ6^5QS2…Hü
+¤tÿR©ë°”„OñMüƒÍ"òä*°ùq×!»ìTEï™£Õ¦è½Ü¬ÈİT`åNº™ƒş ÊˆUWãÊàó™®GS9°ªRMá XC±¶º³¬+‰,Ì×û[—ÇqaQ_ë…,?‹œ7‹âx±mßaZ*ŸÉá[;ºù+ÕjÙï¶îCµ(==QÃkt»œ<Ìp€É²Áb¢‚ƒÊÁ“xX(ïT´	¥2K—ıR_¤X‚5ØXSN@›ú1µ¿= ß²[ãzµ-¨À5˜­…T ù=„·K¥XÒeå3@z%‡Æü"óæ“mæì^3&Ÿ4%RıªÈD‘1dƒQl]wñğ?®dï‚|ı¡î}Ò$—’É?¸°0TnGªeªÕ”PëôH"hMdy‘§¡Í„Á…ZÀÜZÊ¼ËEšºX6”-•…2vÙàh>h‘½·µ½“\9ÿ¸(Éº“j(%.8YüH €6"fÂ×êI0Î·Ğ»¡9n×1½Ÿ“Ü=@:°f,Î³4ĞZx¯.§Œ‘YÈ¼dxØR±ë®B<L‘z&”ÍWX°Èp¶_|sÍ,‹EÌ§gÑ»Æ¬îlö”9›eµ±./Ï=€‡{‚q±JÙ­Î.õBcÚùİ·¯fÉw_aMèı^¡›÷Ï—=²ğæ»‹>-–ìŞU’gâ
+'O§ˆ3Ğ!Ğ¥s¿«–L3!dêá\@íüç€£m–_İA(j]‰¾gÂ²A¦cø*ÜƒxP(Ñ&"!Ô áÊ‘?©¡ªZ¼7™a£¢‰ü*1|•¬$†ºâ{ºJª3‘¡ÔĞ‹RCy×Jp(T{Ù¡¥‚şş$‡ñ4ş÷)>dëú¤²UŸ[ˆ(ã7"KÀ]Ù“¯…µDÑğ‹û*^4ŒxQaîW¸È-É˜Çvyì¿Û‡¿™#éÀ^H(¦ÇLñ)LÍæFj“ò˜‚GîûñUò¸ÉCL>¦èÑ<¤8²ué{®#;h6n&qTlCúõ,ÊÎÓVîº“"ñP»7Q¤îÍöUù*ŒX	#R7Êé_¬Ó«È$Âm+¡¤|~©d¿ÏûMô¤œÆbHÁ'–O„ŠâÆ}N	¥\‹ßˆx"”lT¦ü* ”˜æXE:%ìØ_…”1…”%»_1e)S¾9nì`	74	ÁÒ—HXÜÙWqäÄ‘<âp\YD]ìp¼Øæ^Ç¤YCæí:çô´ŒÂr„€’û7îWÆø*X|,Z	5i‚Q‰L”È³E9"¿g%Dd)A< ±¡.+4Ià'Šˆì|>§ /ÄoDLÈ YØˆ¯‚•€ğS0.&ÀÈBóïI8xÉ"2¿2O:uI¡K~{¢ÂıËË=²ëá`<ğ‚ãØq…4–# ëK—Šx¤¯BÂ¤…/t½ÓhL1Á
+.%/¡»aâAÊN‚æ	ó„0*.`•øa”àĞÒÍ2Íg	óòøônÿÅ1*‘6S—¥S¸7qÂ¯Ö(¾G±¢èèW.\àûUÊ˜˜”Q‡ÒRÚÈÈM&odßjGy×Jæ(Gêhô³Iµ¡dRHÄ®/I„X¼Zàt¾Ñk>I'(±d[ñ¤²»ŸIjñŠ#¨º„¿¦ÀŠÊÎ|bôBL	4µCÀY›û“e@|AÉ˜ÌÆ±ü	.š¶E™FóXCÜÑ<+‘„4O—BR‡Òâ³ÆYşz/yNŠÂĞø=yÑ;ì©sÒã…u£ğÙ™¬ qÉFqÜà?êÚ¸QÔ/ÂëN2õÒÛÍì¤Í¼‘<Ñ+/§K‘Û Y[g…´J7©*±ÃŸŠŠM•OÌÿº° ¤gÂÖÇ™ª$‰"³éğĞ‹<a¬\RïŸºD¬˜Ğr¹‘ğÑœâq#ŠcïO(!>xIÊ«Ã&d²êó(êœe9hB<#$›ê£ ³{'˜ÓKb qƒ;0^|ÕcEIİÑöJr/q"TIm2A¨ÎĞ	—Òeh7–¯xC¸ìgL’­¸K9Š©LlÀÚä‚³H²'¯NNj•¹R«F§æ¶IËª·Ù§|œ È¥<%áÛ‹R8C7ÕÒ´o¨ÅBéªÊªí`­’û Ñ%iÂ0"¦™›˜£m)»0Lñ¤pÂ«$oé„•ÀƒÓ(¾b/¼Aã·/NO·xë-½È¿›_„‹öšõ;8/ÎŒUº½¸$Ñ	ƒuÖò¡ºk{ >pN« ‹¿Ù{Ì£:‡†ÖP­ÏÙ´OYm!d `¹`%}Æb¹Åbãì«‹É©ì²9)pƒÃíµ¤d¹£ĞÜc%»&Ï‘œ¿Us•yAJä=‘9T›ì2±ö	Ç88iòŒ²¯û4N`71™m¾÷ËÍ|ã¹ÆU«ŞÙö‚!ı3ƒ‘=zŠel"Æ˜À®Q¥¬¡Îl¦áH«u3%}1ÕÌ{Ÿ’óhpûo$¦˜K9BÿğöoN–¶‹†È~rÆ:à ï1^4b@HgÉ(õàUŠœ¦#ñÉ4 —äÅ$"gÈîş=ö,õ:{#†1Åñ‰Ì°™kşG	>yÂjA+]‰”²ü§«÷ÖúLÙD¬¦¬äR¼FqßHçË×˜øÜ™ÎÂû(ô¯,‰²Ìkw_‡Da”˜ğQ€ú„ˆ|œc»?!¶2@ßÊñe.—Cux?F•¸±õ¬ÚG+İA®ï·±!ËUæÙÂ,[êŸ±ÖGHK‘ÉÅyE	…¼l5oåc«’í+´¡E[ağV-ëˆ©Ç qõö¯QË¼ô|QÉõ Ï²ÌOù2«A½ìïÔÚ|o¡×·HWÿ ê ëµ"fqƒ$«ä:ÎÒ© rjá.ŠNhi€Óq0è¸-Š®ÚoÆM­í†QŒ•9È&Mhxùç;Şu‰HÍ5ªËU:Eû²n:ş™C“'Ïşëiàx~¸„öÇsK²§}¦u}Ìªêh’2Ÿşº
+dÂ1ª-yÿU/-ë[~;¿1ÿlşÉÑÔšL{%«lÙ²ŠdMİØ¶Œäá·/—áKGº2’Ÿ®D¤})*}*›T°±KRhRÀÛ”SÂ(*’%xñíÏ$É³9¡¤jtRÑµW
+q=zVIX`AJ¦)¨K”J–M2g…ËŠâÈ@{ıéúÂ³­#MM<à|<
+JÀÇ³s'öĞ*ÛÙ§âúÜşâF3JÃ×j"Ä@j™”ˆYçERó
+Â(¬ÉƒQ²‚•ß;„/ÏÍ÷N ãÜÏ€’ç×I4ŠbÊ$™Ò†Is|®¼Ó)•¬I	RK°hÈô7|Spãšy8İòĞüÇ4z½Şê\ÖÒõ(D[zA[z3ì$8T¹DŞóGzõüúŸ÷Ñuróá¦X”›5øO×éŒdšÀú°}·‡p%…ÏÓûe
+Ìk¤äÒÆzƒ]„¬
+Pƒ‘*Ğ%fÖîÒòTN3ûòj‚ÒÃ«É±/"·iÎ~Íq±BTŞ¹/„şèÌş Ğ˜%RT…–iu5úµ;±P¤NUx5Õ8fX´üdyqië¨¡zbÀ&p_[O¶–·ğ5-Ã%‡Œ'P`)%+¬ÒëØ¬wr©.Šl5\/q}ê>¿ö|ùù¦zò±[UÜÁ[µ‡PEdF0Ñ¶¶E8Fíw§Š¶÷1Gô¡Í¤ äY3Ïà0JqhÑu™§lÕ@ìç´m©caĞ*ØU#¼ öy©ÄdˆQq¢O Ù£MtJ¤º¥4BéX©ÜÆ|ÜğâAi.á£ÈTÚ gqyxÌ6C‘Q+9.INç1  óø*ıÿ*¥ÿºOÂ¤4 Ü—ä·.ı‰`ÌéòÆÓˆÎ5­Õ ™£æjörA_æX×#¹6 M¸™;¡¢=3«ŠDç¬&rf¿¬p†_¤¾ AZÔ0‘âu.¼ş:„
+Î"àLqTm´ù;÷%T~œvbE>.V„ğ©¥¢ ©.ˆø¦ a°¯küŸ¯jƒ_‘Ú Gî_½Â nTŞ¹/ÜÆ#Ä¥ç”ÀVªoâûÆòLğĞ°ü¾´	zvì7¨I`Ò^‹œ a‹·j•¶ë4Z1qà§T$Üuš-	ûU—ğ«Õ%Hœ²¿*°RÁ*ĞM°Ä1<ß¯†?éWd9cZº¡+¢äT¾2*×‰ÖD¯4Ñú½Ë4'¬µì.M*2µ–ÇÅ9d vˆ0
+¢j\n;eNÆTê^¤ã¿k7ÛéydA÷¢ğ©Ç1·ĞÿÈD’»ëš ?9É¥„	KÉEä¦sX$sä5ƒ–O ¸4³>ˆª.•#$ÔhÈ0õ zµH3…#YH6r'v•Í†ºœµ!U‘Gî®ŒÛR¸•óN‘®¾Â4	Ğ#w³<êx8X¯æ\–E{^¶†aÒù—^¾Z3J'~]¬–¤ùdë/qo)*b¶¥ºİ2÷b¢€cEÍ'L^¿!øaæE±"ÈOïÓ <!¦åk${‡ÊüUYZï¸*IUÑ
+ÌŸıN:×å|nTI²të¼œl7‘?İ|;å>ı–¥€ÕvZ %M˜´>Häx2ÆÆ„áùrcíT@ˆVp
+>	8…ßÖØß¶ºŸÆÜŞ¿»õOïßO­ı sm1©v~íI¹Ë<â%Œ*èE„á§xf	üí.cîAÖ)%ö;ŠEÒ=£ÙÀ¥ÑPàKÔ&ÚÌ2<§D5„‘Ò3ÀF?ŸÚº\!;.L òoÿ~ê¢Y²í ¾;)À‡M–7’ƒ\3ÎYk&ÁMIˆ´-ñ2P¯2AÚr¿FÀ²Ÿ&GÁ²'ÉIÈÖ£4z‰J~•Ê2Õ¿š¡a²ˆ”	«`ÛHJ*],—ŸÚØ…vêØ<ì!¨eWVÊ¤Ÿ}7tŒêÛØ¯o¤2AóÃ!¨PÊV´
+­ì‚N-[¤k¦éŸÖâøy &ÓŞNhZªlKâÜFcÛë}ªny$ê¾ãŸ6½­0Akô%)m%AÒc)m—J[ÀS­ÒV–b>ÏÁ\døä	7ŸõÏÏ&¬æ•k®ÆKÙTò.ï…‚·7ªwe9'¤ş[÷¥è‚8óğõjÌúä4¼BJÁŸ*Bû÷í/‘+ä„ø´*]YJ„¶*İ2Ÿ¹½JWÌØÌo>yz^R$7¾ê"J†1Ê&’;ÿ9Á1à¸Öõ?²#ÿŠ!êùäyZ,M3uv;JŞÍSU–Ì5P9À$	 ¼-¦HQ¦wP¡¬uê©«£nåæxû¯€aCF0gDçq‰y§”[SÜ )Ğô(É3²”&ˆÃ2ºN†D'Ş ¹* XDîˆux×FÌv´ ’b¬õş(`š			³ü“lÍ¬ıÄ2Ú}÷ª$Î2jÈ 3«'
+Q§7'®†K9­kÈÊÒJ¡Zz¦5J{(ôsm	îòÓ•|“öXâ)ê®§3yúÙ C×œVj¸+¸1uÄ8û`—:âKY¨=úÓÈK<	=á…Š¡m =ã­•š®ì0#¦ND¥™°9cdä¾tô¾ä„ÅK´s¾½ıå:"Ì85L#Y¡Lí'(+å)Ç”Is€œ€´BªÕ`Îs8Êâ4#éä+·6È’~Uåö*k&dùëúB.;Ù”/Ö&,Ô&u¦ev#KY=g†)2s‡*ùê¼ç
+QÅ“”ÜQ¥d±”&½ì`§ÂUiw¾&D	ZÕ|ÃdS)Ë¦Np_ËK¥ÏjÏÈÔú†NRf÷*İ`¼D]hç%v¬“øqÉ­‘`/Œ0ö‰R¾—Ì[—ç±ÈÒZœ€à•%ŸÆ°–ŒÃË¥0xêÏ£X’8¾[}avªd’³P…vG\Z›İç^—ºïaäƒ_õ*Gû•„M‚„•ë9:f ¥/…˜T´éíÏ¬Ä`‘MÍJ–ø¶4Â‘Âÿå™H)nëÉ{Şƒú„øjyy$ø=f÷}Ğ«:Ò¯Ôê.Ôªº–w Tàó¥P©=
+3$EªÇ®ŸêäÄk–ì;·¿ =À,Ë‚|:óyÉÖvA<³ÜÈ| ³$‰€xiÉšå4‹iíP‰wû7«ŒÜXdÒ»±CÀ¤7¥º:ÁÄi–³X!TOFx.şZ:ÃHæ8«NOA¦>E•',«Z|nü ¤z™Š¿Ì¦wŠÆ³ƒ­ıƒ-Ì«½±óöåë½7ë{|¯ÏœcÏHˆ3™ÛLI=ÄÌÑv>mŠ¬Ó®3Ç™’˜+À[9ÍÇƒÂe¦Èş.,«PñrQF¥$l¯s%ÑwÌ€’X(‹îä5Ã‡ÿ.Ûî»«ô^5¥Éªjjºt”y_kö®…f&îÏèZc½ Üõ¦º’&¯›Í¬
+Cş<º•tä¨ØA!èÌôÒè­ Z°…ßàÏPŸé×[¿Z‹ñ^ßúqcûİë=37Ù€].w	ˆLØõGÈĞ®bME›£f õ^Jjş¹‘:ÿ.œ²îß™‰XÜŒy&Ü¿O“.·¿e1èØÜ^À´£Ù:¾"Ü±©<æV×ù&ìÆ˜%|@Ë6™W¾]¼,qŠ²v‹šd,«Æ1j×¨ÖÎQ„ĞK/mÓÜêğÙòùÅñOW2î
+>qï*$±÷ª%’+5/+Ñªê[U=­|¡ÚGÎ¶óDÒ&êR”ïQÖÜ¹F£ŞI°ÈÕ¢®›ûÆ2Í÷¾ã;¤³Å©##Æ-œ¡rõğÛ'OŸÌ?Ş8"LÎ¥Jàõ!©†‚$8 Šº®"(¤È&å§Ì\NM¼½«Ô.ÜMŒ·ã5ïŞL¡©Ñ¦83Sàç¦ß§$ã$~P„G-t“Aùş±#ó3)H­Îğ¬î_–MáÏ×T”H¤–˜S–P.˜¸}ÆşVvTH :µ¦©†1ß#"Ä#ÊµA5½'Ğ‚–T\ïíì¼Ùg1S1n2hJ‹,übñTØŠºÄ³u)^)‹sEĞaÃÓV3.¢`ğq–§ÈğŠ²“­69£jz/ógU={Yé5óO¦œ:Ó†²İÑ¼ *•‹¬³Båj¥€¢î“RÓÌ¯Rß\†TôÍy¥¼º œ÷xøíÒÒRqãHÅ‘Ëym~©#ZN5¹4ğ¤_Ñ(?µ¶0;ƒ® ƒ|õ59‘€íŒ$L¡È€˜°Àó¯T²¼z$ìcLIìÀ†ªäˆt¶\/½ıùœú­Ø”;DşU‚öršc´RĞ™JÄ^A«ÆÖ{Œª‰¥,,lş÷ì¨¤Qì)Y“€qÕcŒÔÈZ4J}/¤,UeP$Û0àÑ6F±ƒ…“Y²Ğø”{[(Ô»j—9Ş!À“e3Œ^Ö5Ñ@…Ÿï	Yì‘—ŸVÒà¨*ËQO±²†™˜x	Û.œ¤%ˆtèÊ ñ#Âá¥­=Vhädá!.jŒX"ÛÆÔ;=C‡ìÖÇŞ'Æ4½hıëR¹£~»ùxsqsşhjí/†rq“Û»/zLİ{_óMšw]ö¶uİˆly|~¬Ô T˜$É—¥ĞğÿÜZ©gÿó†¬vV™KŒ ß…Ş°jAk°¢"ÓYU°QœÔœ<Úï¿Eàg˜3Ãqt©ğuÈ&Ÿ{<$RœèyáÀ/6Dƒ"Mç@ÁSYw«N”_jÄVt’…Xp¤¦æ/{ÓÉu !ê.?"$öòQÍƒ82Bó«F’¬1mKpìâd	Ğõ­%‚!8ã™ğÒ”ŞV†8ÔÈi!¬B\˜©µ£ç‚:½Æe#u<T“>
+Â/–îÍÉÉ¢ºô^®~lÇ
+¾b*ÖOŒ¥{Ú¬Ÿ^l8÷ªQ–QW;É]‰ªº‰¢§gEÔF=áÍ\¡ªvREë•ícp^›jëX‚€ÇŞaz¯İÍ—„*ÅLÑëÃ˜&Şy¹RŠ–/Ñ©qíOáéZ…ª"¼òÛj‚ŒE"’Şş’|v›D!–|ÇóF§êŞ”EÃèÍ¥h4
+ÈíÿIäc¨cè“µ-h»“L9ˆ^ª’ï„ì¸‡E÷ˆa1z)=×A9 a:Ê¢²pC@\OİöıÖ«µN‰ı8GØ´É	²ƒ´nçÍş?   ÿÿì]ënÉ•ş¿OQæ+*#R[²‡±eÈ–œx1c9–g°XA°[bÛêÉfº)KAÀûcŸÃûsüÊ#èMöI¶Nİ«ºNU5E9$ÄCõ¥ª».ç~¾s÷f~*ğ€kæ¸î¸Bpµ<Tİ˜ê‚¯ÂWµ’KxĞÉŞTb¶œR K†X!ö\!ş=„0ğØœz!íÂÑ/Á=ÌÌµk)+åpãÈ\+áraó¯eõuì8Â|¡~)c®üÒd¡Î5£-ÒbYî'º´¤óÒ½öÜ÷{†Ákº)Ûz¿ìS~°(çVE ¯6BÄÀó7wóYVŒØbëÃi@.‹ŒÏBa£¨*÷}~Üáïø*¿P¶‡H¶¯É…- ±BúEı†Ã†>%Kp}tÊ	vóOåˆ‡A3&óÚ©¦W¯ı6¹$Ÿ½(;ÛßDßtØ¯i¿y··éDy]“¹šäçd—®n¤™!½gœ8˜RÔ]¢BÁ3ˆàÃÁœ“ípPšïÔ½bûw@ëğ"ŸşJ‹šy½Æ[°ÔİU™³´
+g~ËŸY#	ßÙ>Ø{»ÿ†ìÿòùË·;¯ŞîùCDš]{’ôe¿<M?²pk*$”•ou•(£ÆêCç$Ö¥øo^íéµôáŸQíPÂ'T‰´·™ÎÔBMt2gÙì¬&;TùÖ1v\½GÒ)¨Ğµâ×º½!ñğ:ìcK€¿.Ëgz½÷jwïDÔ‚«^"©xsş']Ğ”zß®£½Şì½Şy³ó|g_v6=«¦##º]ü½ˆîv^¿ÙÿigWu¥ì)–qãö_õêí›½ßÿ¨†Ï,˜èÒ„[wöfïùÆ7ùáÌnİÍîŞOûßÿH§é]Òâ !Zà«ˆùÜ‰ôÃ…v+†|'0äh‡pÿÇ*»Ô÷³¿¶|Ñİ×ï½ØÄQbÚ`{?~âæ¿oşkÄ/Ÿ*zû…ÁO³Nˆ¾à‘L½Ù™¾°¸Î¬	7;ÓæïÌIï±_ãaåÖ¹d¡<ªáõ9èÿ›<«Ë‰„ÛåÅP–´“»¥x¥xQ”ÿPB<‡£¤J<¶)Ã¿K‘uô@&J:.îs¬‹ò¸Î«O<·óW?Us=S×Üçc!ŒÇM}Ó¾^*“ªÌäíKÄÁı“^šN‹É£ı]¬l8.&û­ÉÕ{Ğ©è*Ñ±7‡`b•±Ø#hÎ%ºx&Ü`­*3ÕÇi¿[óƒ´„§Ÿ÷|ß59¯—ï¦bXÒ1óÇ2´aÛ¦P‡¤@ùàg}.;)"¾º@’U¢/kØëH¦è;-›ùÅeWDg”"à³·ûe²ù§wIó¥7ùÉYyIÔlß‚ã T^„‰VÙ$8ƒsò[¢¤Ë¥+wE¿üúU§³Úëñ€ı®Êsî„–Û[ùâB…™èû“'‘ŠÆºGïXÅ—Bå¸èm¬@,í*DO/E(ÌR±JPU!û|Wy´~şç>ı	I/şùŒ2Ábvù.›N«òS>„tÜµe²Mÿñ÷ï=¹º
+ğj'§ä¼˜²4;bb˜‚×œÌN‹šH_Â0Ÿòê’ÌJ¨*ù½•áV,ú„569ÎêkSÃ°Ë[Ê‡oV¾o(ÏíÌè†SÆ\çÒrŸöOu&Úw1»®ºš‰1¼*$ÙÂ÷ÒşQìVÄƒmAºÒck¹×zÜ&Í{j¾ÅŸøtòNûÙqİU£0sÇ€ô£½L“õMò[²µFÿ¡\vÍÛ<¾Àø1ú¢¬(-Ì‹él@®8hÊÉìÀõHÍ,ê¿#r©Äºø_%ïø_OåäúğˆNÃáÒ+,Å®X=)?¨­„Ç•é•“lMºƒĞ÷±WçÃ_ôÍÏA#¹dU<Ş¢p×Â.Ä–éûéGíe'§üBÁhÎh÷§gõi7½fÏ†ñ}+ÁÇôtÍ•	?aN'<eşÍêÖõz=<WŠ½ªĞkÑ>>ûìe`6§üİ(}ê)¾')­¾Êuğ4zyufu¢@½ÃÓÆ%÷%î6¥0*º+²ÙhüU[¯!{9ı‡Ö„^C(«
+=n/(9¶ó¬ïùF¡&~ÈlQÊ~6ƒN™½ÏCØ	>ÀœºJ
+{±;…øı‚_¿„à€ß
+übĞ`¿t$CÅ÷vU:#QNÑõó¯¶æhüŠ¼wCÖRùÂ!)orˆT,ÆEE—cØ?`üğ¨XHÕÕ½fÆnQ3ıfÿŒj
+¯«’òÈü©)—$9(¡VnEÖ4tù´ŸÃßËşZ‚‘d‘Ä\àÛŠâá/»GwJ‘$»¨Îg²wù"<eº‹¼lTåÙğ’Ï¥¨O,B[ÉÓ@hc¬«‚ñ€ öÄO­{no±—xt;¯2·lPÆ‹ÓÑ³ƒ3­%0Uó6…•C‹‘…èâbøŸİĞíãìâÉ7Ë@A6¼/ùç(©†N¸=ú‡kGOûüÂR _e Ëî´±9’ß'ÔÍ€hl¬t+–1$Ãöz[fõ¬Ûyë¢ÍB ¨Í?fäO7ŸA+ÈÆTe#V¨Şò©}* Ã¨³B:ÅäCÙ‰.\~@.0˜?°UçxÆ¾ÑüT´Cë9îfè.½ÓÑ,ÿ”SX.¥=krºKÁg£"-èíÇgÕY¾"¥A,¢¹É>A»)*h¿xL8ĞE–ÒDÑGµËÒË.ä)X>åë´/+‰˜×X_a‚p}ªï5PbÂDÃTœb/”2EÜ)L‡÷Z›½!es†aú}M\Õ[†‰Š/‹µP`D0·6T“îş”¥ƒŒ–›5šŠ•ø²÷ìp%Dº‹&;×½XñÏÜ$‰	–_×27[Ï°“1ìO«Ã’–D%OQşÂœ+ÿ(rƒ½ x~ï|JFe;O+Š¢á5ğÙP;Îs)`&ÄÃ¼[ CõğQ	H%«mP±m ˜t'è[2ldªZyF²aÁ“
+3‰KDëõcf¤"føñzeš¦…‘á²&:Ø¦¾¾k5Ÿ×Y6(İ…SûCã:  åUÿ|TŸåaj÷qY9’dÍ[
+‘ OÄıÎö_V™âº#²WÓ8¡R*†í|,KÄ£RBR*iğfzûAU'§4èqò]N [Š.ãY9í­¯nKVúÓhĞ¿€ÄÎu7 q°[,à—×yôt(Çr(Y:g&‡Á}Ã³_G½õ@œÓÛ\ˆŒ,!…®mmÉèö n{ÌzŒ}‚I”w†CĞ5øTbÌ%ÍÖÓiHAşBHf5¥Í·TæÔ'd# àX£ò0‡t²Ğ
+¡ÿÒyÂSçô!4Ä<äÛ$¿@¤ŠÌ$|rdå4)¾V€ö«„¢Ób8¤²¨È6ÚØdô&n¤L ¸êÆ ¤%i´ÃÔßÓWœÖéË?æN¹re:ó4´>şûz›<!W¨-8v ¿»Ã2-(ÿXÄ(&|ğÎ·rçÉQxy>†ğ¯çgÌ¯/ú
+ßL+ûg W¼ÄGƒ9’Ã~¸ÆÍ)rÆøø1£ßşñŸò±kë®óĞ5r>Â0¶wF”˜‹<(v}õ²†òpojîğåå`¯uYÍºİl…³µ™±ú#–„æm*‹vy¯ávX
+İñ›¡á‚5!+Ùø¤¬‰¾ü£ô­]ø˜…†–Æö«|r
+ÅL${Ê'€/ JVŸÓÊ€¯ÿñNêkÀR¬æC×C¨SÁõÏPvô„‡€Gâ ôáUÕèjÙ{X2oK!&¨k+D¿ üPâøaÖ\®[è;ü`¨‡½²ıHƒílb	IC³™ÓGßa&qó -! !8Bê@µaÕĞù¤ÆjA‘‚Í‘5—9¡¢34&ÒaeNÜòzDõ>ß2dR÷FF˜Ü´ŞE–/–8®ÚLTğ”<·ÉÒ´a°ÒMğñkª1esK‘hCÎ‹éeÊ´ÉŒ]ü¤RÖÜ´\6Ñh<p?M£2&á9²œï[g@<ÄEÓÑ*¥£lZ#ÊŞì4Ï†ˆ¶5«œh x—3À‚MHµTİYlPBgö%+Tyİ¬î÷øñêìtáMÛ5èÛ¬–?Î†}±TŠ!7Œ²Sj©dÊ¿r+wºaAYĞ§@‘XÀÖÙ“ÈôôU1^Öê]ô‚l0¿/{)¿İ—¹ïKæ üÅY1)¯G/U~uİ|gÇåğÒ|MJMŠ!¥¦Düˆíµ«…†!€Ûw™	ŠÒu‹	½««äy6:9e•‚oÊ šù[sFÈI·.Ç d©  …*\Ua~Ù(ä*£ PFQUT ó?[qx“TR>£zB·>SÍŒÛ?¨lş­¡f®„ØF °ğ·Á°Aöf*pó‘BÄÇ…y íLTgCKjI€­ ¦AãCÿKSaPóõfª\zo_»ºéKx3LÂ
+qĞq0ç‚`†t‰ØHÌËOB:_l|%9ŒIíÁüSº‹6…B(ØÎùß\ã1UÔ©?ff>šêãŒµn=¬ş±Àú{%±3fÜ·M¿,:‡şqÚÓwJyÒAzÏh5Jb&2\õm!4—“úìw`òR¿3¢j§i]‘Íì£] ãİoş±§ó:È†<dXÂ¡õ¥¡ˆäÍ›‚X¬n!âÑÛAäb}Ğa|Ò	Ú8ô!| ~"ß×p4¼"1`yp€¾•¦YUç/'Â®‘ Kû wŒ-ôu]!P…V¶¨Á’®H¿ß¯ŠÒŠ{Ïk‚14dyA‡a0Èøyoc¬c÷amè„cÃáa²ğFê†Ìò©Ú˜Â³·M²›ØT(£yÃÅ±Ë[ÈÚº‘8æÁ³ŸMç‘/÷¹Ñ“t*†òjô×Ã1 ©‹	D>”©l5åålø††¨ÙÜõiL,ÂÂnÇ¾(sÒ_]©|óáæı{¸5G½¯¥Õ<%ïA7Ğıf·Œ®ß3c	UéU„éÒ;`ã[È°bZ8{‰$E`Á™rîK»f6¹y\yXzæá xF3VÆ$ğG3—Â)+bÊ¢î¶¯à6{´•põUD‰‘Bm‹-‹Šp÷Ô›ªén©´r#F¹g‚ÙÑ%r[Û¥…›µÀÛŸà!¡MTf1lÊ£1·ÙîU~şbTåÓèì`îCNñw&C‘iG;kãD\¼…-Èğ5Inó¯xâÚ88y—µƒv›çPläyQŒÍnV‘gYqÁj¨	=3@×Ãn³° qËµó«\.!oÿZAºç›÷–xXÙ˜¿óO/fsGœ«kâÙÅ˜Üâ ×b¸z_–_éäœÛ±,3^âuUäu]L>êÖ[2»³óp2/ûóAYS­ ²]C4ÁÇ¢Ì¹>×
+ºÔj¿0iº‹…¡—¾Ì+B×-Ö…ä À|+‰/$dp"†:WÖAª½zJFø´·IÅÿMe&Ğæ6R‘òŠq½¥Mâ2ÆüƒOIÖß]¬@kèúŒÊkÇVö¡f)È¯ƒXcexĞ–*Tü^)E·ãE7y¡	VBØşJE'O´Ş¥¿();rhRÓ.dÛ³Á6Ö˜tı¼œ|(ª1İF{"÷9çÒv”µ‘%–’)t¯uŠç“F6à­Ğ"’0XIµÛBÈİ6ÏZ`È‹TÛCz‰¡ˆRÑ UOÑ+švˆ¹™ª7”bÃV0EjkX¹»ÊR‹™à]ÔÒÂ¼´€Y^¤µi±³ü¶ÊêSwš/ ÈÜ¼óì'Væu_d­õ”&nL]tpTÉ¥•xŒÊwkk«[Ş¢JÁrURé bB²£›d~nJ¥%3aJW]Ú
+”Z2s¥dÙ¥”RKxyL>$t}­>Z3ó¡Å™àƒÙw?"2§Q•dÚğ”d"2€y/ÎÄ
+»è'Ï8Mpå9„Vøú`ÀX5_:Y…¤é—BÒå™ŞSYB˜¥F«1ô$påHÄFÉgŒ“Üª¯ôï¸„˜ˆaXÿg0ËMBd¾Eš¥æØ^->LsOÀ¶ÄH_[]_³j>«\ëhİ0YfccÃ[-	)…ãiĞSÇË§ãJòáïl¿¢Š•©WAh«ÂõH¯Ç¥–‰t*ÒçAîlä€ìE;)é‚ÍÇƒ¦×‹#ÿïØ¢YÀˆylÓ ˆ½¾7ºÜ^Qjw’Cğê¨<›E—±: 6û×¹mæè³zh”‰Ãl¸èŒ¾	u®Öİ8®ú´*&?÷TéŞ„¥),éKÑ—ğt4Î.+«ğ¼—äÃÙ„å`“Œƒ0ñEù4•ŸïVb¡ß}		%3¿!(yÂà¡jSt dº‚ÿdP°–İ4ÍGôÏÑ¸¤ÚSñòòÈÎôæ¯B’1[{*°µˆ©2·´·	íªåB nYM2Ş,å9”MÒ+}*£²}]	·Y÷v‹şEYÉ‹"ëDzùW1°,b;Á©Ì¶NÆÃ[¨­Yõ!caä„u2Ş¡9ˆù.€Äã­‚D“ÈxœÎöo±€S,ŸÆ BĞ†’W*6J,!ı>”‘hÆA?réšÜˆ,—Ò³è")»a`š½n8IêJ¨ÄÅ@ğ‹#pxU†rÊ,p|:på‡æŸWù½	Íü”O Š£³-~´yT–ÁV7½ 3mÄ=Õ¢9…2¤â÷ 7ô­<'[4¹WU%™8T±³í=İ¢YğŞÙæÿÅ¤Ûm#„à}•Æ¦¥«DV=mA;ĞpYğ$…°Ì¼äÇl	¿ÔÙ»h´šº<® ‰±É)¸8†ğ»A[ù»"VB¾‹‘«ñcé;Ã!aål¯P!¤dŸ«CõX]%ë}ò"‡`>&~’“³ª¢S4º¤’‹@š&5„Áºú(iæ7°0Y‰JÛëh|³›¦Õ¸¡[0pö)ÌÊo)ÖuN1Ãğ‹¬ß|>)²%üeµa\]^ööjƒˆ8—›Ù^tì6äØ)lUğÂ—µÆÇLİû&ÿ³€ñ…'´«ƒy:,èdû[é»Wx¹”{•Ü†P#¡k¨ş@µ³®õJ<rœ¿¸Oümˆ¼­²iúÅBÍ•g}E¼áç<lÔ¸$a‰õ%™-§k@ø!dœ?¾%ƒa'«şiVw-ïÓ²$¹‹/{·üUd«\yh£'çĞA€Ú‚ÁEı«s@$Ï	ìY,z õ¸[/)…?FzüŞÆÀàz–Ç·şeãï0©iµÂhÓ-—^óƒÜ3MçE€Y¨Š2’aØ`Dúkx2Gªi®>*BL›³IÕõb!'2õn»ióË£°«YßÓ¾jÔ[MùÀ}Ê¨¢Oò‹iL€³Ò*à”]ˆËU-nZÔ{ü™.KÏi¾Ìƒ>@şSá„péš—cïÁ°<w!}$Á‚±€oôôŸóË&%Swc:0Ò½B?èEUÙ×>P‰®åT%WİyßæØ"^¿DÓÕ­¯;|Ïf£÷›+ö$D¿ÇûlÏı>2bŠ¸3t©÷²Y–ÿLe:?Ù(Ôr°újéúÈÛ¿1ÖüáPc¯jÌGìnRwã{pÈ|Û^ÍÚŸ5QÍš:ÊéD°‡FC'ĞÏÖRŸFù_ Øs~nb.÷™ğ|IØÏàÑ˜pşˆ:á¿_ÏùĞX\…Kÿàğ°6Í÷’õû‚ø¸Şš”f+(Š9„&µBI8]ıCññtò,›L<î&ñ`“$å|ñQM¯	ØHt½òƒ|&ş>¢b|®Ôr§Ú úH%‹k{	Õ¯1CI7Â[İÔƒ¨©n*å¿"ÂW	T~pÜH8øG$Òo/nfÔ©<O3’bzÑÛ g%Gï·}µŞ%B|¡^‡1hŒëªÊàY>ñÑbøÜ1"Î4‘¯Ì1
+¥MGĞãÀ‘à;jÈRü8üØ¥jîÉ,ÓÙ«pRÁ Æ©l²!K/‘5CğîœÍ«¬¨¬Ä1½éõãrÆ|3%eCæÇ‡±1Ñ‚o>÷FM»Ãp`A;¦»È[?x½:êBñüæG~øfähzgµú¥ë^ºç¥(RB‰øĞ©[Ò¯ËqŞ=†-nÅV˜èãïPšyÜwêÏXwqo nÔ`1œİêµ7¾|­,8ä¾±±&ŠLãõeéï ~#wëª8•0’ü†„dêwõ¢vÜÿí+s2Rp½ÛTÌ+¹iêœb~çæÁÅÜX€òœßà‰E"ÿ÷ŸÿÃ 33Ç{PÜeûJUB•=±tù—E•ß3´Y¸C Ø.Ñï}öfiÙêü³!Ù¬Ô¯³gHÊì‰™éAê¡oIAòLÀ{…#ÆHÕ¦(q`Ä¢læÁ©INêñ9L]ÓpíR÷Y.º›-íy]ñË]iÏË`ó=İ¨	¦??áù Tµî¢Yñê°ßï»ìdENÛQæˆ· –ığ²Vh¦Ëë½¥ ™…d0Š¿¹¹ ]©ä‡iÚòû„ïH@^1QW4àŠÇQ/wUÍ×»NÙ¬
+NJBfiÊIË™ã¯è˜GƒÌ> œUuYõ&åŞ½<‡ºã~7b"Ë@ã½XùhJ’5rGT†8òJu%^¬9„ttşíæ3ÙQOLèW•½ºb÷ø9™G½˜ßa;ÁêÍxÎÚ*z	ÏÙ:˜e“aVµ'uWXIã€GÉ7½ÒT£‡µ²åf ü×chıvr«Íj‡ú5üõ€ÈfÁ]o6•s|Ú9÷B;k†Z	§?Y$(2yMXeÿãâ8³W„¾†³;tÕ‰(
+ÉéÎxÍ¹;¾!|çÓê¤ÀáIÇÀëË´‹zHª9“ùŠÅ€1Åêl÷zjA!.µŠ˜nm²å^/sÄ+× E–Çç^;UwjŸ‚ºí†Å×¹Ç¡÷Ğ.¯0q#ÇôİiŸşçZ._şWÇÉ~k*”ìõ´œÜüåSNu—+Ãë0–±W‰N ÙãôÜç¥®Gô’4}¤…*Á¼M°©ø
+‡ûÕ¡õÇÁ…S‘N’Ûatê^Oô+O“TT9‚š,ºJ-¨¬»M×ÁLíËí.®…Ùú—ïuûõtTÌºKÂ·¶´|¸vkUkeë±[¥&»8aôÑĞ½d·-ÊGD5[¸Ræg{Ãì%qù/RÂ³K“«™ZgJèT7Úä±†sêFNŠÕ£f¤|ùH£j‰>çQO’Õ+ö\’œ”çU6ƒ;¥M¨@§Â@)xEÊ±Ò¢¾ÓÎ*âP¬S Ì_PºS~ĞÁz5^c;šß€Ëâ‹ğ¼y« $¹ÒÒ$y¤±S)Åãc³Åx^e’±ÍxİƒÃ/¸_5D¨¸5Õµfäái5İ·¦¶°j
+È«_ãe¹Ô´+©ˆì7ìb%²#ë0¡ÔŒVÜ²AÏDp
+ıĞ4îË¹…,ğ„L¬K‡Y
+¨wŞ!î4‹D`ü+^uA¹£šeÜòpÂ`p;GÓ—ÿğª¶-Ë9 xWH#îÄ¨‚¸'Ìï<± ]/Š¯ DŠË7ª÷æP{ÎÕy7×Öìk A.‡ü×òøáæóEŸğ÷çeÜÿ0¼ÆªqÏ]Í—E¼ë|\¸£e€YeAÚ$]Ù[;NÜDÓòÜÃDŠw¤ô8ì9Qâ9ı:c%éA{ôÉãGipì¢‘CJ2š~wb[£Òšôi¢›$oKB¼_-Øùº™úµ€>b×†ô´‡­{íaq_gŠÛÛ]ÃÀŞãÖyXVŸcß Ö*û#åØ[#'¸b¸±È=H.yIÇ•Òq1"g ùİıîmÃvœîüZfhàQƒøŞÓ’<Â©²½°±Iµu z+šÉ2—Â˜U¿bqE5+îº úˆ«%Î	Zë7 “ÈSùd(D±/gpUşî­Ad¹aĞ61t¶oÆãMNÌ}1ëxpöÀlÅú¿«Øˆ¹ÃÀ",¡’Ş€ÁıîúŠ]ƒôÈz{¯zk>‘À%ŒëS¬/¼sŞ{DNéÿ£6ƒµ(mKkN^`›ß4¬>÷›øXt{6 aš–«·skŸpo!~İP–²}´,èÃŠù¬Ç7]ŸOÚˆÊşÒ?IñGíå8³ÒßMÅ¤k¼ìŠµÇBµ€ÖÓŠïÜ9M oôUl|kë®o°½©d‰xt‡²MÅâ'3WyŒt-qóÆ#ÜUmão¿vn±-l=©äšo|»¾‘dHÚEmöPëäîŸ†IR˜»ïdiØ‚éI`Œ/ÙÛ,øèr·¬Šb`ù©ğ4;`mÓ#I,ÿÀº©F´Û7ùš¥8ÂEiªè3²Äâ1–ßºÜ²v”·%L·l¼ÙìÍ‰eô›×”¹‹%“¾ ££ñGÀ4:¸O;`(7bèïûE‹¡\ÍÖÙ~•ONÏÆ<—¦–qbÃ²‘5ÓGÚO·ulmJ…åNJÖ"äYS29Î¬\Œ$Mx7¬lÒçŒçTÃ-Ék‹ÌĞ8ÄZ8¼í>W¥•šGºÄğ‹ƒJjYÂ‘¾4ÿ¹NLáşfÔæ¡
+Agit5g÷y69ÉGÒV(XptHeÑŒW»ˆÕÇ = ät\K˜u=ÍùXD5ô¹0ÊM‰_ªp˜“ß2Š"¾ Úà¸ûÂ(@(c¬'?tE€pa_õôíÆGµCÏ¦$óm™QPZ¶Î´z¼ÃÇûu•×9İ¸ºÅ«<çÚ&­®é¿TJƒ¶†'Ü[ó‹b–Ô¦™œÁÀK:¤cÊıGù‡Yo}uƒp½•‘ÅvâğM®¿q‹×¬°ÒÈ5.6˜¦–Şyïòyğp6R2ø8‚˜Íñ¥ê³ØK"ÁÂ_c‰¸®n3yU•Õ’Y%7ÖÜ¨Ê¸šwZ÷Ùùöb¼B¿…®´pÆu¸ñ!Ğ‚/İ×FXNw¶E'cúnT@s³4ı[HmÈÇ«Mal§ë¶;„<¨ıÏ6ãñi[6´Ã›­ø·Z×qÕ^LûÃ-º¬Pí·AİßÖ×°õ+ÆÎl*VÆF—¸õÆ{½İS;ğğXö”AÊ-}x6)èÆÎ6+Î[Ç×Î{ë[”1Ñâ5ü$Ä™©?P…ÁÖ¿¥Äy5	?àtåœãpÊÂ?Ög7Ÿ«p£› æ¾tæo>z¸¾õüÚyäyñ·TS9¡›;ÿ%#,}…î‰?Q]BôWReƒîU–!@Iåäã6²KxÁÂo}Ú÷@KèÓW¤o>Ó~¨dõ¡`™45Õ©óqæ"Cûp¡ï¦ˆĞŸ˜ '„J~ób“şïÁ‘S:Rläğ›½‡{›{ğXÄXá“…©?dEH¨¬¾œœµ	Bøñ…‚GõÏªË€ı*;Ï
+†-IÛÛ-OºCøÿñ
+Y‚Fë¥‚wéEyÔ<È$²nGn2¾nşB×$ mP
+[á^g…tí ^“V;¼Ë¸è€ÛËP&ƒîı=ÃÎJ¹Y-´¡˜æ{Ú?;è9Ÿ¼²ÓAÿæ©·Óªà˜N3cùãY5'yxÍ>É¤qkHTáx>&à3ÿGNçyçäçIyN5º·ZX“w'¯09üŸËß“Àâé-·ø&¬:‹ä€BçRa^Üüïä¤Èæ“pì’,¯ŞåÒÍ‰êD¼Q	ä¤`øFTÎs¥6¼J±§ÓÜh0şğ*×%ñÈÖ(¿@L¿Ğ	B¡ıëjŸ×ùÛK@æÇş…ŸŸÊÑìo(úXkebØy^²Ãò ®ëğÊ Ş5‰K:ğzò®pv¥ ´Í>ä,¢ö#]ô7•»^u!‡×ÀhÊjÃ¢uß1ÌÑw"&¼±–W"LÙõ@ı
+g!ªşvf¢Â9!‚óåÁ¾İeÿbâ»Ö^T5W‚YCK%Mh•tS·avO9yÑ„å‰°ŠÎŞ…$N–_×û›G‹—a[WÌ•¿rbä@»’$Œ×ı
+Dcu;»ëù   ÿÿ ×¯3J
