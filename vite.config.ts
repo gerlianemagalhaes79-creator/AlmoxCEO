@@ -16,11 +16,12 @@ export default defineConfig(({mode}) => {
       },
     },
     build: {
-      chunkSizeWarningLimit: 1500,
+      chunkSizeWarningLimit: 2500,
       rollupOptions: {
         output: {
           manualChunks: {
             'vendor-react': ['react', 'react-dom'],
+            'vendor-ui': ['motion/react', 'lucide-react'],
             'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
             'vendor-charts': ['recharts'],
             'vendor-export': ['jspdf', 'jspdf-autotable', 'html2canvas', 'xlsx'],

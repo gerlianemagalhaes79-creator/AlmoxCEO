@@ -1,3 +1,5 @@
+import { TransactionModal } from './components/modals/TransactionModal';
+import { AddModal } from './components/modals/AddModal';
 import { DevolutionTab } from './components/tabs/DevolutionTab';
 import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -10269,377 +10271,416 @@ export default function App() {
       </main>
 
       {/* Modals */}
-      {showAddModal && (
+      <AddModal
+        showAddModal={showAddModal}
+        setShowAddModal={setShowAddModal}
+        handleAddItem={handleAddItem}
+        bulkEntry={bulkEntry}
+        setBulkEntry={setBulkEntry}
+        showNewCategoryInput={showNewCategoryInput}
+        setShowNewCategoryInput={setShowNewCategoryInput}
+        newCategoryName={newCategoryName}
+        setNewCategoryName={setNewCategoryName}
+        categories={categories}
+        setCategories={setCategories}
+        items={items}
+        uniqueSuppliers={uniqueSuppliers}
+        updateBulkItem={updateBulkItem}
+        duplicateBulkItem={duplicateBulkItem}
+        removeBulkItemRow={removeBulkItemRow}
+        addBulkItemRow={addBulkItemRow}
+      />
+
+      {showRoomInventoryModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Printer className="text-blue-600" size={24} /> Mapa de Estoque (Porta)
+              </h3>
+              <button onClick={() => setShowRoomInventoryModal(false)} className="text-[#A8A29E] hover:text-[#1C1917]">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2 ml-1">Selecione a Sala</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ROOMS.map(room => (
+                    <button
+                      key={room}
+                      onClick={() => setSelectedRoom(room)}
+                      className={`px-4 py-3 rounded-xl text-xs font-bold border transition-all ${selectedRoom === room ? 'bg-[#1C1917] text-white border-[#1C1917]' : 'bg-[#F5F5F4] text-[#78716C] border-[#E7E5E4] hover:bg-[#E7E5E4]'}`}
+                    >
+                      {room}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2 ml-1">Filtrar Categorias</label>
+                <div className="max-h-48 overflow-y-auto space-y-2 p-2 bg-[#F5F5F4] rounded-xl border border-[#E7E5E4]">
+                  {categories.map(cat => (
+                    <label key={cat} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-all">
+                      <input 
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={selectedRoomCategories.includes(cat)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedRoomCategories([...selectedRoomCategories, cat]);
+                          } else {
+                            setSelectedRoomCategories(selectedRoomCategories.filter(c => c !== cat));
+                          }
+                        }}
+                      />
+                      <span className="text-xs font-bold text-[#44403C]">{cat}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setShowRoomInventoryModal(false)}
+                  className="flex-1 px-6 py-4 rounded-2xl font-bold text-[#78716C] hover:bg-[#F5F5F4] transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => {
+                    handleExportRoomInventoryPDF(selectedRoom, customRoomName, selectedRoomCategories);
+                    setShowRoomInventoryModal(false);
+                  }}
+                  className="flex-[2] px-6 py-4 bg-[#1C1917] text-white rounded-2xl font-bold hover:bg-[#292524] transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-3"
+                >
+                  <Printer size={20} /> Gerar Documento
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      <TransactionModal
+        showTransactionModal={showTransactionModal}
+        setShowTransactionModal={setShowTransactionModal}
+        handleTransaction={handleTransaction}
+        selectedItemId={selectedItemId}
+        setSelectedItemId={setSelectedItemId}
+        items={items}
+        weeklyExitRates={weeklyExitRates}
+        basket={basket}
+        setBasket={setBasket}
+        transactionQty={transactionQty}
+        setTransactionQty={setTransactionQty}
+        transactionMinStock={transactionMinStock}
+        setTransactionMinStock={setTransactionMinStock}
+        modalSector={modalSector}
+        setModalSector={setModalSector}
+        exitReason={exitReason}
+        setExitReason={setExitReason}
+        expiryReason={expiryReason}
+        setExpiryReason={setExpiryReason}
+        donationUnitName={donationUnitName}
+        setDonationUnitName={setDonationUnitName}
+        donationUnitAddress={donationUnitAddress}
+        setDonationUnitAddress={setDonationUnitAddress}
+        donationUnitCNPJ={donationUnitCNPJ}
+        setDonationUnitCNPJ={setDonationUnitCNPJ}
+        donationRevisionDate={donationRevisionDate}
+        setDonationRevisionDate={setDonationRevisionDate}
+        letterheadImage={letterheadImage}
+        setLetterheadImage={setLetterheadImage}
+        modalSearchTerm={modalSearchTerm}
+        setModalSearchTerm={setModalSearchTerm}
+        selectedItemName={selectedItemName}
+        setSelectedItemName={setSelectedItemName}
+        inventoryLocation={inventoryLocation}
+        isNearExpiry={isNearExpiry}
+        showToast={showToast}
+      />
+
+      {showDeleteModal.show && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl"
+          >
+            <h3 className="text-2xl font-bold mb-4 text-rose-600 flex items-center gap-2">
+              <Trash2 size={24} /> Excluir MovimentaÃ§Ã£o
+            </h3>
+            <p className="text-[#78716C] mb-6">
+              Esta aÃ§Ã£o marcarÃ¡ a movimentaÃ§Ã£o como excluÃ­da (ex: teste). VocÃª poderÃ¡ recuperÃ¡-la no histÃ³rico de excluÃ­dos.
+            </p>
+            
+            <div className="space-y-4">
+              <label className="block text-sm font-bold text-[#57534E]">Justificativa / Motivo</label>
+              <input 
+                type="text"
+                className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-rose-500/20"
+                placeholder="Ex: LanÃ§amento de teste"
+                value={deletionReason}
+                onChange={e => setDeletionReason(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button 
+                onClick={() => setShowDeleteModal({ show: false })}
+                className="flex-1 px-4 py-3 rounded-xl font-bold text-[#78716C] hover:bg-[#F5F5F4] transition-all"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => handleDeleteTransaction(showDeleteModal.transactionId!, deletionReason)}
+                className="flex-1 px-4 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all"
+              >
+                Confirmar ExclusÃ£o
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showDetailModal.show && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white w-full max-w-5xl rounded-[40px] p-10 shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-white w-[95vw] lg:w-full lg:max-w-2xl rounded-3xl p-4 sm:p-8 shadow-2xl max-h-[85vh] overflow-y-auto"
           >
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-3xl font-black text-[#1C1917]">Entrada de Materiais</h3>
-                <p className="text-[#78716C] font-medium">Cadastre mÃºltiplos itens de uma vez</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
+                  {showDetailModal.type === 'low_stock' 
+                    ? 'Itens com Estoque Baixo' 
+                    : showDetailModal.type === 'expiry'
+                    ? 'Itens PrÃ³ximos ao Vencimento'
+                    : 'AtenÃ§Ã£o NecessÃ¡ria - Central de Alertas'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Listagem de insumos que requerem providÃªncia imediata
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleExportLowStockPDF}
+                  className="px-3.5 py-2 bg-gradient-to-r from-amber-600 via-rose-600 to-rose-700 hover:from-amber-700 hover:to-rose-800 text-white font-extrabold text-xs rounded-2xl shadow-md transition-all flex items-center gap-2"
+                  title="Imprimir RelatÃ³rio de Itens CrÃ­ticos / Estoque Baixo"
+                >
+                  <Printer size={16} /> Imprimir RelatÃ³rio
+                </button>
+                <button 
+                  onClick={() => setShowDetailModal({ show: false, type: 'low_stock', items: [] })}
+                  className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-500"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {showDetailModal.items.map((item, idx) => {
+                const isGroup = 'total_quantity' in item;
+                const quantity = isGroup ? (item as ItemGroup).total_quantity : (item as Item).quantity;
+                const minQuantity = isGroup ? (item as ItemGroup).min_quantity : (item as Item).min_quantity;
+                const name = item.name;
+                const id = isGroup ? `group-${idx}` : (item as Item).id;
+
+                const itemIsExpired = !isGroup && isExpired(item as Item);
+                const itemIsNearExpiry = !isGroup && isNearExpiry(item as Item);
+
+                let cardBg = 'bg-amber-50 border-amber-200';
+                let tagLabel = 'Estoque Baixo';
+                let tagColor = 'bg-amber-100 text-amber-900 font-bold';
+                let actionType: 'entry' | 'exit' = 'entry';
+                let actionLabel = 'Repor';
+                let buttonStyle = 'bg-amber-600 hover:bg-amber-700';
+
+                if (itemIsExpired) {
+                  cardBg = 'bg-rose-50 border-rose-200';
+                  tagLabel = 'VENCIDO';
+                  tagColor = 'bg-rose-200 text-rose-800 font-black';
+                  actionType = 'exit';
+                  actionLabel = 'Retirar';
+                  buttonStyle = 'bg-rose-600 hover:bg-rose-700';
+                } else if (itemIsNearExpiry) {
+                  cardBg = 'bg-sky-50 border-sky-200';
+                  tagLabel = 'PRÃ“X. VENCER';
+                  tagColor = 'bg-sky-200 text-sky-900 font-black';
+                  actionType = 'exit';
+                  actionLabel = 'Retirar';
+                  buttonStyle = 'bg-sky-700 hover:bg-sky-800';
+                }
+
+                return (
+                  <div 
+                    key={`modal-${id}`} 
+                    className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border ${cardBg}`}
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-extrabold text-sm shrink-0 border ${itemIsExpired ? 'bg-rose-100 text-rose-800 border-rose-200' : itemIsNearExpiry ? 'bg-sky-100 text-sky-900 border-sky-200' : 'bg-amber-100 text-amber-900 border-amber-200'}`}>
+                        {!isGroup && (itemIsExpired || itemIsNearExpiry) ? <Calendar size={20} /> : quantity}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="font-extrabold text-sm sm:text-base text-slate-900 truncate">{name}</p>
+                          <span className={`text-[9px] px-2 py-0.5 rounded-full uppercase ${tagColor}`}>
+                            {tagLabel}
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold mt-0.5 text-slate-700">
+                          {!isGroup && itemIsExpired ? (
+                            <span className="text-rose-700 font-bold">Expirou em: {new Date((item as Item).expiry_date!).toLocaleDateString('pt-BR')} ({quantity} un)</span>
+                          ) : !isGroup && itemIsNearExpiry ? (
+                            <span className="text-sky-800 font-bold">Vence em: {new Date((item as Item).expiry_date!).toLocaleDateString('pt-BR')} ({quantity} un)</span>
+                          ) : (
+                            <span>Estoque total: {quantity} un (MÃ­nimo: {minQuantity} un)</span>
+                          )}
+                        </p>
+                        {!isGroup && <p className="text-[11px] text-slate-500 mt-1">Lote: {(item as Item).batch_number || 'N/A'} | Fornecedor: {(item as Item).supplier || 'N/A'}</p>}
+                        {isGroup && <p className="text-[11px] text-slate-500 mt-1">{(item as ItemGroup).batches.length} lotes ativos</p>}
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setShowDetailModal({ show: false, type: 'low_stock', items: [] });
+                        const targetItem = isGroup ? (item as ItemGroup).batches[0] : (item as Item);
+                        setShowTransactionModal({ show: true, type: actionType, item: targetItem });
+                      }}
+                      className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-sm shrink-0 ml-3 ${buttonStyle}`}
+                    >
+                      {actionLabel}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-lg rounded-[32px] p-8 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900">ConfiguraÃ§Ãµes do Sistema</h3>
+                <p className="text-xs font-bold text-slate-500 mt-0.5">Gerenciamento de logo e ferramentas administrativas</p>
               </div>
               <button 
-                onClick={() => setShowAddModal(false)}
-                className="p-2 hover:bg-[#F5F5F4] rounded-full transition-colors"
+                onClick={() => setShowSettingsModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-500 hover:text-slate-800"
               >
-                <X size={24} className="text-[#A8A29E]" />
+                <X size={24} />
               </button>
             </div>
 
-            <form onSubmit={handleAddItem} className="space-y-8">
-              {/* Common Fields Section */}
-              <div className="bg-[#FAFAF9] p-8 rounded-[32px] border border-[#E7E5E4] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="lg:col-span-1">
-                  <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2">Fornecedor</label>
-                  <input 
-                    required
-                    list="supplier-suggestions"
-                    type="text" 
-                    placeholder="Nome do fornecedor"
-                    className="w-full px-4 py-3 bg-white border border-[#E7E5E4] rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
-                    value={bulkEntry.supplier}
-                    onChange={e => setBulkEntry({...bulkEntry, supplier: e.target.value.toUpperCase()})}
-                  />
-                </div>
-                
-                <div className="lg:col-span-1">
-                  <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2">Tipo de Item (Categoria)</label>
-                  <div className="flex gap-2">
-                    {showNewCategoryInput ? (
-                      <div className="flex-1 flex gap-2">
-                        <input 
-                          type="text"
-                          className="flex-1 px-4 py-3 bg-white border border-[#E7E5E4] rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
-                          placeholder="Nova..."
-                          value={newCategoryName}
-                          onChange={e => setNewCategoryName(e.target.value)}
-                          autoFocus
-                        />
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            if (newCategoryName.trim()) {
-                              setCategories(prev => Array.from(new Set([...prev, newCategoryName.trim()])));
-                              setBulkEntry({...bulkEntry, category: newCategoryName.trim()});
-                              setNewCategoryName('');
-                              setShowNewCategoryInput(false);
-                            }
-                          }}
-                          className="bg-[#1C1917] text-white p-3 rounded-xl"
-                        >
-                          <Plus size={18} />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <select 
-                          className="flex-1 px-4 py-3 bg-white border border-[#E7E5E4] rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
-                          value={bulkEntry.category}
-                          onChange={e => setBulkEntry({...bulkEntry, category: e.target.value})}
-                        >
-                          {categories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                        <button 
-                          type="button"
-                          onClick={() => setShowNewCategoryInput(true)}
-                          className="bg-white text-[#1C1917] p-3 rounded-xl border border-[#E7E5E4] hover:bg-[#F5F5F4]"
-                        >
-                          <Plus size={18} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
+            {/* Navigation Tabs */}
+            <div className="flex gap-2 p-1.5 bg-slate-100/80 rounded-2xl mb-6">
+              <button
+                type="button"
+                onClick={() => setSettingsTab('logo')}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
+                  settingsTab === 'logo'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ImageIcon size={16} />
+                <span>Logo do Sistema</span>
+              </button>
 
-                <div className="lg:col-span-1">
-                  <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2">Origem</label>
-                  <select 
-                    className="w-full px-4 py-3 bg-white border border-[#E7E5E4] rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
-                    value={bulkEntry.origin}
-                    onChange={e => setBulkEntry({...bulkEntry, origin: e.target.value as any})}
-                  >
-                    <option value="contract">Contrato</option>
-                    <option value="extra">Produto Extra</option>
-                    <option value="donation">DoaÃ§Ã£o</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Items List Section */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-sm font-black text-[#1C1917] uppercase tracking-widest">Lista de Itens</h4>
-                  <button 
-                    type="button"
-                    onClick={addBulkItemRow}
-                    className="text-xs font-bold bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl border border-emerald-100 flex items-center gap-2 hover:bg-emerald-100 transition-all"
-                  >
-                    <Plus size={14} /> Adicionar Outro Item
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full border-separate border-spacing-y-2">
-                    <thead>
-                      <tr className="text-left">
-                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest min-w-[180px] md:min-w-[240px]">Nome do Item</th>
-                        {bulkEntry.category === 'Medicamentos' && (
-                          <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-36 min-w-[110px]">Tipo de Material</th>
-                        )}
-                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-36 min-w-[120px]">Unidade / Emb.</th>
-                        <th className="px-4 py-2 text-[10px] font-black text-emerald-800 uppercase tracking-widest min-w-[110px] bg-emerald-100/70 rounded-t-xl text-center">Qtd. Entrada</th>
-                        <th className="px-4 py-2 text-[10px] font-black text-amber-800 uppercase tracking-widest min-w-[100px] bg-amber-100/70 rounded-t-xl text-center">Estoque MÃ­n</th>
-                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-24">Lote</th>
-                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-40">Validade</th>
-                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-28">PreÃ§o Un.</th>
-                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-20"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bulkEntry.items.map((item, index) => (
-                        <tr key={item.id} className="group">
-                          <td className="px-2 min-w-[180px] md:min-w-[240px]">
-                            <input 
-                              required
-                              list="item-suggestions"
-                              type="text"
-                              placeholder="Nome do produto"
-                              className="w-full px-3 py-2 bg-[#F5F5F4] border-none rounded-lg focus:ring-2 focus:ring-[#1C1917]/10 text-xs text-stone-900 font-bold"
-                              value={item.name}
-                              onChange={e => updateBulkItem(item.id, 'name', e.target.value)}
-                            />
-                            {/* Quick unit helpers for medications */}
-                            {bulkEntry.category === 'Medicamentos' && (
-                              <div className="mt-1.5 flex flex-col gap-1 bg-[#FAFAF9] p-2 rounded-lg border border-[#E7E5E4] max-w-[280px]">
-                                <div className="flex flex-wrap gap-1 items-center">
-                                  <span className="text-[8px] font-black text-[#78716C] uppercase tracking-wider mr-1">Unidades:</span>
-                                  {['mg', 'mcg', 'UI', 'g', 'ml', '%'].map(unit => (
-                                    <button
-                                      key={unit}
-                                      type="button"
-                                      onClick={() => {
-                                        let currentName = item.name.trim();
-                                        if (currentName) {
-                                          if (!currentName.endsWith(' ')) {
-                                            currentName += ' ';
-                                          }
-                                          currentName += unit;
-                                          updateBulkItem(item.id, 'name', currentName);
-                                        }
-                                      }}
-                                      className="px-1.5 py-0.5 bg-stone-200 hover:bg-[#1C1917] hover:text-white text-stone-700 rounded text-[9px] font-bold transition-all uppercase"
-                                    >
-                                      +{unit}
-                                    </button>
-                                  ))}
-                                </div>
-                                <div className="flex flex-wrap gap-1 items-center">
-                                  <span className="text-[8px] font-black text-[#78716C] uppercase tracking-wider mr-1">Dosagem:</span>
-                                  {['500 mg', '1000 mg', '1000 UI', '5000 UI', '10.000 UI', '50.000 UI'].map(dose => (
-                                    <button
-                                      key={dose}
-                                      type="button"
-                                      onClick={() => {
-                                        let currentName = item.name.trim();
-                                        if (currentName) {
-                                          if (!currentName.endsWith(' ')) {
-                                            currentName += ' ';
-                                          }
-                                          currentName += dose;
-                                          updateBulkItem(item.id, 'name', currentName);
-                                        }
-                                      }}
-                                      className="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-600 rounded text-[9px] font-bold transition-all uppercase"
-                                    >
-                                      +{dose}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </td>
-                          {bulkEntry.category === 'Medicamentos' && (
-                            <td className="px-2 min-w-[110px]">
-                              <select 
-                                required
-                                className="w-full px-3 py-2 bg-[#F5F5F4] border-none rounded-lg focus:ring-2 focus:ring-[#1C1917]/10 text-[11px] text-stone-900 font-bold"
-                                value={item.medication_type || ''}
-                                onChange={e => updateBulkItem(item.id, 'medication_type', e.target.value)}
-                              >
-                                <option value="">Selecione...</option>
-                                <option value="PORTARIA 344">PORTARIA 344</option>
-                                <option value="COMPRIMIDO">COMPRIMIDO</option>
-                                <option value="AMPOLA">AMPOLA</option>
-                                <option value="SOLUÃ‡ÃƒO">SOLUÃ‡ÃƒO</option>
-                                <option value="SOLUÃ‡ÃƒO SPRAY">SOLUÃ‡ÃƒO SPRAY</option>
-                                <option value="POMADA">POMADA</option>
-                                <option value="GOTA">GOTA</option>
-                                <option value="COLÃRIO">COLÃRIO</option>
-                              </select>
-                            </td>
-                          )}
-                          <td className="px-2 min-w-[140px]">
-                            <select 
-                              required
-                              className="w-full px-3 py-2 bg-[#F5F5F4] border-none rounded-lg focus:ring-2 focus:ring-[#1C1917]/10 text-xs text-stone-900 font-bold"
-                              value={
-                                ['Unidade (UN)', 'Pacote (PCT)', 'Caixa (CX)', 'Frasco (FR)', 'Ampola (AMP)', 'Bisnaga (BSG)', 'Envelope (ENV)', 'GalÃ£o (GL)', 'Rolo (RL)', 'Par (PR)', 'Metro (M)', 'Quilo (KG)', 'Litro (L)', 'Resma'].includes(item.unit_measure || '')
-                                  ? (item.unit_measure || 'Unidade (UN)')
-                                  : 'Outro'
-                              }
-                              onChange={e => {
-                                const val = e.target.value;
-                                if (val === 'Outro') {
-                                  updateBulkItem(item.id, 'unit_measure', '');
-                                } else {
-                                  updateBulkItem(item.id, 'unit_measure', val);
-                                }
-                              }}
-                            >
-                              <option value="Unidade (UN)">Unidade (UN)</option>
-                              <option value="Pacote (PCT)">Pacote (PCT)</option>
-                              <option value="Caixa (CX)">Caixa (CX)</option>
-                              <option value="Frasco (FR)">Frasco (FR)</option>
-                              <option value="Ampola (AMP)">Ampola (AMP)</option>
-                              <option value="Bisnaga (BSG)">Bisnaga (BSG)</option>
-                              <option value="Envelope (ENV)">Envelope (ENV)</option>
-                              <option value="GalÃ£o (GL)">GalÃ£o (GL)</option>
-                              <option value="Rolo (RL)">Rolo (RL)</option>
-                              <option value="Par (PR)">Par (PR)</option>
-                              <option value="Metro (M)">Metro (M)</option>
-                              <option value="Quilo (KG)">Quilo (KG)</option>
-                              <option value="Litro (L)">Litro (L)</option>
-                              <option value="Resma">Resma</option>
-                              <option value="Outro">Outro (digitar...)</option>
-                            </select>
-                            {!['Unidade (UN)', 'Pacote (PCT)', 'Caixa (CX)', 'Frasco (FR)', 'Ampola (AMP)', 'Bisnaga (BSG)', 'Envelope (ENV)', 'GalÃ£o (GL)', 'Rolo (RL)', 'Par (PR)', 'Metro (M)', 'Quilo (KG)', 'Litro (L)', 'Resma'].includes(item.unit_measure || '') && (
-                              <input 
-                                type="text"
-                                placeholder="Especifique a embalagem..."
-                                className="w-full mt-1 px-2.5 py-1 bg-white border border-stone-300 rounded-lg text-xs text-stone-900 font-bold focus:ring-2 focus:ring-[#1C1917]/10"
-                                value={item.unit_measure || ''}
-                                onChange={e => updateBulkItem(item.id, 'unit_measure', e.target.value)}
-                              />
-                            )}
-                          </td>
-                          <td className="px-2 min-w-[110px]">
-                            <input 
-                              required
-                              type="number"
-                              min="1"
-                              placeholder="Qtd"
-                              className="w-full px-3 py-2 bg-emerald-50 border-2 border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm text-emerald-950 font-black shadow-sm text-center"
-                              value={isNaN(item.initial_quantity) ? '' : item.initial_quantity}
-                              onChange={e => updateBulkItem(item.id, 'initialxœì}KSÜXÖà~~Å5åøHºÉ$yÙ†¶ñGAÚíÛĞ@ÕtAØ"%@me*KRòhšÕ,æ|»YME/:¾/¢V³™-lÎ¹éJº/%‰«¬îÂ Ç}œ{î¹ç}>ü4ö†Y˜]ÍÎ“ “yÉiuÎ½h/^ÙYò’¼÷Ş“u2ò’4x3ÌZå×æænş1\†ÇÏ2ßø<óI?òÒô½7^ÌŒ.ÛKdÛíÃÅnwty4cú¾‡£qFŒï’?Ã$ğ-¯eW#Ãp<8’Ë»0È3]Û[£ÈëgqäÉ‹™w·¿mH°¸hŸŒ£ˆ H–Éè
-àr|ÚöphíÕ.9h“ÿÃo/w»$‰ÇC?ğÛ—9‰ûãt=	‡§ğ­ô‡h£K²à2k§ö/»½mŸÄÃ¬·ïFÎöƒaf
-Å—×!Ìà}+Ì‚AÀôA à` Û:©=1#!ñpëÌBÓ€´d<ò½,ø~}z-±BÌÊm~5è~Ñ^Z™
-–3ôÅåj„–oã,¸#Z~÷jş·r$rƒ£S-.~·¸µ¸¶øôha‘£ãeÊÑ2ƒ&Úk]ˆ‰®Ø‡èpìeı³l+O»ä6kØõù±f¥kÃ?<—¿;‰‚K‚?Úı8"§Ş¨½hiÁóî!àl«Dˆ¦Şqø|©ÂôCxä¶/4ğ!¸…‰•&˜r±³:e´<\\„ÃH‹šùœÖã‘×êÄØaÙ¤? í3wÅX©Ñ¦kAY¼GŞqÕ0»OùÁ°ŒôÇI'íQÒSÄÖ°;Ú	ÄëŸıOÇñ¥æ´Y&gğG	&§‰wEOS¶ôœÇÜµİ—XÓ…¼Ü|LÖwXrX™täe2­áî(¶ÜÓgOŸlÁèGAÒ÷Ò`fãM1Xß{¾€­Yñl"š…Ø- µ»‡£ùÙf7Î2Í‚°–îb£c¼;ßµ’œ¯ê/˜Èñ0Ì>Œ’°”YÈâş´ø¢E7öñU{œˆ¨j;;p<Î`E]ùö¶nÂòDaÿÓ‹ëÖ.?ÁŸŠr a2p 6	aU€]ê’³ø<HÖ‹{Oò{€ıôÎjWÆw†i˜…ñ°íE‘} wDĞñ6‚8â‘xœ%1‰¸lê»®Hş0yñÙÃ½ÀÖÀöŞõ1€º7Ì’«E‹NO³3²AÉ¿ıiÙGæŠMq£†I0€%¨±_4À5~$qZÃz¯„ôÎİğ#Ç=:ëQà‚ úƒÄKÏ–š …;bX€zÇc&º§::
-ßÇş•ê3x„\xı‘f˜Ïáğ¢0ÍHè¿˜A4j§ãÓÓ Å%M•Ôğz3î°s’ÄƒÖ0¸ ûAÖb;fàZ!"hØ~ÍÍÍÑ[ø;ŞUo¡çñû"Ÿ‚«×øê8ÿØÊ•TAfÈçb›f
-ÜXÂén*œ†?ƒ}ş>›aê8—4ŸH:•Yğ¬ŞUkx”­QÖ~"ø˜Lürø]ïioµ·¢R+(˜bU(TdûgñÅ¦ï¿‹}/jxQª–·*CQ	Nô'È­ätf‰êò4œuN
-ŞÍF”Tk±åûAä%ŠÑ‘	+¸Òññ Tª¢ª³>\:’æ},ñ“lºg°Ã4ğ °´¶´ºT IÏ<?¾@rÍ+¸Õ¥.©sBÃ8¹’£e7(>ß÷ÎN†—ºˆöäÈ9Qø7àğp‘‡øî°½!p Sç5Pµç'q2ï=_ÄŠNéİÒ§€™ü·ëĞv/o†ç0û8¹¢\æ j{.¼Ñ9Ö·»„2R^ÿÓÂ
-üÿúI<BÖ*AEóßÚ‡OºGv˜ÚOJôy1‡2¾…À¯‡^ôâúš¤}/
-ÖI·³6O¸ş"7åmçÃ0–Ò‹Òë‹Õ×¥iÂÄrÉià]¶/Ú?ÇËeÀËQû™À2@Sk*ë¤¢[ÇAvÃ2„Ç˜ĞfÎ–k¢xiw¨ùü%õÛM¨r¦Ö`”gb¯PÄ~ç(.÷@ÂƒC‚´vã$óæj(z¶\4'j¢YÇ>A>ëJ‡ï6Ÿm.­õd¾­ĞÖ(æø—Òæ¬UµÍTçNuõRÀŸ }¥Z 5ÛQSœGqÿS.9³õÃ]¤U¤ ‘ëBÙû"ôáGüX"ƒe¸ı 
-ú!ŠîÙ÷"O«?©Îã4	}‚?PAœB{:dJ±·³ónŸr	¬˜)`@Õğx”UÀt\¦IpvYà#¢Ğ¾µj1³ëp¼¬àñ²,[ÈÊğÆıÂÍj•äñu*uJtÒ/É¬î°Êùşu³åcº¼²UE>Øø­Ù›ê©ê8hdMì¿†1«c²'ûì8ÿ*ŒàiŒLœÆIè¥ÎX„ü¬½òŒ ÀO" İWmoœÅDlë%2ªêÇ$$*[bM&,HŸ/`Ì4üiØ9bt‹À‹7vıÍ2h8e¶	øŸ²¾Ê(ê°È¦átÕÀ—”+ä¬`qÕz÷\C#)¹Æ èÌğò–İ*ÀûÑ°aom+
-Ãkƒ„VM×nü‚TéX1¾Öa§ÓQ}Àæş`hø†pTNÜ·d'°·‚¤ÕG@ôÉ# ~;ó@´Ïnt´:µÅ¡D¶9ÅXYYé.oÁÖ£ûÅd\0˜¦@ıÔi3‘³)wô›.+€Qã:ì]?
-z—#`JK0Ûİ~UBsØTÀuÇüA5OÔ›@ƒí¶eQ}¥Ü_X$tuê±*JBñë êm ëÙİŞÊ­æòîÂÆëãGté:xsŠ"ïªH¿pF/ğÆK®uÏÏªü”AVˆ±e”VJ¿êÕCv„ÙêÔ° Ánv/8SÊr-eÇ‹»ûŞí/pó¦‚ZUÙµü5-@ö©šëÅ5#9ÒpnÜDDçYÔ¹ÄçJSÙ"Ÿ²ÚN•#VA;y¤ÄÅ‰AWløáx §°v$TAô¨A'õ? ‰|Ê#2£õr;LGñğö—s`¨SZ¬€ÕÉ}Éxú°Œº±ê¦¡µÌöMc%L"Ú¹¾útuy¥wDå¦BM ø†4‹—Åsv.êÅ «­Òù€åVçƒ?«ì| —„1‚Ÿî8ã7¾3ÿ/ñÌìËªÍ_×’ÁôÅ­%l`3²Úf<`şÎóö–¾™kÉø„{\+N–{¥R%·›Ş”Ñào³MğºØÁ¤…Î£ë¤îsIşşw2û~asöf´ùsyGuLc´NZïbL?]§¦;RÕZ‘AŸ¸ì¼ŠuyûÉ^Õ:G2³ñg
-2¤>Ä#›~Èö«q«Ú]=ìİ†jMmÓfÜw3é×e‰ôş9»j½ó²3@åËğ(Yé Ñ¢É±¦D\—ÈşÙc 0iŒP{Q¶é³[KİªC=»ª+ø*ÜJ¡Ábm<ƒ68ƒ„öNzÄokÑŞlÍwÓáØüÓhÌƒÁ+“‘òÊ5¡±tĞyë#¡é:b]–åòR]´——˜u…“·%à‡`1V»e–c-Á@Í û¥x·[Â<¾úápmê1éã½ë°^Gò™6heSş6åo~Oş~¢=©=ŠÔj%úänç‘6<P
-1i­’ı`à½tÎ|Ô©ŠM)y°nyQç£ûâsp‘v_Õ’ª´)Ş…Ãı ?§•µğj™TW|šñİu(GGô?Æÿ„C_x…>•Ë¬®Q]‹*llÇ¦¶f£º‚OÑÕì$û£wfx#=Ì™Ã#J™M½¢Ì“¡Üàéè(áïaÔ’ı¬Î©‚Ç&ÓCçÏÎê¸™kU-ÚâÂ¡(Ş`ÇÔŸuâãVÃ4Íq ’Ğ»yøJa6G¡YÙ¶Ğ-¸„—ÊÏÇ0ö~ÌÜ[Ç)1éßşŒ»7&¨êÜşœ…ğ‚“4LaÁ<5¿¯uŞzµùªiwó¼xû^¨ê»8ÏW/5âÚk¦øt°^ü¹b°ÌÓÖŒF÷	¹i |¦$ ğÒxØšE:1Ä³F¢#ÉÔûğ3NZû½­ƒ½ıÃ®ÉÊ¥5 Õş<°a"ƒÏ†iáÄŒ&±ù³§ìıüÓÚûMÜÈè¤rÂF?öúoè	È‘fÖôö—A>‹+Û±wûÏÛ|­Èrû¡ß[¶ƒ´ï%Y°ğ#~MíOÖz4¤NtûğğM âÁ#Ül _)¾‚Ä÷šaÛ.~²°yî%¡ıË‡flşÉd˜õ¢¹f¦#gc:†^vûsRöSy\ÔZZšRœh,æÎ+<	ûE³ûà>ú³‘Ä³:D?l˜ N®Ö±ı¦äúuãÏM«Ç…ªÚ
-
-ñªPëÃZ.rGÅ˜1Å³PÀÇàaì”àÆ5?HY)ÓÛ!m²…Vè˜ù{‚~b"5‰’fG·ÿ:HÍí>Õ»¸Fï!ÅƒUÉpdÔlÕhÊäW]îß®téjIÄË×g	Äûrˆ¾ôƒ´ŞÇƒÀ¬Qäƒù¢£D²ÉÍşĞŸ€A+É®ˆàƒ‚iŠ¨2#óÙpÔ°lŒQ·¡ù} z–/	nÿ¨î–±bú©Ëç~ÊÇnÅíÏİ‚OuÌ!òMßO‚4m˜¢Bšy#M0ßšÚÁFƒ¿ òn½ßıÓWˆ·İn§Ëş[€ÿºí	SŸ<DìÅ¹êbŸoã±ë Áƒppœ ‹MZ;#ê5O÷§İŞë…İ÷¯˜§”)æãH5=îŠ_‰Å9TÙÓ¯8iÉ‚Ú¹Ç‚ï¥gEôM!ˆKhÏeòŠ\nâÑCÒàE ôˆ4OLmeXçäIªT!#BaèĞŞˆ«QøÏÏ3ğN71j+ñÆ€KÆ¹Ë¥ÀO‹ü@gã˜%Ëz|¸ÒnA–OÂ(˜±¿ìõñøx1âD~çğ…´2g¡ïC‡o
-š×
-¬š»¼#j°ÆyE>'ü;}Ù9ì™ÍÓìBã8~a3—ûL `?¾ ˜$ä|¾Go´ŒJÀâbŸwâ!n™`èCCv}¥|Á™ğ¶Œ“-Ş&°5ã(#^JÒ0Çİ48ş³™n{™÷ÃŞ[>—ïí›Á úd—…<8±8µíìéó¤ÆR,ë˜™¦‰±èÁ ÜYîØÆ~ï*H?{=´$ŠYœX¹›jº#B)Ä`
-i°ÊL-–V
-Ûmjşş*ëƒx¹ó<ğ†úÍ©ây5¡ÇEà'®öSapjÇÛ4é¿¨ÎğÆátˆàhØM‚ó0¸hv4äÓ§ÿÄÇú`Ş0óBëÆ±RËRáÁ1¼HeQauû¿£vˆsçazûøÁkÚz—ëdie¡»üäÒ“¯N·&¤6
-oøwÛš»W/·Ém|m›á!uªšÌäjš‘²é*ÁÈešFß‚³ÇdÂq	£í<…3Ì˜L÷w £8©¡dC»ä?€¬}ÉÒk
-mSX$áY©O®GàÔ¤]0ãàKrû3ìG¶;¾bRÒñvLAu–5×}öUD~¹ìİ&:ñ©èÃ'ŠşÂuæTŸPÁ*-¾ò’ÁíÏıĞ#-îFŞ †`ÏÍl:Dœq7=–Â£QÔû¤HÈşÜ¿Ü_ô—:ÈKkÓ¿ˆjY>mHwqIÁİE@÷<Ÿ@õ’â]vÓÏ)åKê3íğÓ™?ÑhÌğ{è$Ü„Ğ
-
-DÖ±Šİz ˆŞrÉìŠiÀÊŒ"L–IÏü7fÎûøN0&ÃXÄ£¡¦Q|“Aî(L‘ˆÄcâÑsßu¯ùLmXV¬Îs&ªó Q£m[én ù75!¼%¿(GÊ«sWf‡(®"5Dé«†%“ïš ’ùÕ;8_{é' âÖñ<ÁB —F-Q)¬D9rLƒK>„ú ;¡§ùd,Èå¼j¥Œ´¾Ğjõ­«ØmšùVÃó™´ü’Æ²P·Œ£!CäÃ`OÇ4Dláôêı(¢1¸
-zfCŠ¥~©	¦&	óE·±ÇÉ9«‡›.¬‰&¬Û&»ªƒ‹ïé&|ÇÔZlÇ8è}ó)p~Aä¸Tı{±lïèû¾•·dıÊª-ÏÈü'«„*ÉG©È)Ds´-Úì­6“.™]nººéWŞ°Å7ó·¼ËŠ½·¶¶f[~w&¬{æŠôĞOKÙïá°¥·5ºÚÆ÷¸Û`$_~;á¢½ø¤&N5ã C¸Qâ¶$®*¯¶gF/›Şò·@Xõhªÿö÷ßˆ­öÒ¨³Ë‘ØŞ;âkÃ¹Zv²õ[úFHsO2&×jğªò\\ßX¯ñZÁA¤~Åe5¡üÅ½ü†Äïât£Aéµp3‰ã¼½² Íé¾!»>}£Éb8iíÈÛ.ù¯T†º†Å—?ƒ÷/éŸÉßzÇiœDÁI†ùJâQ{qa‰°#ˆf·¸¢7Ê0˜id*utÁHïWxÂYß”¬CöfK&¢İ ıibˆ9Ïˆe·9+ô"êÏF‰A;bt‚*äv<Îãq…Ã vÂßÙ¬„WYE«$ÚìèÅ5‘wL¡ÔUù?Wÿ9×‚~®š1F:cÚÄe=oq²ÿ=¸Ú/†fËò4
-®˜ö®‡‡î,êkU ÷ø”WÁêºzÿQ`&ØíàÄG™«ÃÏÂa™$Iv†h•œ>ãN˜Šœúã™ĞŒ:‚.ÍZ³øÜöxQw'x¶ÚA)´ÁÆæ6™ÏáÄ£SÚWuåkù‚,ÑU¯â¬““]‰_\uşªšO¤×/.í©Ñ%Ixz†ÿâéÁr»b&œUu ‰EašàV—Cÿî®>×-¡¦¤Ü WTæ|?İ™^JOğÃ#]²ùÊ[âÙ›8õõãÁ1~ôÆûøXÎƒøX“qöæ£«ÛU¨aËa½ `ŸºæµD‡sEŞúê+4wÖ‘tT'Y«åÍ“cJd=:Ù0^^lÅx[Ç¼Ø™S{Àï-Ø‹]§÷]“Z—-D¼|•’`:~Ó´x!^Elq!-æ'QÃzŒŸçÚyz‰Ú‡®ç»hF©ØÃ³¡—"]ˆáÇ_oF+üzk°Ñ?)µCtf±œt’Ä‰ë9Â.†×î_¸.ƒ,Ëê‡yrM8pÖdæ‰ 4İµ¹€B­‹*äÄÂHßOÆ±ËÆ³Ëd	¤¼+’}{6AğÊ/^„²õ’fËV°Êmo¸øÖãe*½m6íTËzoH”ÜjÎÑ÷£7íğ[ñ0.yêÇE»İv°(IpñùÏ_6
-ílí‚¡ïïÀ[T×—Åñ"õ¢œ­»œYu±³ŠèÚ…DM©fxzÓ,Ópe:NqÕ¾˜Uû”v«”+uXßõGÀgeuÆcÌ3$ˆÙÁy¢¾—d¶ä1F}#ÊB?fÏh;ÕŒ¨¨TªÙN}2*wÖi”õ]¬¶0×Éâ·”cÀÇœg™eíï÷f
-öæÀj¸:Î7ØD®EsiÿvÇ6B›·‚ÔÙüÖmÂÔuSAi2süÔ5|K²†É®[t«ÍÛ‘]wu¾)«”&MjÏ®†©íÙ5¡i¹NRVÙÙdcêÌºğ½®,/P¤›ëÄ¹ÎÃN‚ì\ì$l½\Û91¿:£láo­jj“-®´“Û,»Xë<+ZVÚ»’jWPÈ²’‚jœl(Må8û šŠÅS¨ù .#÷º¿ğ~ö†´,Øœ‚³xI>¶iB¸u`p&d>"ÓãAKjJˆËºæîÌ.ÈâãlpoÖ§³ä,sº]ë¸ò§¶¶İ2V[oXà®aMu5©çõ×ªÉ±[×TÃ±Nh¶yÚ×z^JéF_ÌM[9q·E¢,;ûuÕÛ³s÷ÃÔ;hÅMK!«Ë0›­ÛVğY×Íë5p*Šà•![ÖlˆA®sE:Šİë‡Iòê¹T¸ù”Ë_"®©ô’ğ2P&3T®_<<	“—Økƒ©AÊÏ›­Ç×¥7sŠ|æêòÛ@³à^
-í}«-Ï&äRMo¥oæ\(¾yÍkÁ÷.ûÑ8LÈ»R¸ZuªÅôŒuä”uÏhH…ƒİÑ÷0®$Gcâ2ôÉ¸sM‘• ?ÆıÛÿ"£ØçtıñkGFhœ,pû¯„&®ò&â´S™IE=W~êìK3­ğ™ÂÍk¤[3‡)`÷¾"K„ÖÂ’B¦­E¿õ†·ÿôhà®]Ãúg"É
-£UG—("oK_ØãJtŞ.UY×¦ø¦AÖ~VGİi¬.
-,‘Ô2ãC]¾‹ûy˜”ú§aP´'‘#8XNéĞlU©lÇÿÑ<)ãNCÉG¾)©±Í!—³”æ¦õäíj N¡Lîvyaô­B®úØ>\[=¿8"Ñé:§˜ğ;Åñè-ã+XÌC]8÷Ùj³Â¹*Âb²Ê©VµuMÅG çÇ`]ÁRHÕµÖ4áú5,*øX˜ë‡+àÌªõ®/iôÕ0ÅÃ]@‘ï½ğ2Ö|°Nô1íÂ¬¹£İäö_—á N‰)UÓÛì&|Åø÷A?HSL¾í‰,Â^„Ø&*"•	ƒëÌ½«Ll ½™åê=Ú¸oQÉyp!÷NiŒ*õíJàş(Ê¿ı¯!†„‡Øœ—Õs§+“J5Âä1dz÷œÔË•İßÆ´nÒîö+‹8™ğ™‰‘fÒ9M<?„¡´³¸“$´=TcQ*~zIbÍÈ·ôvqS¼ö¬|
-¨ê€Â*ªj"«#W‰è,ËÒ›Á(	À‡ï¡ƒ1r²”qb½•Üş‚5™R`K;h¢BîÌ˜(zœÒAÇèäûY£á)É<ƒİ:9<R²A•„XKÕúƒ‹R2,JĞ+ËSŞ‡@üKInº›(ng3…ìQßi5R\¦X ¯$æv ô5fL$@O³8ó¢¼Û,P
-úºÖŒ})…ûˆF^²êsÂŞDÅ¯Ü.&(‘_šëèë¿±áğÏ®}Éõäê=™«Íñx(j ¹'‰î=j@+ó‘%|| §êìJ×¡ÿ‡ºe¶ˆâ~“R§ ê‘øH´ŠÆq¿ÜœvP´©ÂÇ ÖZÅı@j°Ö"ğÒDsÿûSDØOŒVSÙßKİ®¢ğ~GÕ[*£“vé¬×¾¿…éèJİ-
-BÌş\ëJ^øšv˜DpPRÿ]èØru éÛ|Ø{OšWÙßÏ®hNÊbÄ%a~¾Ì* ,ª5æ‹¯6„–A¤[’ó*©—€”àÇŞû­7Û;º÷dÀ‹6%ÍÒ³ìÈı+) N„BSÿšà,L<ˆ‰Àl½ è\ ¹À}8§Ÿ®$0ã_.PŞİ»ı¿t»·çkŞ0?…àµ‡iÊÓR1_¸ñLç:b²J<×zÜS«æGêMÉèÍGMRÂª=A-n
-©)ÓVUéÉ_³UW×'Ò˜èÜØbZé‘æÃÀL+m&üg*í^¼Àh§3üMÑÊËğo­ø²[<j…yq==NğS»[€¢|½,¶ÜbTÉ¯çZ:{^æ˜´XÅğÊ¶â&-Å¯8F‡¸kùÈ+XQg·L^’ç[^}O°ÅK]Ê¯[€¿97_5)¨˜<</oTÇµÅÎª9ê²îG«À®8¦IõJj à™ÇÃ>ü1³qíâ]«ó‡\Cç/á–*>¢Œ1/œ¿_2iõ|¼ä×ì8gv9´9Öé3¦Á d¦˜ŒNH‚ÛSc¶Ã
-šV·%Û¬Ò_7—o‹0ÅÚb<&Á`ÎŞTrÓxdöÓ ­kÙdÎîË‰		ë-Q‰IæÊ#yª¨Ü	¾ìDf’×h§RŒUî†´xåv¸/I=®#0¥º5ì×"*]ásWøBaÅ”TÜ¨gmÎ£Wq2ú'õRØÿQ(€£ÖÏézòQ_«DG:è &vêy–´ÍÅ©i$“8óXó08GİY£¢wîc"%³¦½á™ÆŒÂ7‡àa÷¨&ÿê{±yşÀÑ“O¢à|ÙÖåÑé§â;‘ÖØ\ÑÖØgcİœË+b–uJ\(3Yƒ8ÂÇ×§­+‰©Û¨×C¯+Ä¨÷j× bfUÛ„'>d\Âı Ë€¶¦tY§é%òô×å%æ˜w¸¼D9¥²i©’”ã~¸ái­{~vô€M…u©ˆ ’ÌKÔz:NĞçãÿ¹õc²¦Ğ¿×Ä–¢4_qrßEŞøu é§pBˆâÓ˜ä$Hzè”çÃ‘K2£;Fêl$ifã/í†%ÑfCõUÚr¢vóY]Ï­€´QÇm´N—î]/ü¼÷ÎÃSšxÇ)ùİÂ+y$R&O}áY·$ÿªTc€2;«*–Œ/»5‹H£ŠuR98ÂA‚vªË²3F	a%Ìf1ª5šÇ*® -,L²§kçËjIg ­L€ÈÏ/­™TÂ¦'*ƒÍ]ÿ¶~â)Ğúë¾ŞÃœé†1ÓoqË4CÅ#¸Zµ„é&nzu”Ş†ÙĞã¹ŠFYG©:fî!a’—ØÈ5üÉÄè49B©PJc±û!’Ô–<‰!Õ+éP ø¡½tüV=?×½£pxòõ‘#:è¯‰Áx](Ñ~|œ6úS¾ënø}Rõ$ÂXuâµšøkÈ›®/¥Òªú6OóL—hµv$—óÎĞ—r­.ıKçZ„<äŠÃ£,¤¦òG"5š!@êê],·âô©‡vµ=ôÙÊü&¦X‰Æxâ‰•…£X£LïŠ.JÆ7
-<Ÿ:ä‘‡¢SyßH>EÚoy¾<o@â”2Åtl$>	aô!åÇŸÃãxxº±ÕÛüf¿Ï—ÄÃôö_I?„™îî¿ÛW¿õQx/ìÿP¼ ¸ôFqˆ³¿;¤H€ÅRşS©0	}tä‚ ’WØ§àE•Éb|ãxûc
-ô”ìn¿šg%¸¨?KJhğğ¸ê^À^©#3Ô• Îö-–÷Úæ’?²Z¼HVÍåª·’¤l¯{ŸR#áR¸éöÕ@U•øª	Cr9ŒMÛÅ1o„¾XO)£ÄŠ6~Álà¨ãe&I“C…$)Ì;ââ{{405…M½º›ÜşgûÇ0cÊ&¡ ¸»å·ÿô¢3ü+Í1A³½m–<×rpææél[AZ
-âdÅˆódsÅÔ‰)I€¢ºCC9‡¼çÖªÑ¨†°áp$ÚuÄítÈjı6ß¾%Ë”X¦¨Cüc<ˆOƒaS,ryÃS$ê¦šŠ}ØÒáãğ;tHd3Ä—^ĞºÄo1)O[ŒkyÉœadº´
-yuÀ"¡ÊBî€ `-É êŠŒB²•OkRNğÚ¤Ñi[M5X~V¬|ÃêÖÀ7S2R–¤S4çD3ôŞ|¼ÕAòÓè>Æ×¬”d•(Rñ<SDË0; œâ|fcóí»¿lî½yµ¹½3…Ú‰Æİ²Äw0¤µÅPpzÛ„9èÔ·ˆğ7¸çí1ŠA4‹Â!p!q­ò¥Œs ©oÂêê†k¸îm˜Óûƒ½²İ#½ıİŞÖ›Í·o¶7·{ûdg{çıÁÎÛÛÿxıfksÿ¾‘qY c…Y%­=:ò»"æábgqõ±“rsq‚AjJåê8:eEó]ŒmˆŸ¥ïJØ™ƒ®1’2	Ìyõs¢+‡tŒİy¿û{[ov„$sOÕeÍ‹øºS¡öm8ğ9Ç²2s¶Ä…Uç…¡äßHo¦X¿”úOc`*/¨\Ø„Ù’‹j&°kæàÏVë™şŠ…,‡Ë¬ÖÓ¸%ö€ü|ÏHĞ¤ŞëMüõİæAo¨’a!ÏVùYøõU‹_«°• 1c\c´¾Gk]0·–¹y2ëûïŞ-\ÁEşøÇõÁÀ”„m²Z¢¶T$‘ø5Hé8ş•B×á(	Ÿâ—øš)DäÉuh#óã¾Gvé©ŠŞ3}O‹ªuÑ{µ^»®ÀNº\ŒA mD†®«IeğE.ƒ›·­XY©¦q ¬l±¦º3Ş•BæëŒş¬ÊãXÔ×†CšˆŸÆÍÛEq¼è²ïP-UDåğŞişZµîê>T‰Ò35¼öÇÇ°ÊÙ8Äü˜ê€Óô=T¦˜º Ä2±x§¤M(”Y¦Ü—æÅæ¬ÆÆÚ2ºT©„øíà[v+\¯±¸‚³•p€²$»‡ø– réK¦œ|L/eĞX\¦Ãl²õŒ=ÒgÖÔ“¶´Qº§š<œ!ë`ëÚ£˜…ÿÑp%wäëUï“:¹ÄLö‹€	Ôv¤JZ“A	µN‚Ö¬D–—YZ..UàÖ
-÷.—iêrØP´TxJäÊØU‹£ù$b CîŞÔöNråâ“f¢$íN©¡T¸àğø‘"  mDÔş8‚?Ë'Á$:ß|@?Œ¢ØóË»p“ûy	îæÓ6ãpæØ¥ÆÂËdU9UŒÌ÷’aaKù<©º
-±0E†è\([,¥¯ ¿"ÃÙøöŠY@ÓsèİàVu6{FÍxeg¬ÊÏCÀy‚1qJØ­Ï®ôB£Úùİ÷¯çÉŸv_cEèı_£›÷Ï—²ôîû9‡>@vo‚*y‡˜§ÂI3Äë÷ƒĞ–¥¿+‘®™òô0. rş3Ä1à‹1Ç¯é ”5¾Bß3eÙ€ë¾‰÷ äJ´©HDøŠÄ…bäDj(«ïMfØ*i"¿Iß$'‰¡ªø-“j.2zYj(î:	…j.;4TĞßŸä0™Æÿ>Å×§¥¥úÒBDŒßˆ,‘#wiM¾IÎEÍ/î›xQ<ñ¢Ä*Ü¯p!,É˜ÅVyìÿ°?¹#iÁÃpHL™á[˜šÍõ&å	áûñMò¸ÉCN>¡èÑ=¤8Ò»CßSˆ7•8ÊN¶Cú<eëvİI
-Qx¨İ›(Rõfû&Œ|Fœ„¥ål…†/WKé•dé¶“PR¼?‰T2‰ßçı‰&fGRFc1¤à3Ë'R½yá¾¤„RÀâ7"H…'ku)¿	(V%	Ä®"­w\†oBÊ„BJ…’İ¯˜²ÂÅ”?=?ñ°€Æ»`8–‚¥§.‘Ğ¸³oâÈ=ˆ#"âpRYD]ìàx±%Ì½I³FÔÛoè§E–'”Ü§¸q¿2Æ7Áâ›`ÑH°¨H”JpQBfËr„¸ç$Dğ—'” €ØP•rˆ$ğ3‹yD¶X…/)(@üFÄÈÒB|œ„ŸÄ†ñ1Í¿'áàpˆÉâú"iU%…6ùí‰
-÷/¬vÈ®7‚ƒñ '/¥©hÑ,²¹2u!Gú&$L[H‡~xO(&ØPÁÈ+è.Fœx2Ã–—¢yÂÃ<!ÔƒŠ	X#~§ø ZÑYfb–0¯MïöÿÑ¸!JcrBgêÓt
-÷&NDå
-Å÷(VäıÊ…‹}¿IS“2ªXZHœÜpyƒÿU‘8Š»N2Gşú$RG}¤_Lú¨…K!»¹¢B x•Ài±Ğß~’NQbáKñ´´º_Hj	ó#¨Âßˆ “ïŠÒÊ|bÌBL4•C¿ÏX›û“e@|AÉnãXıŠCÛ²Lcx­&îŞUHB†·!©XÒâÓÆişz/yAò²Ğøwú²sØ=Òç¤ÇëFá»s¼qÁF±½ÁšÚ¸ÑÔ/ÂëN2óåízvÒzŞH–è••Œ3¥È­Ñ¬'³B:¥›Ô•XÃ’ŠM—OÎÿº´¤¥gÂÖÇ™)%‰"³í±Ğ‘0V-é×O_"VNh¹ZKøhOñ¸'IøW”‹p?„iÆªÃ¦d<¤µçQÔ9ÉËr)é³ŒtBX¦w01{x‚9-±$7¸ãÅOCZ”Ô@ğ ŸA®b%NT¢“.É¢K&İ:åRªíÖòï .û¼‚IÚÂ¢w)G1ÃÅ¬L.©1ó${êÚäA­@­6WjÙ(ğ¬VÁÜ5éoQõ–ÿ&Æ	r€ZÊÓ¾½8ƒ3t«Q.Mû¢Z"•	t¹SM¢İƒA¬Ur"»$MGä4sSBi´Í1e†‰"OX•äíœ }…¸²ûà4N®èïĞøÂ‡³³¾z\ˆ¿íÂŠÅú™ó78/ÆŒ•º½¼–$Ñ)£5oyŠX]Œµ9Rx§e„â/pH=ª64ÆjsÎ¦ı€ÖBF zñÀö‹å†§ú˜œÊ-›Ó np”¡] ’”L8
--<Ñ²kêÉ¢ø­«)‘÷DæPoRpË8FÛÓ$cèdÈ3nÉZ¼Iv «‰ÉlÅÚ¯Öó«Q½ó6Œ‚¿QÙN±ŒMLÓXµ@+kè3›8ÒrA®¤¯0¦†yïä<îßşIÌ¥£ÏğöŸOÛÅ
-‡È~2ÆzÀ>¤¼hL‘0˜'ã,„Oä4=©ˆ× \ö£q˜˜œ!»û¯$ìÓÔëô[ŒP%¾ˆopÃ¦ĞüS|ó„Ö‚:×ºieùÏWï­ñ™²»:@l %—’Á÷­t¾øì€ŠÏ­YN>ÄÃèÊá(À¼v÷uHäF‰)9ªOé€ãœàx(Ù=Ø	ÑãˆŞûeAÈ¡¦}?A•¸‰õ´ÚG#İĞ÷»ØÕªóln–-ô)ÈÏXë#(K‘©ÅyM	%Q¶œ·ò‰SI†æÚĞ¢­1xë€D;¢êñA\½ıGÜ0/=›F<ŒÕzĞ5ùIŒ[ªeg6;K®Cºú ¨¬×Š;‹	Á€ğJ®“€N‡3´w^„tJ .ÌPÄÁ¢ãv(º’k¿)74³±?Å	Væ ÛAÏãè<¤Ç»)©½Fu¥S´/{CØ›§^tæéÓµ?xaÔ.¡ùñÜìßi\³¬:šfÌg¿®™pŒdŞÕKÇú–‡ß-n-®->=šÙPi¯T•-V‘¬¨›–‘<üîÕ*üoåÈTFòó•ˆt/Ee.CåRƒ
-vEA
-m
-x—rJEExPB˜ÜşLR‘Í	%T£“’®½T¸ˆéÑy%a‰)D˜º4¢/Qª ›bÎ—ÍÀQ{óÙæÒZïÈPÓÏ 8äâãÙ¹“„h•mí2|nñã9­áëy
-"D_i™Tˆ¼Šó2)¡9Ç‚a<¬Èıqº•ßawHäxa±[ãp*ÎıÜ,yqÆã¤ŸoL•$SØ0±ŸKß´rC%mR±©•X<¢ú6Œ8f!N—cš’$ÈâN§ó|½®jéz<D[zN[:oÔJq¨j7Ñó§àêÅõG6ÿöãëôæãM”›øÏÔéœbšÀúĞuwÇp-…éı­2H	gF•Rjic3I@È/†´
-P‘Ê·KB­í•ÕA3»êj‚ÊÃ{W“b_LZïÓ¶ı:64Û‹Í6ôAé›ûÚĞŸc;³?€íÌ
-É«B«´ºıÚX(R¥*¬šjù.Z}ºº¼Ò;ª©(²IÜWïioµ‡Ÿ.5flyÃ~ ,¥Â:½l˜“K(*høaêGÿâ:Lñm4üıïäQùä£·Ê{oU^B‘}ƒÉn°•ÈÃyj¿;U´½9¢-—‚gåÁÃ8Ã¡ÅO=eËz`?g]KKƒÖùÀ>w0ÂKh/J%¦#ŒŠ“}Én÷ƒ4EW D©[I#´•úÁmıO[aÒ/Ì%l\¥r“·€Çl2µRï%Åé<¡ ¦ ~ß¤ÿ_¥ô_õI˜–€ù’üÖ¥)Œ=]Şd: Ù¹¦±€;Úa®æPú*Çº9Ú€D6árw:ÈöL^yŸÓšÈÜ~Yâ¿J}¢´¬) "Å!¼ş:„
-Æ"àLqTM´â›û*r?N7±B‡‰Cø­¡¢ ©.ˆø¥$aĞ?7Ø?ßÔ¿"µØÜ¿z…A³½}Púæ¾ö6!~pXª‡ê›ä¾w9×<´]~_Ú3;öÔ$P€4×"„“$lùVå¥BÂ6í:ƒANø9	wfCE‚ÄÃ~Ó%üju	
-§ìoJ…¬Tp
-tS',±E/vË!ÃO»%YÍ˜nèš(9¯ŒÎµF¡51+MŒ~ï*Í	íF/»+“ŠÌlˆ¸8ôå`#Œq9
-NØN©“q t/2ñß•›Íô<ª ‹{QøTã˜èT"Éİõ?u”ŸäRà„£ä"sÓÉyC±å3.õ¬²ªK'ÅH	5j2L5ˆ^/ÒôUáH’Ú‰Ee3À>cmHYäQ»†k£ä¶4nå¬S¤«¯1MôÈÜ,O B­v†‚ËrhƒÃ‹Ö0LZüÑĞšÓ:ñ›bµí¨G ‚¿Âu¾¡¨ˆÙ–vûE ïÄD ÇŠšO˜¼yAğ—¹—9D9İÅ	1«†ìq2Ôæï(ËªĞz{€Ë¡“T5­ÀüésÒº.æs£K’e‚#ğrªyÜLEşıBtó}|îëô["”Ò®vÓiiÂ´õA2ÇÃÛğÍİÇë¦Âm7`SÁoÒÂ¿6èÏ¦ºŸÚÜ>|xßû>Ìlü0qm	)#q~Í6“v•YÄŒ.èE’„$á§xæ	ül¯bîIÖ)$úÅ"åšO°£%ÙÀyK£¡À#[›3Ë°œ28u<ÔFœÁn’3½Ëu²ãÃâèö_§a?'o=Øï^†#ˆ`‘Õ”«Ç9«cÍ{S"mİ–xY¨W‘ mµ[!`üÑô(cMMÂ@¶gñ+lPñT)ªTìª‡†©"R¦¬‚m")ét±L~¶jc—š©cE0ØCPËR.AÊ¦Ÿıaä{Õ·%±_”2Aı‰åÔ(eKZVvÉ¤–ÍS†5
-ÓŒN+qü,P“jo§„†*Û‚87ÑØÖÆzŸª[‰ºïEç_Lo+AÒ}MJ[EôDJÛÕß„Òö©Qi«J	±(r0ç>YÂÍÃµîùÙÑ”Õ¼jÍÕdI"ëJŞå<à=WğæáïVõ®*ç„Òë¾½R§_/Ç¬OOÃ+¥Äü©b´ßşûRNˆÏ«ÒU¥DhªÒ-ò™»«tåŒÍìæÓ¡ç%yrã«62¡d” œaã ™óŸ78†=ntıc¯,‰ÍÂşÄu1uGÓL•İHÉºy¦ËR€¹J˜â%	ßÊ)R´ét[V¹uª©Ë£näæxûŸ°Ãú },A#<œÇÅÎ;˜5Å’MS‘‘¥(0A<šaĞ÷DŸ„}äª‚ Eìi‡wpmÄlG[€*ÆZï¤zB#KBÂe’ÂÌÙOŒÓî»§¸Ğ%qVQCŠ™¼€H¢O+ nN\WrZ×,•¦•Bµ.õZTk”uPègÚ\å+ª+y”uhâ©ÀßÌæDúÕ 5C7œVj	˜+¸5uÄ$ëà–:âkÔ^ğÓ8LC	=e@%Ğ6É`¥§+;TÁd…ªQCi',RÎ¹/}¤8añ’íœïo9‡ÎSNÓÄ( ÄÕ~j„rRŞØrLÙ4È	(ë!T¸¡Jé<‡£,É8I¬¶Xù•Aô+¨.·WQ3ç¯ëJ¹ì@fÓ~X-˜°T-˜×Q˜UÙ5võ,œa¬ÉÌ=¤XÉ ó)D5oöQrG•’(mzÙ;áN‰«díÅŠ%iUÅ‚©4¦J–MŸà¾’—ÊœÕ’©ÍQ0ôÒ"»Wá¦úB;w(±ãœÄInµ{Ã³aŸ„ å‡é<°u"Okq‚O>a-œÃR¼õ· £XR’z‘_}¡vªtÃ&§¡2í:¹´1»Ï½.oè€‘÷?}Ô«í76VÀs
-tÌ‚J_1Ë©i³ÛŸi‰Á<›š,ñ lYŒ#…ÿ«3‘L¸­&ïÑxšâ?ªäå’à˜İ÷AS¬òH¿Q«»P«2,ï@©Ğçk¡R{Ìä©˜~ª%ˆ×<Ù÷nAz€Y–%ùtîË’­·99ªñd Ls#³Î“4zfk&hÕÚ¡ïöŸ4V¹±Ø¦w£3œ„€)o*uu,ƒŠÓ4g±F¨ğœ'üut†QÌ[Œ˜W§@¦>E•'€U/>×hi„Ùc¦ä/³¢ñì ·ĞÃ¼Ú[;ï_½Ù{·¹ÇÖúÌ;#À„Dã8Ãİf
-ê!gvóiÓdvp±8ÎÄ\“ ŞÉi&?4.3yöw	¬RÅËe•RXHt¸½É”DßSJê ,º“×Cö\µÜw7V™½j
-“UÙUwé(ò¾Vì]KõLÜ_ĞµÆ Ìõ¦I›×Í6¯Â ŞG·’–z+v@P´æ:Yü­- Z°„ğŒ§[Ÿê×š‹É>ïıeëíoöìÜdOL¹Ü(2e×)C»5ı-6{)éùçZêü»pÊª}pÿÎLLÄâfÔ3áş}šL¹ı‹y<@Ç&8àöâx LÛ9š­“+Â›Šcîù&[„İ³„÷ƒ¢Mê…_ç+œ¢œİ¢¦ËjpŒšÀ5ª±s!Áe˜5é@íNu¸¶z~qD¢ÓuÎ]ÁoÌ»
-IlÍ½j…¤ƒõŠ—•ì@Uö­*†N¾PÍ#g›y"uiÊ÷hëî&L£QíD¤#Ìsµèëæ¾óFTó½ïEiíÆIæ©ˆqg(Á³~÷ôÙÓÅ'[G„ÊÙ²T	¼>0$åP ®+
-É³IùÀ)S—Iïî*5w}Ç»ñšwOo¦ÑÔSœY‰©ñ…é÷á<Âj‰°¨…vÚOâ(:öT~&9©5õı«r¡iüùêÊ“bé%fç”c”*nŸÑŸ¥•€Îlªa,vˆŒñ¸åšl5³'Ğ’‘T\ïíì¼Û§1S	.6hÊ¸YØEã©°}‰gç*R¬<sEÔ¡Ã3V3Î£`ğuš§Èò‰¶“«6™S5³—„ù³Ê½´ôšy“)¦Nµ¡tuÈJå<ë¬Ty \) ¯û¤Õ4³«Ğ7¡#%}³¨”W„E‡ß­¬¬t—·t¹š×f—>¢µæT#¤§İ’ö,ßò3oã>fg0•Âí`B_sMNM$`3#	U(R$&4ğü•,®¥‘}”)Æ { ²¡*9&­f·?ŸQ#6å‘¥ =As¬VŠ`®±—ÓªÉƒõ jb…‡…mÂÿÖ
-UÛ½2%«0¦z¬’‘
-Y‹ÇYšªÎ1(’.ğh[ãÄÃÂ…é<é‚ä”y[hÔ»z—õ¾ÉC€§ËfX½¬+¢n?|©x[‘åyFY)®’±zëi k™‰Q°íÒIZ Hë®?Òl8¼ŒµÇr|¾YØAˆ@Mp—¨–1OÏĞ!»ñ±÷ÎK0MïZÿ':¤tî¨‡ßm?Ù^Ş^<šÙø»¥\ÜôVàî@OÿŞa¾¤ƒ»‚½i]7¢¯•ÏOëÕ  İNRäKà)ü?³VšÙÑÓÊjs‰ô»Ò–-h5VTf:‹£
-À'iÅÉ£ùú›Xv1F:3Ç—_>yáñ*÷D'ö£1Ğø|A[¤îü`(XJ çnõÉÄ¥ßØšNxˆEGÚ§jş¢7“\	"ØË“‰½zTóù lƒ0<5H’¦mİ\œ,šSßÊQ"‚¹§ÉŒ€—¡ô¶6Ä¡BNsa¶Ñxˆ€™Ù(v´å\Ğ§×˜¢l¤‡ªÓGIøÅÒ½‚œ,ëKï	õc3.PòÓ±~r,İ³zıô|Á™W¶ŒºŞ‘HíJTÖMä=­åePkõ„·…BUï.¤‹Ö+ÚÇà¼&ÕÖ±‹½Ãô^»Û¯U†7¨¢7Œ’ ÅğÌË•hù’Ÿ£ıixºQ¢ªˆ¯ì¶ c‘ƒ˜d·¿dãˆ†İ¦ñK¾cÏ¢Ñ™ª„7ãĞ0z„Csäöÿ¤ê1JÔ±ôámKÚî”+ÑÃKWò’â0¥è!‰b,F"eè{¨"$ÌÆÂñ'.
-7ˆêÛ¾ßzµÎ)±Ÿˆ›Õ9\vPÖÍø\jşÂU`…Iæz9¼b
-Ñ‹å¦êÆ *¬
-(Õ¶‰/aN'½K¬Ä\8P€1OÊ;p¨÷æ ·­©2¥ÙûÅ¸‡©º¶ë‚)‡KG2®˜Ë…M¹Ö·¢ÇáJàËü·\™+fº.9Yä÷êŞn¾,Ë&-a¼”“^+Ş{MsğÊfÊ¦Ö¯ò-u²¨Ê«9x¾PsàO˜g ‹ßÜ2/Œ(²uğ6ºhóˆÏo©°µYU–Uv½Á¿b«ü,‰²D²yM.qé„éKú’ÌâóèŒ%$ØÎãˆ¹AÓ$Mò³ıÂ§Ş¨urN6ûœ¡œÙøÎ:R¿“B¿A«½Zñòº!mr=.È6`HËÒŒïà÷Ô‚àû
-E­Y`
-¾G>}r…ÊÍfyPêcj]Óı»NèÑ¡Ì|ú•5SZŸ ª?»¯2gnÎÔš?¹$†Ù~fc¿w°³GöwŞ¾Ùzs°ùş §v©w­Òı²0}â¦À$Ä‰
-;B”Tcái%Ï‰­KşoôğÌ}c¨W´0(é4giï²œ®…š`13/§dÄ˜HØŠ²ãú£&œ˜®%d¿ËR? ¥ÁŞ†l¸4i·÷~»÷=jÑT/2åşæìO@h Şwë¨÷îÃ~owsosksGt6'£HònçO£»Íİ½7·ó®r}JI¹q÷Y½?Øë½ş!Ÿ\0±JîÜÙ^oë‡}iNêtfwîf»÷ãÎÛ`™>8!2ñšÔQS
-_ÏM+ ŸNµ[òMÈµâû§‰wU¼Oÿz¢òî¾ù¨ÌMl%æ¦Ö{GØÛÿuû?wıR‰¢wGv›vBŠ*ˆLaéåÎŠÓë¬´àrgÅƒÉ;S¦¤Wè¯õnå¥{ÎL¹UÂë°¤ÿ{—ÆCUîêYŒÅ`IÓdrwd¯ò³Èz¿‹ÑŸ£"¸r<eUF9ù¯S Ò‘Ó©æ}¶u§ArÎb;¿ú¥š€èÉ²æƒW×åÍòó8—9AdVo7@‘JŞ?a¥™i°x¨´¿üğüA8Üi„$×Q¦,)|o—Vpase±‚ÑœˆuQ,¸t´æ‘©ª“v­«NB°^pxÅ÷
-†o­~ò*Ï]×– 3µ/C“c[fê4!Pªô³*“à 5¶:C•£-P×°Ò:r‘w
-6“³ËU™ßÉ•¾]Í“M¾¼³Å¹´ôÇ©§$Q›¸}C–%Qf˜hM¢?à*ñ-VÒU¥+÷E¿Ôò•ÃIWvhOëô÷$¾`F8®¹½“-ÎT˜	ÆO^XT_ë¼1Ç‹/™ÊqÁk´@,tåEïé/EYZ	*	EŸBŸyë?uàW$<üi‡`˜]}ğF£$>|ÇíÎ‘ø¡î_ysaÓ«õÏÈE˜Ñ0;"ç0E«9ÉÎÂ”[‚Dáy\‘,&˜U%¸„Wi"Ü„zŸĞÆ†c<YÕ~m9¶YKÒrh8?_ÜÛÌ`ÃåÊÜÊ£¹ôŒ_µ&–ß¢zİü±i%8T²ÅùBÿÚÜ­v)¥+ â¸æ]9Ñ«á5¡ŞË×›ÿ©ÿï¬ã§­
-Y¤]ƒöyNWÉïÈ“.ü€S¶«lÀg€=Q_Å	ĞÂ eëäš%Még0]Ï:I©FıD ê:Ç‹?0,ùÀşz)^$7‡G°‡Gš^[{BŸä[IïWVT,riÑ+zñ=:tş°#OGëÉ%ªâ±¹¹w¡Á·¬x&Õóúgl&g´
-´;£qzÖ2{¯•WCšß¼ñ³b¹²œÊ˜¿—¿’ÿ¦uëÚí¶>V‹½ª´Ï¬|lõé`O]S66 £/Å÷¥-^£Nı ¥^ŞK ÈÇğ²ö¨:ˆGa™RH«YoŒZ?ÔÆ8TÆ Jÿ&œ(pH{T™>/#”€í$8¢¼_+ÔÄ.±“e¹ìgÙé„“Ù+ş=ºèÌ¨ûºDéõ@¡[¯.¡ş}~^¿ñ×9ã Ï‹õÚñk$TpïV¥Óâåd-Q?¹óŠ¤k¶ú¯ˆw—D-•Ïì’² §b8²pÿ òC!>è\ª®5P3¶Â”Ê/¸úcv“ÎÈà¥Ì—8(±FfEÚ4vù²àßsêZ‚–`ÇXà»²âæ™=‚İ¦¥Hâ¸H?™è]„…L‡fV€5àEIàùWlå€¢¾(ÚDÜFBk;º„÷°jjİ®öfk‘Ÿß#İR©Ì-jHÏb<éà—Êa‡ws`yÍ[—£,ôK™‰.NçüĞ5½>ğ.ÿìü²p¤à}Ã¦“s5°àeèv^vØƒYC¼´ö «.]#1?.nXc	ÓK¾Œ&ö·×Aì¥Ykæ šm°`‚ÚàÔ#½ı¥o ÂhæE´P=¼rGç!æ0š™'3áğ$±¢Ğ< işPW'Ç÷tòTµ–¾cf†Öì{TeÁy 0uûVRä´fß8zYZ(z.%ã`^pë6OD-Ë`MV1…™bªìAa·1E‘%7Ö€÷Ñ¦íÒğ²+šòµçÁzé¶**Gã1_äú²0„X`ER}¥‚RÇLÔTÅ.úBÁSØÍ˜\uø¨±êPéR6¡¦Ú&PÏ«zG×#^ñeºjLX€ÌÕ¤µ3¢á ÑœFg­Årì£²»’†»³W8<&{ÑâŸL84]|]ÃØìb…+Ãê°:]Ğ¯äÉË_Èk¥†’!6X™ Om]À©xÀÛ)Zá©(jVµ’½–Šb³òK2
-9ÅÃ¤[`äğ(Ä ¤˜òmĞm€9!`'¯xÈÙˆPµxL<?d	“B9ˆ?sÌÖ«Î™áš1C¯W„i–rdT& 6º©/vWİóóVĞFK·mîÔj—D»¨u€RŠ*ªOã0óq=7rnH–‚5ïTtÊDNË3›­¼üÔH/ ôKÕ'Ã®L–â—àJj|^ß¼¤VJzœ"Ì-hœÅ£öâÂ)ñ*x£˜úJ‘ôÏÀq˜cİ¥„8ºWJ‰_vƒ3Ğ(”4œÓ Öä}ÁK±_£öâfœ+rl3&Ò‚ByvíÒ–´n`EÂm%ƒ™tS‰ò¦ï£¬Á–Rw˜iIsék·LAêBšÈj õQæêÔdÉÀèsŠK
-*‚…æ	ü„uÒ‡ÎKáCEĞıÌğ‘j“ü=UD$æ'×`NâÂÒş< è,ô}àEy´ÑÒ*¥7†p£âÒ1×-[¡IŠ6©øñ†8J×‘e„Á?gF¹yr-óŠÔÅÔ¨°ßo6Èr­Õ%ŠHmî(©rû˜E)Æmğ•¹2ãÉ‘-ñ„æ3œa³gwäÙ‡<¿	ªVvÆ˜®x–Aƒ’`0%~¸Ñ«SÄŠ1øQ¥ßÎñ_ƒ>ßµi«2]¢k¼Ä"œâ›Û!ò;sEĞYÏ©<ª/ÕwøÜœ±×4N²VË›'Ç7=ÚA'¢AX¨Ş^´uÌz5·CCÀ`Ç¯šÀ…8!€å¬|Êµ‰ªø©ôm¹ğ1uÇ\ïƒá3ÇS0Äü(du­4Ø:õSácÊgƒšâ|ítÙuğââ”ÿi–bÁM‰Gì ŠK)ª¶ô0=¢ÌAÌYCqm¿„8vÉµÄ©x‹}›?4â(Ç@¯št?BÅP$í¬ç<Fqdˆ˜>C&òæ’´˜áeÊğ‘¿cğ£–´E<©„-ÚLÆæ9K­U—H1¡¼3)iŒ¥Cc–9şÊnrG‘|¾¡ËdÑ“93¦©Ñ«Ö[ôÕçm:
-øB6o¡&J³œF‡ ²	>ß‰É;J‚D#rVLÏËU›TÙÅn
-wqæºæ²F‘î§®TÖqx^N5×©‘‚¸ô·
-´!òF©FØËÎÏ×H[YR™@-çqœa.X‡PË¼»Ò1˜ÂÊê‹£0ë¦u¿Ï²³©7]®Aß[şœù*¡Ï£ôV*†²ë‡ÜÈœ.iP¦4Õ},‹¹uz"3=Uw–5ë”Hù6<ÆÜKytŸpocj Äü‹Y8ŒÃƒG‰ZÜÕn¾çÙqì_ÉÃjú@M	ÿÅ¶×®§ê†€fß9Ê(
-Ó­é]X [^ÔG^’§oò0šÚ[JÈI+fÉÊ€b"(­ÁDj—İÇB®Â@{PZÄÂÜ+€ÚŸK~ú&SƒœĞJÇÌ˜şxóßKbæ¼É€-9
-s{»äÌPs¤#Ëõl¾ægñõÌ<ÒvÊªÓB¿Äµ8¤­4$LÃÆ}õs`kK‚Ts@MÖ›,r{[šíÂª*àM¾%‡Âf½ò@80ù&YÂ‰IÏ“Ìgƒ¯ ‡6®İŸ!swÖ¦´)ÊÆùÇ×Áx‚º!ôGÌ×†úT`]´nÿè€-iı’ç:Á“ŞÛ€™Y×P7.=­åÂSáQì™BŒ9i^õÎ47Ãt|ì.ë<-¢¶›ÔeÙÆ>š92Şÿöh`{9©ì¥ÉB¦8,ÍÔäá¼y]2Ó1ïmcæââ0¾˜1ê8Š‹Û@ÔDÚ¾¯ñªYEli€ÅÅğ#/Iƒ7ÃZaW‹ÓeùBsL™ékU™ÀÂ)4)³4ˆášt:$œ'5P¬ÓqŞt´eC—1é°‰Œ_´—º¨[Æ´TKù¯Õ¡®ÁJ65cAùÒœÙ2ÙulÊÑ¼TÍR.o!jëZJàÈ‹~–GªØçZOÂ¨hŠ«).}=ù2ªºØå@äM‘Ê¥¦”'›"}CÕ¬ïz·CÌr„İítú¬‡SQñµÊ•¯>]]^ééµ9ùxKRÍKòeãuØoòıR€ÑÍGª,±f”*Ko¢ƒÒal*`ÕIáô3'©&-8ÎUa×T'7iCnæ™;¨>¢YWÆÄğËf.˜'DæxİmUÁmúi#æêAxqHiu‹‹Š0óÔ^€Uw³”[¹©Ü3Ñ&ş*{—ˆm].-\¯Ş¼øs	­geæ`Ë-«íŞ¯¢øÂÈŸZWGg>dsèóH;è¬‰qú6ã© ÇKp›ìkÇÄÉKz^Û¨·ÙÂb#[aÒ*›m/!ß{á%­¡ÆåL]7›Í
-âÿ  ÿÿì]ëRGş¿O1VR‹Ø @`0K9¤ˆ+ŞJìlHR[KQö 6’F;#ÅÃøïVåWÛsú6}9}!'»“J"¤™î™éîsésÎ÷‘Wßmîü.§KÅ›+„îÅÆıV&æïâÃëÛs÷;=ªÎÅ³‹)¹å®Åpõ~]}ÕçÜMeéù_Wå ¨ëÑômÓzKe÷ĞPv„&#Õe^?ÉvI
-Q‹*GÏï¡K­ñWM÷11šKªòŠ.èºÃ¼˜ï¤!ıÉór"u¶­/’T{õFø¼·æÿÚ&h¶[Ø›ŠĞ+Æır¯l?û”ğ*©:â«‹õhÍ;?cDyíÔÊKä,EûUb7˜G¹Ÿ ´¥?WZÑítQƒ›¼Ô+al ¦‘­÷Î„_–•&9QÓ.e›X`[›Ìº~RNßŒª	,£#Qû\pk»
-ÚÚË¨K©zĞºÄóS§ğNhÉ0>Jµ»BÈİµÎZ`ÈG©{éC§ÂUOñ+Ü}ˆ…•*™Jƒ/bËt0EikØ¹?f©åğS–ÔÒb{i	£¼Ìİ¦åò·U^ŸÛÃ|…$s‹3-¬ôß©ÌZãªF¸1wÑÂ=P”K-•xÊ_777vIR¥`
-¹¢Tzˆˆ˜XìhWé›Â´¤L5¬K»ª%½VJÒ.¥P-ùé1ù+ùµ±·©×C9äLøÀì¹÷2YÓ¨(™¶J¦L&0ïúÉ™±û&xö9—	¶=ç‘4¡ÃÇæC•“UH$OŠE—»ÙL‹J
-uşÂ7Z½C¢¨€;G"7J^£}¹g³¾:é~ß³EŒ¯õ‹"ÇQv^h"ó6’4kNÍ™9[(Ls"a[b¤onô7ÎgUkå½ “É˜­-’-ÉC…C4HğxQ>®ñxçà8Vº_…©­
-×#KMT„G wDö‚NJ˜°Ådßá’8ò8ğ¾€-:–F,b›ALÆŞ`º½ i7(0yu\^Ì£ÓN›H‚äıG›LÜº5úìE=Ò^”Ã¬…è4ß«¾ÇUŸW£é=Eİ›0±„%}*RfÑÑe´
-OÊI™½¹˜²ì,ç L|R~–ŒÊÏ^ïn"ÑïK		%+¿1)yÊà¡jİt 1]áÿr$¬e'ÍŠ1ü9”à=Ş`]^v8»ıKHr¶WÁ®¶95Hs½M¡#dËÅDİ²šæ¼YĞ9 &á>•C‡,E¿aÂupï6éŸ•Õ${6*ÆÃz_"½üYCA,‹ØJ°˜ÙúÙd¸oµ¹¬·1FNè[ñ–ÌñlßxHvO6‰ÌÇéüÅ—"â`à‹òD
-ÚĞBòJÅFqÀÊïC‰zô-×3ÁÎÈ²%=Ë.’¶›Ì Q¯[VF’ú%Tbc Ğæ¤ËPÎØ€œúPÿóñ?7¡™ï‹)BqtÄ‡6—JìYuûËXÌĞˆıU‹æ>ÈÌï7(oà®ˆ/[4yTUe6µ¤bç€üºE³¼à½sÀÿï¿–[F÷AJS–nd’õ´…ìğ¦Ëj€')‚eä%#°%üRçèj¿A«©Ë³
-á‘˜šœaˆc8B}WzĞVşPÂJØw1q•b~ùTúáp˜1ˆòc¶VÀÈF+™
-5øP=66²şzö¬Àd>f~fƒ‹ª‚!¿ËE Mg5¦ÁÚş(Kiæ'°4Y‰Jë‚u8Ïl—i9'tGÜ=
-Ûå7œ L	ëZ_±ágy5¹}?å+¼øËhCûuu•ìÕ±~v«½àİmÉw§°áUµÆß™:÷›âßÆ¯hB,Òa@'›Ï
-÷^ùéRTÍËuöã!vìàu[â™ãü&0|B·!ê¶¾Êg.ô‹š+¿¥HÈôs6ªı$a‰›Ÿdµ\ÃACÈX:±%ãÃNF ş®ÖÏóºkDŸVi0dlä®x™Ü¼å·"[àÊ3@›fpN,ôá ¨Mà"|¹ŞøêÉ$“%À@ÌŸÀÙÍ”²p‘½ğÇ¤:Úx¹Äôø„6t‡IM«M·œzîÙß¸Á‹€²PŒ2Ra˜`DÍÓğ"dTãÎ>0!fîh‚»>cÊÉ~6#—İÌ}rçav5ë{¶®¥a«Alƒ G?+®f#T\•¦(Pq—ìòØZÕĞ¦£úˆ_Óeå9îÍ<\GÈÿ30N2n]s:&ŒËKÒG
-,|øŒ´@ÿ¡xçJò¸t×†Ã'º×àUå„=ígû`Ñ•ã\r%Ñ­ûußâõso¹ºñt'¯Ùhô>¾fW`AôkŸ€cMœO‰ã­ˆ3Cçñ7õZ6ËêŸ³YNÁ¿tˆZ7^¬Üœ’ıkïš_"áÑF!p«ÚÈpÄnWØŸÀ!£–½µ¡Ô=š1t a ØEš¢¤ÕZêÕ^ıÆ'€ï:Z›èÁ¾&|Ÿæ5~¨8¿D}AŸßŒùP›\#[şáA¨6Jæ“¢DİÅK!|l	oŠÛŠÏÀ‹9ä-j‚2ãrõ‹ÑÛó1F@²Ïóé”7‰]‘¬Ñùò£Ü¨Y	èÚÑù@T¢	İGB,PÏ•JwÚlˆî©bñf¿ükßFI7‚d7%µ"ì¦òPñ«LlÆÕZAØVÉşÉ…¤÷‹İŠ:Uç©gRÌ®z[¬äèıf¬–œ"ÁWèŸ¨7¡IŒcKU<Ëüm1|ß¸ÈWú;
-•Mß À‘à;ê•¥ÄqøñÜÜÁ<ŸÀhOÔ”Üã›©ì=äCV^"1j†İ¹À=¯²[‰czÃïgåœÅfÊlœYT7ÆFG¾}ß»!v†ÀÂvôpÉŸ‘Qõ“GâÑÛü FíhøÚ¯j›CPÖ‡œºç¹ )!>´xKÖërRtÏ°Á3C[±&ºãø; 3ÏÖ-şã¬ îMÄzYç¦iõ†Ì/ÁX+KÙÖV¡“k¢Ä´Ÿ_>ñyXWå©„‘tä3$S‡¢«Wµşï\ëƒ‘‚»H.S±aní’ë[3_ÜÙ=¸™ËP‘síh“XH$pğ˜øg›Ìñö•n9¸V<¨²¶ŒŞ½â¤¨óòK†5‹gÛxÚÏ¿YYÕºşû|˜"şUê“™£#íõÄªô ähNIAñLÀzÅ#ÂDÕ”&qPDB6ıà’Æ‘‹¹DlİXoäF˜·Ô¾–›íú"K»¾aû²§@Úõ’şk±«>°æñ®ÂT7]¸lW'ëëë¶*Y“Ãvš„7B’a	³ÏOiåmAw½¶Ò¢³°ŠBñã;‹¬+ü°<[}ğ	¨+:âJ¶BÉâTWÕB9½}P±*1)	•Åµ=’¦3Ç^iò51ûş\TuYõ¦åï½¼DÎq:„˜ˆÁ²ß`½µhÊŠÕêF?Cu%¸’ -æ¾Bx;»}Ÿª¤'fğ+V¯®X=4‰“~Ä‘‹ùYµdnö×ky[õşä¯×:çÓa^›(êS±CêÙ |="Ş<Îu´+wÀ¿f
-sÄã·p“[-V3õöîûsÍ€ºŞqs•xˆ9@[d5ÃÆ‡,Ô3x.¤2ıÊı¦8Û«=WwŞY'2(¤R„•ñ5×îşA%Q;×§q¤àA”bø¹eÚe<$ñÍ¤d=¤§añ#°‘bæuz=5‰„KÍ"æWëj¹×åñãÚŞ…È"#Úó ›;3¿BÎvm·×:ƒÆ¡ûhÂ]aá*Şóugëğ¿9}ù_Q'ó®Á(y:ªgåôöçğ]®µˆW`£ŒİJt ÉŞ/Ïé/õ{Ä/IóGZ¸,âàŠ€ÕÛ+ä/2C[óÿŠ€"’‘×¡uêoOô£¦I"T &‹®RÉ”›nÓ}0İû²»‹{a¦ÿEİîz=æİW[Y=Ù<µÚxeıØ©Ò“]G0Íáø^²…»2ãqÍ–î”Ñj/@.ÌnÒoÿ¥ÀI«4I±êeuº…¾ÑÏ3\Ğ7²Ê«öÜHyóû¢,Ü’æ;Â=Iv¯ØpKrZ^VùlelÑš€A×âğJğ0‚‚Ç(÷ÑŠR_[³ˆ³Ÿ_¡1ÿåäNù¦I¼hfsÆùµ£µ~[|Q7’%)Œ–fÉ{Ø‡-–"¾fšñœÿdš³šsÎ?şm¸_;&T<|šVÓjğƒ5=®¦Šµ|L
-[¿ñ?”NkÂh6dzc×G™‡	43›`S£Á!¤aiì›³I,üÅ˜¾.ÑfÈw4Ş–aî¸>ıg\P¡(—âÀ¦†w2=´õg´mIåàˆ¨c¸C	í$fÄ£`tğÄ¶£(™DJÅ”¯1÷È;gû¼;››f}5Ê [MB±ky|uûşj=ã÷ÏÊø\üÁüüªÚ9÷5^†ğ®‹ÉÈ~{HÌXuöÓéÚ\Úqidß ·$Ï>t”xËJOÂ^!Ë¯FGŞ#eŸ¦A±‹FN@dº1÷ÌÜJk’òD7IÑ–$txºZ¨ó¾^öİ¿õá[kÖSp?¬Oî‡Åc)!o{£z;‹ïöÈÃØõ9c¹b®²?Rî€İÅ™'â„¿ha¬ì–<‡÷
-r`2š"ÁÂ}wÄğ¶;K~­2$ğhˆA<oÂÖ’<Âè¨²½ğf“jë ôF&“±]Š Æ|ÅrŠjFìº$ôùH¨%®	Zû7h“È¯ŠéP˜ b]ÎñWù¹·‰Y!<İ†ÁÚÄ9ÚŞÏQÔ51Åôı‰=Mf7Öÿ}åF,œŞ°a(Uğö)n¸Ÿ£Òí¯™¬Y/ë·ª·Ö	ZBK)1nğ1¸`mbáËŞ^vÿF÷X4Õ¢¼­Æs"AuL}ãìúl»ØX–u{†{ bChV×ÎcÂ½¥ÄuCÊæÑ’Ì‡ùôãæç§mLešö')ÿ¨½§³üğÕ4švµ›]3ÖXˆ¨ŸF¼sï2îèƒXøÆÒío±µa2L<X¡lÑ!Qütn;‘î£ô6ÿk:ÂÕ¦0şäC×b¯'U‚üOëO–¢7’v#’VQ›5ÔzÙëÇÙ’[‰İW’vÄü$ÜŒOÙ»Løèt7v·,7DÃñSéifÂÚ™G’HıÀXTcèö›b‚M"ÀÒƒáË¢2• ùŒL±øDŒÕö„~nÉE¶äó-]p7S½Y¹ŒôöšÚ®õå’ÉXÖÑäŠ£_jlCáF¼úm
-­P´ªCP°lƒÅôübÂëhj™'6,Š™uoBûãÙA“M©´ÜiÉZÄk““Ü¨ÓÉáËÌ…vóuã4Op†øÊ	Kr^‡W§·msWZ¹Ùq”KvñrI¡#éá¦ùÇ~¦á	¯ïÄÁHMıboKƒ¢Ëİ'ùtPŒZ+/Ppô•J~Ïìgºˆqc 
-:n&ŒG¿-w<–Á¤‘>Õ”ø¤úg	‡iù-³(â ùÆı“nxu„G2&Azò£a“jPÌ„¤VˆóPí³Ad~[æ`ƒ!B+BÖY`Vùûşº*ênÓâõ¯#`¶³ÖàÖğ_0‡Ò`­ñ
-ûÔâj4OjS/Îàèßg%¼Ò	hÿqñfŞëoleÜoebñŠ}ñÆ&7O1Ş¸Ëù*ŒòÛ–Œ[-½ËŞ	èyŒp:%ü=¢™Í±¥ê‹.Q`A3c¬dvu«İLQUeµ¢3äÆZÀ…«~¦qY/aNÆkï³Àñ’fÜ„Û‚-P%ìTa;iÒ9LàŞÀ@³+4é%¤äãgQhËé»ºÀå)jı³EÅt|ÚÒÂE…íğfD+ôR‹aÚ3Í±ñÄ³?Ù…i€h¿k:Şõm¬ğ²~M[™®c¥-t‰Y¯]àà×7Ë=µ*ÇÀ¯)—ôÉö.Rô´•­³ÍÇ×.{ı]PLğŸ8¿-B¬Áş8ö¨°ş'ô$h°é(Â9Çà”¤ßÕ·ï«bF»àåT)óGöõwŸœb;{ÄÊ wñS±òXÿ_BôW‚³k•U"HR9}{àY%œlFæ£ğS?sÍÇ#ôRòtÅéÛ÷ĞXVoF¬’¦Ÿº˜ä6*4…	}?6ÂKp1ÁOÑŒœ|ôlşyxj1QGˆFN>:zt´s„—E6+([Ècõ‡vR^T^¿›²Ğn¦ğû'Š?«^½ì_å—ùˆáJB{OËAwˆÿ­e+Øh½²–ù»$›/dY·#_·?ÃœD¤Ğ©¸tÖ²Ğ¯oƒ7Ù€ñ†w™İaû.TÉĞôşšáç¥\‚¬‚ÛPJó5ôÏ¾	ôîù>yf§ş-ÂµÓŠl¬)3]`ú&k’1'y	Û”eâœ2Uø¼±™ÿYÀ8~˜–—àÑ½½›ÑÂš¼?{…Ùáÿ7XşHeÒ/Ûn¡6L3‹Ô€ÂçAzé°?İşg:å‹Y8&‹óÔO¹u3P½¡ÉSÔs°@#†mv~W6¯Òìé¸ß?ŞÊMGY<²5Ğ„é'Xè>Ch*¼ÿ†‰ã½Ò:¿½¤?ìïÑøù¾ÏCÓÇ˜+SmŸçy ª1lÿĞ*1ï2Î
-JÎI¿¥ƒ·'Ï
-WW
-0ÛüMÁ2jßÂ¬€Ï`w=6-„zÜ\Ãp n«GõdT×ÅğÃ}•£(bÆëiu-À”]ï«Oá*DÕßá|?Séœ˜Áùüø¥HİUÿúÌ!ö[{SUŸ	ÒdM•4£UÊM%Ü†ùµ¹ÈÅK#X~%VÉÙû0bƒÂiÉöëI}çtù6lk¶\ùI¡&&‰A¾h²H2ÃXiİÀ4V§ÃØİüé¿   ÿÿ B{Ì
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setSettingsTab('tools')}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
+                    settingsTab === 'tools'
+                      ? 'bg-white text-blue-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`xœì}[SäH–æûü
+Ï¨²&è&‚K^’\
+ÈjÆ2“l zÛÃ2EH€ªR´¤àROû°?`şÀ–ÍCÛY=µíË¾òÇö¿Hî’»ËYYU©™Î
+ts—ûñãçú»!•c³v†ï² ÍHş¼¼<½#‹Ú»²±o¾ÒÔqîedË…ñÆ"=_{`cñt’çIíÊüİ¿TÎl°koÈoÆÁË»Ø©]Mâí(şğò¶;O^n’,Èƒ<ãóìÈ;íÎ…ñY2mUF^–½ƒ/xyûñ,
+®{2¾é-÷×Èøº·BÒdûß»H\ç½ëŒœ%qŞƒß©wšD>ÿÆY˜‡IÜó¢ˆà;H˜£¬7„Q	Ròı$ËÃ³ñç¹7î-“¯o5#š•&/_¾$¬Óš	yEæNÏ{WĞëØi4	zÏ––HváùÉU/é\'sôş,òò ÷¸H.ƒt]:ùbi©şìİÇêØi¦xúk'F4‡Éiè	EO&‹~x¹©Êœ’¦¯o½›ŞS‚tÁ Üô¼IqÚtªİÖF;JÎ“9ò‡?n½Û¦¶j¯Õİ=î­˜-:EkK‹Ï—
+²Zº:MRè‚ı‡İ4€i)gæCÛ4t±*·£Pèiä “ñ8H‡^ €ïí]…Ø\ùúçĞØèè¾Nº”Vmãt¼ó`o˜ÄÒœW»C› 2ëè™ßiCÊE²ŒÆQ ?ü€¼ÉÃq’é¿~ñbÕ0.cİ°Dçã ¤Aä]~eİĞA~8¿xÛó½,O’ÀÛDßHrBïÃŒø	Ğw&ñùæöî>Ğ7û½ \HâìşŸé0„/}øöP×·HÂq²xø]y	ä;ÃfÊ+®öÉn ÏÒûÿLHÃĞ‡Îáyy8¤Ã`Dò/$Øßá„zFŞï¼^ 809t.„ü5O“¬oû±–ò5ë”·‹$oÂË€ìğFÉŸa:€ÆŞ§Áe\‘?.Ö™³q)ŒŠM"ãƒò¢tEğÃ‘oZC•Ìü4È¯‚ .VªøÁ:ƒËh|j[.Èîjty<X_Ÿ8,Ù,gßŒ‚Ô‹üŞ*Ò¬vÅúkÆNhºqÛÑüOßÙ¶1c¹!/Gø‘ãI”MÓ/÷éıÿéı5Ì&^şèİÿIhwÛ;îÿáEøWVP‚ay#5Ùš1Œç‹b8³`²-ºÜÛV‘—¾Mü JæÉÖª­39×é¦Ø‘D%±Aeï¬Ïá–t\#Ø0ƒÔ8¸œ’19H®ÖÉÖ›7d…2KXïùs2JÎƒ8H&9†¹Ÿ#kĞ/0İ§4/$³‘a÷}Ú%²’k/Ïà³H÷Mp–“è×$òÒyKÏô}ƒ½ê¢7X–‰¶Õµ¥ÊX‹k¸›JBH³œV¡ï±åcás½ñXú"úÙ¯4b„òaáèœdéğ¥æá;âEùËNmø:òHŒ¼ëŞ[­øóŠıLN¿‡wõ`SÎ½0¶ìºxÌƒ8­·ïoµ“|7zŒş5ôªBUÀXªÂ8‘Qkxl_pË( ³¹õæíşß¶ö^oíìsV`é«…†-l\-Ë|µ€à@ºÛŒg·L²n´KÏ‚å1N@5‹Â¤–´VyR¦9©ÏšŞplİiç½ßôîè`Ÿìì’İÃ÷»Û{[oöv¶vvÉşÎş»£ı7÷ÿñíŞöÖácãŠ ÆŠ°Jº´ç%ÌãA°v‚ÔI¥¹Tèó@K üRFgL¡@Y‚Ú’>•çê,†®5‘’lèEøÍkŸ’\ùH· Øıw‡÷ÿq°½·/4™¥õ¢EÚ	/©Rû&Œƒr§±\Î–¹²j“¼Â<
+ÈÈî(Ì²ôßxœ‚PyEõÂ6Â–4¦…¸d—à/Ö”U™HĞt+²¥i>­Kâ ØÏ7ŒOÚıv¾İ:Ú= ®d™È‹5KÏëzyƒ¼¾f´}°ŞCK	P3ÖÉíY’‚®ÒA§ÄiéÎ/9ß_|ûvñòç?¯F:K`ù	ZÕ–]2’©ñ’]%ş´tìÿjiëpÔ„ÏñIüØF”CD™ÜD6²<î{ä=İUïÆmÕHªuÕ{JÙ€…ÛŞri‡j,T³j<#|Àupûòi`S£ZÕÜKisT]bmmg¼).Â×ı·ªãÀ¢½6ŒA
+`Å'ÃšUq<è´ïS+UDõğİ}Û÷Íjüºf¸ŠÕu+[ÔÈ(o`jxNNa–óIH<ØcñÎ’8!CƒÙ8Y˜¤xa¨ZJc–Şb%>Î¸¸v!«5K¯c–lbıæÂmqáÅ~#[ŞW¤^ëLà
+Í¦IV³÷ÓsÏŠsHo)—É°T÷º”G¥¥^v±,Å+è ìcSëtéFåadäv©a#ê‰a ×áÙp’‚X×'!ûxX‹ã–¢x’*²§†]ö–Å&Ğû‘¨°ìİÁ¡„V§¯5ŠÖœÄ–W`¦KepYL{yjuiD
+O])ÈCzÓÚ’ü0_ñswïf«ê¶ı˜¸pÛé•ƒ§íTIÚœÖBY8hÊíFôY97°‹¡ˆúÇğ§ºLcó-:ôİ8J<_]…[¼ÄK¹pĞ´;Ğ×8ì9ÍÚ@kåEÿå63¤ş=cº½T_ÎÁSIË¤cM×}:WÊKòJ¥?Qàl?øÏnuå‘¦AŸçĞºÖ%V³YW¨wQø÷I@Æ^ê‘ ¾B<ªÜp±î¤–V‡‡Î:ÿşİ·äßŞK’	9üë·¤ûöş§ë>Y~ûÍ¼C›CöhŠ*2˜x<Éy¤ÂYâ‡ÁxKˆÎÒÅ?*¬…[&P¸@í[H•ıŸ…^6évÖŞ‰![}½gÆº·1|QA=(Œh3Ñ*„ğ+RÊ&ZƒjZ|4a[±D~Ñ¾hNCÕğ=§²j®2”zYk(Ï:)‡j¯;´4Ğ?æ0Åÿ1Õ>®Ï”©ú¥•ˆb0~'ºDAÜÊœ|Ñ(œ5ŠZ\Üõ¢~y6ê…"*<®r!<É»Yá?‹äğ»Cø—Ç7’.\cm*¨íf@ ©Ÿ˜]ÊS*"öã‹æñš‡Ü8'Z’Çg©ì^‡§¡ïiÔ€÷›jjmìA»uaFø­¦…h"ÔM©F³}QF¾(#NÊˆ6Œr®ÂÃ¹J"E~Ê:‰tÚI))ïŸF+™&îóñT{ )ã±˜Rğ‰õ1ÄÏÔ‰û%5”r,~'êIIæêœ|QPœ”4«ŠtKÚqQ¾()S*)Nö¸jÊ*WSş2ñüÔ!®û6ˆ'¨—òÈö™k$4ïì‹:òêˆÈ8œV1ÓÀç®vŒ°¿ø&`í [äÉ˜FûÅŞep^fayRBÉcª«c|Q,¾(­‹Š6A¹W%Db¶¬GˆsNJ¿yJâ3PªºBÁ‘~bu¡ÈÈ³ğK*
+b ~'j'di"¾(N
+ÂßÅ‚ñ ƒ§æ?’rğš&8$d°> İª¦Ğ#¿?Uáñõƒµ>yïac<
+G§©çK0]Š‚1"[«3×Š|¤/JÂ¬•„0öÃódJ5¡‰ü€¼†æ¤‰ÏRgØö2tOxˆB#¨˜rğııOdœdxŞ4¦_™‹¯„ï
+Ùçİÿ?š7D¹`BÎè—úNáÑÔ	^ ƒ‹Àóé?¢ZQ4ôW.
+òı¢eÌLË¨Ri©mpvÃõşWEã(Ï:éÅíÓhõşbÚG¥+\©°Ø­UƒWIœ=ò›wÒj,|*)³ûi-a±©Cø;Q`ŠU¡ÌÌ%Æ®Ä”DSÙô‡L´y<]ÔÔ\Pá>µ_‘âby·¬ÓXn«©;–{5šåîRIêS‡8)½<Q`ÉKôs/=ò>ş½ê/ü«õéğŒtñŞyÂ5²‚©³µÁ.ÚŞqwgş˜étÎ´§ëè¤uÜÈ<I¢ŒG†…@uÃ÷¶F…t‚›40Uy\QMl&H<ÿuyÙÈÏ”»SñâdX`2;K½€±z5È<ZW´\«>6C<n'i~z®‡0Ëïÿ‘)32‰Ã3PzPÕ]!†Ÿ¤AF†’~0K'#8ë‡gˆi™ÃO`npú‹Â¤Äpu2Åƒ>ƒ^•å	ğcêdYtA‚0í¡ªQE×Ì3_÷"¹»oß‹ºg^”Ù–9èm Ìåp2†a :ëæéÄüĞ‰G+Š>İÔAÊZ‘Ì˜Èjfµ¥#T  #Vªê@òšô·€¢¿D?AĞkyFÆwä°‡n¯¸]ò–’ZJ^K4j`6Õî³!’=ÓG 9$iÆ4"ÃÌÍˆL¤Ş¶§”÷ĞMTñ´t²GÒNÁ~…´²ëà<IoèoÑùÂƒss-z\‰¿›„KFô1çgğ»˜0¦4ût-i¢3&kşæRuÙ×öD}ä«-Ô_>À!¨ÔĞšªí˜M‡Á?hÔ#.IŸá{Ó6ıEö§àTnhN£¤Áq~
+(™Z|j×ôÉÔÎ¸f“*éËÌNÂ¡Ù¥à†8Fßg cädÁo@-ŞŠ‚4?‚ÙD0[1÷ku¼qaqµšwŞ„£qğ#¥‘ƒà<Dm*˜Á¬F]ÃŒlf‘Hk¯l¤¯¦–ï>Èe2¼ÿ/’ˆ¥œ`|O|ÿÃvÃßHs(„bÿGŒàC*‹&”ƒ2ÉCx4@IÓ#g…(Î- ×Ãh¦$!(îş3‡z>‹
+ã4ÀñîØ–ÿI†w…1ğ‚Kc(‘Q—·©ıÂ{Ê®ê ©a;‰ÏÂt´‡ê~#Ÿ/;¢êsw3„Iİ8lå×î±6‰Â)1ã-¢ õm¢ŸSlŠßƒí»œĞwÅzYz¨mİ;ìN§]ì´ÚG+Û°÷»øõ¦÷lá–-íèÏXë#aXáÿ2)JÒ¨ÎJh áVƒ[ùÔ©$ƒÖôQuo+¤‡mƒÃÛ4H´!jÿ+¨«÷ÿ™´Ä¥gŸ‘Ä‰Şú‚#?‰>p¯Á2®Ø¥ÒuİÙô—ûKpõŸÁ@záÊb
+F0ÂŒ4sL3t&‚ìlŞÒ÷£ >Ï/îf44 …YŠ84Ø¸Š®Öo*u6'ã$ÅÊd'È‚ø2‰.Cº½Û€HÇ-FéıË^kóÜ‹.¼ {öâ¿¼0êƒ”Ğ~{nÉö¬÷l,Ü'úÊyå¶â·YÍt¤2Ë‡hôÃR(yGÂl,®Âoø¯Ÿ&c®S@ù±wü|é¤y§W*şl”İW…*yÑËÛ[†æ¼N–ú/HL/Ìoà¯êÖÍ+lH¤ÛÕÛu…'®d\iØFÅ¦p¼²Œ:î=;+lòªÎZ{Vt\/„´q±R[*ËB¼”‡ã¯Ûƒƒg'Mõ
+¶“•Ú«Mâ¡¦XİÜÈä?[%0t'–bÍñW¯×àÿVOT¢*äTÍúø›0¨¯jê3({UŸ½^(b<jPÁÄ®jXa“Ş¥œfQ”¦÷?‘L 9¡¦ft¢ØÚ•ÂEÌ°9DR…©k#F§WóõnWSÈŠaà¤½õ|kùÅî‰¥¦î°É"Ü
+JÂÇ½s?Ñ+Û=äñ¹ÿÙOæ¯Tˆ¡Ö3©Q	®"P/ 
+™s*ˆ“¸¢'ÙzŠ}_–ÿ(ğâ`©&áŒt’û¥Tòò6K&é°X˜:M¦ôab=+ÏtG%}¥fQk7°dLí7¬ØqÌBü\NyèşIÓ OúışÆ"»]÷¦ÛIŒ¾ô‚·ôGŞ¸›aWõa¢å‚›—·Ù÷÷¾¾Íî>Şƒr·	ÿ³5:¯ùL}è¼»S¸‘ÃxÿFD¡™q¥€”^ÛØJSPr“«˜Vª	RÅrI©w£·ºÖ<sI_MP's|æ«„<PûÒ}‡”¶Íèì·± ÙZl· ”gkAŠåÌ:ş,gP`V™(kr[ìk¡H•«°jªrä«híÙÚÊêîIÍôD‰M’¾vŸí®íâcVKOÛ^<@¤ÔŒ°É®ã26,ÈEİhøaæFÿò6Ìğntüû¿“'êÎGO©kOUnBQó“Ã`+P¤óXÌ~ªhûßˆ1´\B™•GÇI]K®ŸFÊªz?çêåjõ"uÚ»áà„—È^”JÌÆ˜'Ç’÷i2²CA€´n-0Vš;·}ØÓaé.a½à&mĞ³˜¾2f›®è¸•~-ivç) 5 ø¢ıÿ&µÿjLÂ¬, ,–ä÷®ıK@0ÍpyÓÙ äàšÖf h‡XÍ¡Pôuu}r$¬©ìÂåát$ı™¼*ò(¹¤5‘¹ÿR‘•ö$iÙR@UŠ=¡¼ş6”
+&"à—b¯ÚX	Ä3¥Tqœnj…èS+bøÕÒP€\Ô|RÒ0èŸ›ì?_Ì¿!³XÜ¿yƒA»µ}¤<óXk·?¸LÕÈCóMúØ«œÛ>·UşXÖ»8ö;´$ĞioE'iØò©ÊM¥†m[u+‚ø)	ıÌ–†I†ıbKøÍÚ4AÙ_Œ
+Ÿ±QÁ)ÑMXÒ”1<XRS†Ÿ-)
+²^0-ÃĞYr¦XShÆjb7šXãŞu–ÚŒYw×‚Št6E^œG†rC°&£DÍ‚¾SdhÃ‹lòwåd;;.ÉâQ>Õ<æöJòpûOäg§¹”4á¨¹ÈÒ´ E²Hö(µ|Å¥ú ›ºLZŒ¨QÓaªIôf•f¨KGrĞlôAì,+›Là3Ñ†¨*>4Ü˜%¿ËVÎE¾ú-Â$@‹,ÌòF¨bgÃ~,¤,‡÷arxù6L“ôÅhÍƒøm¹Zš÷è{ Mè|KUÑ–uûe"ïÔD€ÄŠ–Oøxû„àùWÅˆ p<wŒÊbN?FÀ²'ilÄïPuUx{o„ÓaÒToï§×I÷¶ü;H–mA–Ó}ÇİLôß_ˆo¾K.½r~OŒRZÕnV #O˜µ=H–x¸`Ó´ÂÅ|qqÅº™€pYÁ	XTğKZSø×&ı·­í§öm>¼Ûıï>t6ÿ”Æ¤¶”¨„gı¾v‹É8Ë,ã…wÆ”ô"iB’òS*<şí­!vˆ¤ë”½j‘vÎ§XÑ’nà¼¤ÑQàÇ¥M¬È2S{¢Ï‡COƒXAú²³{½Nö}ø€$ºÿçy8LÈÖ»—c"˜dıKÉÕóœõ¹fšµ©I‘n\–x4p¯ mm©ÂÀø¥Ùq0~Ç=İz’'¯ñ…š«Z=Pgš`G=5L—‘2clMÉd‹eús£5v¹9V$ƒ}fYJÂÊH5Ùg¿ûfõmKâ×­NP¿Ò°	Œ²ŠÃ`•]¶™eÈ°VišÑy%Ÿ%jRëíŒ¡¥É¶dÎm,¶µ¾>¦é–e¢zÑå/f·•º Y~MF[M’ôTFÛµß…ÑÖ©Õh«ƒ„æá“n¿Xº¼8™±™Wo¹š$²nä])Şo‘şŞhŞÕaNhã·ËĞ+%qŠôu5g}v^	CŠ§JĞÿ}ÿsâK˜ŸÖ¤«ƒDhkÒ-ñÌİMº2b3;ùì³°ó’Üø¦‡B(§¨g4I,øÏÂ·†ş±[–ÅbabŠºè§ÅÑ5S·Q²f›P
+k@ÙÀ47IüF†H1Â;˜–¬véT¡Õ^·
+s¼ÿ?°Â† Æ>Œ ÁˆtöãråÌ›âO€H§'™@d)L"úÀ€!ÉY8D©*Y$ş„6ø€ĞFD;ÚRÉ1×úp2y  Õ 	W8ş$3ç81Î»qaqÖqCJ™¼€ 
+1Ã
+è_;®…k%­[–ÈJa¥Ğ¬‹N½.µå}Tú™µgù†ÚJä}
+<ø[ù¼€?ĞuĞĞuËnõYMo„˜fÜ #~-uü}f!Ë„ñ@¥ğn`=Ó•™¯ìS#°jNDe3c‘0ctä±lô‘f‡ÅCös¾»ÿù&L%5„‰ÑŒ7ûé	ÊÉxÓ„1Õd9@I@[¡"Uj0Hû9leiÎYú×z•_édÉ¿Šš°½Êš	¿nIÂ²Íø`µ`Ârµ`BQGaNç7r´4›gaÏ2wL©’Îf5Ü9DÍMJCÙd—}í(Rõ(ï*J”dU¦³˜jE63À}—ÊjOÙÔÖ8ˆ½¬D÷*Ã`ÂÌ\hç%vœAü˜æVØ‹DÃ>AË³ë‡µ8Å‹ƒOcZ—ğ„wı`KF2/òÕÜê§ÊÆ	,rš*c°îèÁ¥­è>Â¸¼Øÿ =şğ«à^eo¿°°Y°°r<gÀÇHé×ÂÌ
+.†NÚüş'Zb°@Só“R$ş[`OáÿõH¤Sn«à=†èA; şçÀµ€½|@üÑ}?k¥öô·z·RÇòœÊ|~-\ê €/$Ôã³OuóZ ‡ŞıÏÈeYÒOçY¶õ¦`G5™„)62ëèÉàa^Šf‚gQ«ñîÿAs•QKšìnô§a`Ú“Z[KÇ ê4Å,6(Õ³QÀ_Ç`Íw‹óêôèÔçhò„a5«ÏµFa˜QâevÂstíí"®ööş»×{o·Ø\_x§a”gxØLÉ=däh·˜6ê´CèLCàLÉÌ ğNA3Åö`™)Ğß¥a•*^®è¸”ÆCb¢í-f$ú†:P2cÑƒ¢fá°ëºé~¸³ÊUSº¬TT=¤£Ä}­ø»–ëHÜ¿`hó€²Ğu$›¢nvxq?†•tõK±ŠÂ¨;ßÏ“ïimÓ‚)|‚{<]úÔ¾ŞúÑ‚YL÷øîß¶ß|·wĞ,MÖèÄ†å®!‘‡şHí&Ñô749fÚ¥d–ŸkĞù‘”uëàñƒ™˜ˆÅÍhdÂãÇ4Ù°ı‹y|†M°Á$É„¶Kt[§7„6•ÛÜÆ›„÷)¢„ƒò4*
+Ÿ.ÖE9‡EÍ2—Õ5EhTëà(B‚ë0oÓ€>œêøÅÚåÕ	‰Î×¹t¿Xt²ØZxÕ*ÉFë•(+9€J­R7C§X¨ö™³í"‘¬@]†ò=ÆzƒïSfÑ¨6"à¬sİÜ·Ş˜Z¾½È#İ÷Iš{:fÜ"JÈ¬Ç_={şlğtû„P=[Ö*AÖDMÉ°ÚºŠ¤MÊI™†œH–x÷P©)B¸ë+ŞMÖ|8¼™ÁRc…8kd¦„/\¿Ï	—4qPË„e-ô²ašDÑ©§‹3)X­Íñln_‡…fˆç«OÊEdÖ˜‘SP®¨º}AÿUfT ílZªaúD¦x\rm–š=hÙÊ*nö÷ßÒœ©'È˜4e],ì ùTøs‰gç*R¬<ÏsEÒ¡İ³V3.²`ğvŠSÔğˆ±“«5™s5{”„øYjd/-½fŞÅÇ”ŸN­¡tv,ÈFåuVª< V
+(ê>-Íì(íÍeêˆbo•òªŠ°hñø«ÕÕÕ¥•í“D®—µÙaÎh­ÕmàÙ’b=+–|góM2Dt[)X6òµ×ä4d¶s’Pƒ"%bBÏ¿pÉòXî‘ÙG…’8İˆMÉ	éîúa~ÿÓeµSù§$í	Óè¥æ•Œ½‚WMŸ¬÷M«<-lşïÅIÉ£j«WæduÆLU6RakÉ$Â8 PuI‘tÂ@FÛ¤.ÌÈî(HÏY´…Á¼kù×¯›"x¶bFc”uE50­‡_j!>ÂR$d¥O^‡Q®Àà˜*ë—ad¾¤IÑˆíÒNZ’H÷ˆ®L?1,8<¬µÇ
+‹|±XØFˆƒšâ*ÑMc_`@vëmï­—"Lïzÿ§Ú¤Lá¨Ç_í<İYÙœt6ÿ½¡\Üìfàáƒş£ùN:ìmëºİğ6ÊùÙh½š `ZI¼`‘ÿ™·Ò.ş‹9Í¬KŒ`Ü…o¨zĞj¢¨,t–[C’f• öóoØÁÌpš\bøÇ‹ˆ‡L»&úa<Œ&Àã‹	±,‘zğƒM¡`@ÎÍšÁÄa^Ø†FxŠÅ{:¤fş²5›^	"XËÓ÷™½¾WE'Nš:a¹jÑ$+BÛ*l»…:Y4ç¾•­Drs5Î€Œ€‡¥ô¶1Å¡ÂNe–Ñ$Æél–+ºa_0ÃkÌP72çCÕù£¤übé^ÁNVÌ¥÷„ù±(ÅŠ™D?9—îy½~z1á,ªÆXFİH¤%RmEK/Š2¨µzÂ;Â j2eë•ïÇä¼6ÕÖ±Ë½Cx¯÷;¯	íU'¨¡7Ó ÃôÄåÊô|ÉAèŠÏ7®ŠôÊN›29HH~ÿs>‰hÚm–ÄXò[/íT5¼Ã‹1"^—£ÓhDîÿw¦ï£ÄËDşnÉÚqã Fx™J¾²OÒR¦=$Q‚ÅèA¥}Mä@„ùDş$eá†ñCó»·^­3$öS±`óº$PèÚºŸÊÌ_†
+¬2ÍÜ¬‡W\!fµÜVİtAWá3‚Ú¶É%,èd÷+1+@‘!ˆºˆ~6ğ¦9ÕBÚÙ£_¬k˜šk—\(åxùD¦{¹°é)£°úVì8Ü|]ü*Œ¹âK×¥ ‹â\=ÚÂ-–eÅÑ¥%œ—2èµæ¾o)¯ì¦lëıROéÁ¢*·`c±À¯°È –¿¹ä^Qbëãi0\æŸ_ °¨*+:¿¿Ùá_ñU~ l“l_“ËD@œBúavÀ`C_‘9¼]0@‚à2‰X4i’¯–1ÕpõNo“sòÙegó«ÆúıÚº½µJ”×é‘Û8¸";@!İ†×øp>O=8>q˜£RÔ¡àŒà3ƒ+TN¶ÃA©÷©{K×ï:¡[‡ùôWZÔLë5~Š¤şü±Êœ¹U8Ó[şä’öHøÎæáîÑş9Ü³·½w´õîhW"RoZ“¤/Úeiú„›¤:ê´*QRŒÅgœ“¦&ùƒtw×Ü†~FK‡’yB‘ö!ÓéZ¨	&3÷òIF¶@‰ô[1vÜ~4¤S€ĞµŒâ×@]æhöM$ÀºKó™Şï¾ÛÙ}‡µèªÈ@E¼9û¸÷ÃÚ}ûáp÷ıÖÁÖöÖ¾hl<IÇ‘İÎÿEs[ïöÿºµS4UØSãÆÃ¿êİÑÁî·ßÃ'L¬ò„7v°»ıİ¡ôMz8³7³³û×ı7ßÁ4}p"âĞQ3ì
+ŸÏ­Æ~6ÓfùoY†ÜØ Şz7åıô¯§ºèî»ZlâFfn[`»o	;qÿ¿îÿç>Š_:Uôá„ÁNÓFHyA7"3˜z¹±òÂìS&\n¬¼0}cZHzıÚV®œsÊ5¼>ı?¼,‰u ÜÕ½‹Á’¶`r¯Š½¨q?~›`<GEÿp•xTS†
+~ç"ë”é(éTqŸ›šHN³ ½d¹¿ú©š‚éÉºæ>n<®ë›êõ¤Ğ9AeÖ$o· ‘
+îŸğÒtZLíƒ><Æû­ˆäö#êT@%eìÍñò*Nla,ÖšS‰.š	—¶Ö"3U·Ó¾XÒƒ¬—^ù¼Fà{Qßyµû®+†%Œ™>–¡Í¶-u†(ü¬Îe'$@ƒ¯Î’dåè4½XëH»è;-›éÅåªˆÌÏŠ€ÎŞ®—É¦ŸŞ¹r_:†“ÌÓ²¨-\¾!ÃAIµ­²IÌ\%¿¥‘uUùÊcñ/½~å°Ó©íÙhşN“+æ„ã–Ûùâl…™ ÿäešc=;æyñ%[9.¸ˆ…¦¼(â-íñ2P4˜%¥• ÒP´ù!ôY´~ğ÷>üÄ„‹ŸÀ&æ7¼ñ8M.Óq—æÉ&ü£o_{rqáÕ†ä*Ì/hš‘1LÑkNò‹0#Â—àQx¤7$O¢ª×p+ÂMiô	}Y<ÁU×VÃ{Sà…´~Ÿ/Îmå°à
+cnåÒ|ZÆ§ºÈÕ»¨]·¸l›‰v“lñ{¡}#v«Áƒ­@ºÂÀQ7Ü+½Znæ½b¾ùŸæ'`ò.úŞiÖ-F!¯éÕF{lÁù#yºÿÀ.»¤}=Ÿeüèú:Iá8_'·4e˜@¸u’Q‹ú¿Aªëœ.ş•QÉö×+q#¹;>i8>1´Š¤ØåÔ’ä¬XJæ¸²²£b’•I¯ ôâ}´ëløÃ¾ü9ÆH.Q½‘»kqZbËÊûá£v½áë‚-­2Úıñ$»èÚ£×ÔÙ¾oÁúX9]yÁeìOÈÓ‰OÉÓºu½^Ïœ«ƒÅŞ,	UÆk|löigNSÖ7à£¯4Å÷§-o£vs¥VŞM”FÊ(úğªv©Ú‰'¡Ê)¤Š€UŠ¬¿Œ´¹«­iH¥ Jû6š(iÈ¸UÙW	JŒí44¢=_+ÔÄ±’å!rYÏrĞ	g³7üy;10ãîë§7
+íØzu
+Í÷óızÏ_ç‚ƒùVÜ/ÖkÛ/Ì‘ØPMƒû°*QN%ê§^‘lÍñ+âŞeQKå‡¤©Â”l'#\?hüĞ¨¦ªÛ'-ÌŒİ0£úÎş4…÷i{dğJ–Kœ”ø‚VnEújlòU?À¿çõµ’Es*ŠÛ¿ì	¬6#GÛEöC‹ÖEGXÊthØ¼(<ÿ†ÍpÔ—
+£MÅid´M[WŠã£ öRÏ­{ÕÖšŞÈw‰oo™Tæ–jH÷bÜéàGe³Ã3­%°¢æ­ËVúÊFfã‹³ÙÿÄèÚny×q¾Y
+ÒáİcŸSH50áêè/¼ê³s–|iã:_6:Gâû¸ºi%JWbmâ1.¯£ÄËònç¨Š6‹X 68÷È÷÷?¡Và@Í½ˆª‡[.“è2D£Îé„ñYÒi$³ü`¸@aşĞV;Ç7ôåO56¨<ÇÜİ¹wh:ÊƒË `2çö¬dÈéÎYŸqŒ:jxCÙ²úxN‚!m¬7E"E†ÆÜd€Pº)f*”~ñ&á ,²ä&ğ6zô½4½ì†B¢Õá2XWNë²ró%ÖWƒ0A˜ƒúP‚êk”&a¢f*v±
+™¢ÙÉM‡OZ›µ!eS†aê}u\Õ†ñŠ/³µP#`F0·6T“îş˜¦ƒDó›µ1Ë±³OÔp%ƒt×˜\‘ğ˜îE‹2KtĞLùu-s³Ë®dëÓêLIK¼’'/!Ï•~”,¹ÁZ <½w?ÅÙNóEQóèì5(Š­Ês.`2ÄÃ´K zxbRBFÅ2Hé2@LX	å-J6"U-™Ï`R('±ách½zÌWÄ=^¯HÓT02ª[6†©–Vİñy+dcäÛMáÔúÄfĞ ¥Uÿt\Ÿæa–îã:6ráH–’5TtÊÆ4A+Í-FV^±ëFd7ƒ‚”jÃ®|,MÄ)Á)•Ôz3Ü~xéğB=ÍP¾bKçÉ¸7X\&Š¬‚'ÊO_-Aÿ,‡=×]Ä1İ¢ ¿¼2D ‡¡‰¡¤éœbîšõõËˆ8Wbl3!²„
+tmeI6.`à¶VÀÌF¦O™ò–ï£®Á¦Ò´™Y³ò´R¾!³øG½—…9õ%Y¶H f¬QqH‰Ce²ĞaÌ©óRúP™4D³<¤[$?b¤ŠÈ$B|råÔ9~©< ï/Š.BßY”g-¯Q~cI7*“@qÛmp–¤h‹ªßBÇÙ:ŠŒĞùæ”[ ·²3¯„6(Ï E…ı¾Û$/É­Ñ–@*v ½»C1-ş±£÷ÁW¾å˜9ONš€'áÇöõìŒüõa¿À7AÓÊşáŠçØhPG’elÀwfsŠ˜16~Ôè·ú}0ä«6ëV¾Ãt‡˜„s¼Ç6Fy'fÎó èúÕó%”Gõ¦ú
+ŸŸ·¶š%iŞízä”Ò¦GèG4	ÍÛ ‹vOY«ö÷Ğ0Xñk¶áBšƒål|*¬‰ºü©ô­Zø˜††#–Ææ» ¾Àb&b{
+bÄ@%«Ïx¥Å×işŞ§âkĞR\Ì	]®NYéŸ¢ì”ni. PZU¨eaì‘d.:¨k¤ì ømQâØ!×»Ğ-¶mĞVˆCÍ^³Ù~„‰¡í¬c		£Ü2DNô!¸yĞ6„âKµdÕ(óI%j1"9X_ÏEj£¹DÊ	åI 1ZQæø-ï#Ğ;Jğù–!“eKvd4„©1›Ö»ò5%ïtTğ”<#n¡!KSE„1H4Á÷ 1yç¢H´Š!gÅô¼Â´I]ì¤÷ak®[.ëh4¸ŸºQÙ$áUd9İ·æÈ4Ì¥äü­À"oœ”½ü"ğ|ƒ¶•§•¨x&9bÁ:¤ZÍ)Û`Á+³/¶Â"¯›Öım,æ3µZƒ¾µü%÷ûœTBŸFé©‚T<Le7w¹•;]² ÌèS±H,bëì
+dzèªi/kÕ×uæ›ğ±—<{ï>}çŞ$ÔAˆø‹y'–îÁ¥T¯îßF~šø7r7›„>pSÂ4­µÛ™†! Ûw
+ŠÂukzÉ¶'‘—ğM&CSk@9éfÉÈC”¬¢ (A•¦ªP¿ì!rQ Æ²A-,¢¨ÿY‰0¿$å	è	İl2ÍŒÙ?@6ÿ“¤f.ØØR 0÷·KÁµ°AÚ³"pĞ,æ.pß,Ì#o§¢:m(ô©Å¶Ò˜†/÷õ+ÌA¬M	rPÃ5]k²ÊU®mék×t	oòÑb“PBÊ8˜õÊÀäÛt‰¦‘˜v?±é|Mã+Øa“ÔnÍÏ¥»ÆW!Tçü×·ÃØ Eİ’ú#gæS}*c]¾İ®şÑ7Àúk^J6L‚3&İ·	_Ö8‡úqãÚÓ‹By*ƒ Ê5SªQ3‘âªor¡ìÅÙäÄœ<×ïlPµİ´®†Å`m£] ãã/ş±WÓ:È^Ù<d¦„CåKmÎ‹×±¸<˜…ˆEo[‘‹Ë†ñeÇjã(îÑ3éæuGÍ+Ò,&@@{iìÅµÂ®A—êîUèëV…À2(4UEšÄpKúı~.ÚP¬Ó~ŞlBC‡tX‰_õ–—Ğ:¶‚+h¹L8–ò^«C]s‚)>5kAù0ìÙ›2Ûu|•-£y¹Š¢–·µuJàÈË~–GºÜçZKÂ©hË«)s=ù°šºØáÀäm™ÊÊ«´;›¾¡&jÖW½Û&Ö°…=lwú¤›SYñµ*•¯=[[Yİ5[sŠş*ZÍ+òuãuXoòy%Áèî#5–€Z_”ªKoa€6`l&ÃjÒÂéc†HR,8UÎui×Ô&7-‚‹E ·KÏ,ÔœÑl*cby†¡™á‚$)‘å^w[Wp›>ÚJ¸ú,¢øHm‹-‹Š0÷ÔA€Uw·”[¹©Ü31©Ñ%bY«¥…ëµÀÛŸ`!¡uTf>l…Gcj³İ»àêu”\YåÓÆÙ1¹ÇßŠ}iµq"ÎŞÂfİÌ4ĞÜ¦§æÄµ‘#pò²YÖ¶Úm¶±ØÈv˜£ŠÇfÇKÉ7^xMk¨q=ÓÂ×ín3» ñ@ÚùU’‹Å[O+„îéæ}‹&¦*æïôÓk²¹œ†­®g×´ÉÍp­	WïÓîWerÎÃ¶,9^â}šƒ,ãóòí-7»Ue³ÓìdÚíOeZ9ÈvF¢>Ö¸9®O5‡œ/µšÄOÌšƒ0JÃ¥.óJŸĞõ º;$0?h‡4’apuUYŸ©ö²1(
+ŒğEoÄÿµÂLPš[èH5”WlÖË¼‰_6mşÖ§ÄÖÑ¼ºh–·é³©P^»mek–¢ü*0ˆKÌ#Ï\ ´¥
+Õ|¯¢ÛíE%nòL¬¸°ı™ŠNšh½>~VR¶ç(YM»mÍ[^¢ÒõvŸ…é–Ñ.Ï}˜´ZeíYd‰¹d
+=iâù²–ø ´gŒ©¤ÚC!äšgÍ1düĞÕöà^b¨A©¨ª»èu;ÄÔ›ª6”bYU0yj«]y¼ÊR³™àÔÒÂ¼4ƒY¥µi¶³|”zÙEuš¯±ÈÜ´ó¬gVòu]d­òTÉÜ¨ºXÁ=(J.µ(¨ÄbT^,-->ÕU²†%•V“«YAòçºTZ’¦ÊªKO-¥–ä\)QvÉ¥Ô’¹<& ¯ÅçKr>T­8~0ıîçDä4%™–5%™ˆ`~j.ÎD»G@àäÆªòœWèú˜€1LÕ|téd)’†/Å¤Ë§d,yOE	u6`Š]Œ¡&©€)G<6J<#|^­úZ[H3Kø1ëŸg¹6 NˆÌ+X¤YRjNUjÑašk¶FúÒâ`I©ù\äZ7Ö½Ğ“Õ`6–—µÕ’¥p4/ÔÔñÒé¸‚}T
+w6ßb%ëUÚZàz¸×ã*ÈD8aÁi†;›‡"{A#	l0Z¯»pµ8òÏğ>‡-:Œ¨ÇÖ‚Xë{r{Ün`ğj”LòF²“¨‹ ™fÿÙe·õ}:PÏ¤’q˜%TÃ×¡ÎÕ Ç•]¤aüC¯(İë@Š˜ÂâNŠº„CCãÆÙ¥e¶“QBÎ&1ÍÁ&abDùÊ•ŸïSÇB¿ûJd~cPrLá¡2Yt 6â<,XKoüĞÂ3ÌË#[ãûb
+‰Gmô9P`3Sƒen¡µÂj¹¨›¤±Ç^{l“p…¡OyĞ Ñ/+áÖ+à>Œè_'éˆ¼ƒÈÏÖÒË$ÄÄ²hZ	•Êl2ò×«…ÚêUolÌœ0¨@ÆWxÁ|gAâÑV1D“ˆxœÎæM!"f Æ±tAó+H^®Ø(50‡ô{[F¢ı¼Ê×J1¡‘Uåô4ºHÈn&0ƒr{]®D$W¬@%U½8‚‡VeHÆÔÇ& £ §Á~(ÿ¹±ÈîuxÍ_ƒ¡8:›üG›GEìqzÿÏk˜á%ÕS-^Wàƒø ~Ÿ!¿^iN¶xånš&$®pÅÎ¦öt‹×²„÷Î&û¯ùAXvtŞgÉaT^ºHDÕÓ¼Ã.+¸0–)—ô-á—:»×ë%ZM–œ¦D·É1º8ü÷»Ä€¶ò›bV\¾kbW.â—iKßò}B!ÊéZ!¥d«Á„ê±¸H}ò:À`>*~’á$MaŠ¢\8Ò4É0¶ªÒfv“¨´u°Ú7WÓ´j7tC
+î@?…Zù% CÂº•SÔ0üÚKG÷?Co%)ï®ÎÏk[UAD*—ëÙ^0vËbì
+ì¢à….kYqïAğwã‹O”®êéP “Õo…¾§ær)OÒrpkvÀÁØÇ¦±úhg]¥K,rœuİ'úwğ¼­·Ş¸ı¢ æŠ³º"Úğs6*]°Äå%‘-WÖ€ĞCÈTş¬ù–8JŒ	;@ØXõ/¼¬«xŸæõ` ÎØÈ]#ğ²ÖxËº"ŞjÁ•§€6åäWĞ‡- 6–‡ppşÕ) ’§HÖ‹¥€†~,w—$UÁE6ÂzôŞFËàjÈãOz²Ñ7èôê‚ÂàÕ-I¯şAÕ3uç…e³(*ÊˆC#*¿†%!3¤š:õ1®Ï&¨ëa„!'ëd¬]vãú—×>¦À®¦mûÅKõ°Õ°¬À> Š>	®Ç!nl+uÙ@ùŒ³‹©îªÊnf»ì™.MÏ©wfµÿ§ œ&]³rLè=ğ“«*¤`X8øz†şCpSçäÍÜ]šë^€z&#úµ¯ÖA¢K¢ Tò‚£Wú[ÎÄ³=cººòuÇélô¾¾¥O`BôGƒ£Ÿ­¹_ÇF”QáwÚîc#õQ¼–æ?“c‘NÁNÖ
+µ.¾›»;Ñ¶/5{ØV„GšKW¥™aˆİuNP]ø2İ²/fÍ7Ï/¦Lì¿0ô!i£	Ôok®O÷7F ¦çô»‰LÕgìO0’PŸ1ïˆÒ„³GŠúûË9÷%â
+«üÍÖ¦ãùZVRôbŸ3Ÿ*‡W&¥ş#sÈ˜ÔÂ%a|õÏáùE„òÇw°Î’¥r>–ø¨º×@Í¬%V½âƒt&ú6!Ä,ù\®åNKƒèó"Y¼´—€~m2”Øq#´ÕM5ˆZÕMÅQø¯7ÆeRBÈ7’ü£!Ro/®gÔyr$Åøº·ŒÎJ†Ş¯újµ$bB3¡ŞÙˆ5Æ¦ªRx–K6Z9Fø™:ò•<F¶´Iëj8|§2?;v@ÍæŞf{TÀ0¡AŒSé8x>M/5>zw&hóJR•¦7\?Mrê›IHäùÔ+Šc#£ßÿÔ‹ê.z‡äÀÂ÷Èî"mıx¢õê—Oo~d‡næQ†Óæ­¶<xéÃl‹•îÙãEJ€‰û•º%ı,İS|á©²[Q
+ãÍ1üà™§ıJıå.+îÄM1Xç¦|ë6¾}­48dEZ…µX“‚M›ëËÂo+~#sëq*v$ñÉÔ6ïêuVqÿw6oåÉpÁ]Ô.Sn0¯XÉeSçØäw®LÌmŠ(<çÒ7èEbÎ‘@Á£ìŸ™›ß_ì-›·ETÑ]F7XQÔ<yC±fña;_ûÍÁÜ¼Ôô_rŸl!ş•ë—©³#äuÇ¬t+ç(oqAñtÀzÅÃÂDUå&Í Ùäƒq.˜GÆæ±9da½äöº¥Õg™Ø./2·çËj_Up{^”ÿšîéZ=°òó·ÂT—MÔ«]÷ûıêV² ¦íÄ	oD[‹‹}æ’VÆ7Èî®•°¨™KE¡øõ˜é
+ßÎÏæ?:|‡êŠŒ¸R‚­hœdÍ¥®Ò©bz°ÅIN¨,uÙÃ‰œöJï(±ÙUøs8I³$íÅI}O®°æ¸Ş…èˆÁ²^b½(¹h…+åõšQWšW ÅêC£óo÷?‘­"è‰
+üEU¯._=ú"NòÑŒ\ÌîjØv¬•›ÍùZÆ·/™óµs/ö½Ô/½¨;ÜBj0h|Ù#Ú<Ò:Ê•kà_5„¹Aã¯à&·Z¬jè¡^»XÄ5êz­®˜‡¨™3t¥X_*àğ“F&¯©¬r³(Nm¶¯aÛ‘êx…Øae¼g»»yAè‚(kÏ»ÕHÁC“Ša®-Ó.âÁ©ŞŒKÔƒ{;,†5.¨³ÙëD„E¸
+*¢zµ¼-÷z¶x#vÜV­^¤x{´SsÇê)¬Ù.Y{+· ÓØÖÒİeg®|ä¨®;îÃîù²¿1œÔ^ƒP²fã$¾ÿù2 İåVòxYe´+Höf~®ñ*®7è%núHU‚zê,`¾¡Ú+
+ä/V†®ĞşåE˜$%®CjÊÖv·ĞTšÆ© rb2oÊµ˜rÙ¬»&k_Õæšµ0UÿÒu·Ÿ£0ïÎq¿ÚÜüñÒIÓ[K­lĞt«PÀDÓ˜ò¨é^â-ÈŒGƒj6s¥L¿íYŠÓNšå?8	Í*uÚXå´:YBİhÅN©UÒ«×S Eç×yZ¨%å9zâ¬^Ñ/`’dœ\¥ŞxŠÍ¸RÖº²ø Ò€‘ƒÛB¹©¬¨ît…ŠXõå
+óoBà;ÉYxQR3aõµsÌ²ø,¼nÚ
+(Nn47IŞP}¸R%Eã_SÅxVÿ$öè€z¬æC/¸ßÖD¨f÷©«[MÊÁ+Vw¿Z‘¬eª¤`èúù£wZéF3TCÖvMå±èĞ¡ÌL©&TKZ½Ö)ÔÃÒT;W-baNÆ45‰â0­AÕñ®­ÂÛ,ÄzÓşÕ\q¡pEÕKTKÃqƒÁÃœL«Õı‡U´mYÊÁÀqa
+iƒkÇ1¢ Ù¦w¨àÏU/Š®˜„‹Å ”/Uî°î\Uç][ZRó«‘U9ĞÈæ»ÇÛûŸ®û„õŸ	”Í6¸æ3×W•îy¬ùR˜wŒÂêèa	`ZUgİm’nÕ¥İÌª4¦äU%¾"¥»@aO‰Ïø×„–£GíQ'Ÿ¸A±ó—Ë<©ûÜ‰jr{¥NcàÍ8y[œĞáUèj¾ä´ŸFXtnÂ·–¤'«=l µ‡5û:]\ŞUÆíí´ÙÚ#ÅêsJc8­Ò?\z@{qjğ8áÉE`bÉŒ+ğQc3„ûî^¢{[rº;¿æ)x£‹¯ƒiIvtTñ>»±©x×@è•H&Å\Š #ZùŠÆe´°ëŒĞç\-Í;Akıeq*ˆ}.‚ğu™ãUñ»·„Q!,Ü†ÂÚ4!s´í‹Q”wbæ‹˜{JÌÓ¦ö+6bêğ†lÊQ$¼½Dƒû
+ İÁ‚ZƒôÈ ½W½õ>á°KH!%J7@kãï\õ“ø_£EÚZ
+m«Ôœ´ :ê~S³ú¬Ô±±*Òí)Ú ¸Ahœ„´ÖÎƒ}Â½™øumÊêÑ²˜-ä3h^8@Ÿ/ÛˆÊú²?NñGíå8¹Ê[MaÜ•:» ¬1[ [áGç	Ğ£Ïbá+Kw°L×nCu EÄƒJŠóªòØĞ|cy›ßÛQ¥j•ÿésß-6¹­Ç•ƒü®÷?Ídßp²F8­¢6k¨õ
+ª®ŸšI’›»DYØêIhl&Ù‡|#¹+VÅåŠ"áøáijÀÚšGâXú°¨"hö á+`)Bçı±Fªùl ±fBlÊí±]nY7Jû&“nYwS··J,£Ş¼V˜kM±dÂ$54ºfè—R+Ğ E¸áC¿¢C+äo´å!°lÍwA|1±<šLÄ‰ùI-c¦ohßo–±Ağª",7Nè1ÇØäÈSòt<8IêĞn¦fL“fpÎhNÕÜ’¬®Çm†W³‡·­0UºP³›Q.MØÅ³A$U˜(ßf?DÂî¯5ƒ‘ªûŸ­zƒÕYje]õÙİöâaÕÊZ‚‡TÔWáğÌæJMµ1P°9—æcPÎÇr}>fQIÃ}.¤RSüWÑ>8tƒÈoEÑL íŠo<~ÑãaàŒNì(«Ø‹jè*_h¸ n…Ô>ªr6°Ì£ÄZ²®fµ±ÅÆû}d,Üò·9>§Ù&­Á­á_‡Ü`­ñ‰ê­Áu˜;½SNÎ`èß§	évÿ(8Ë{ƒÅeÂôVÊ¯é‰Ñ7¹t‚şÆ§¬^…’B^bbÀ’ÑÔÒ»êÃ>ÎZJG³¶T6ââ˜ã	úÊs¤šİZ}M¦I:'WÈmzŞX”p•ïTîSó%Tb¼5~Pˆ±hÆıüCğºvİ;ìrÒ¨³ÉAß@@«fhê—P± 7k‹BZNße.wy(Ö?]Ttw[Z¸¨ğ=ì5ü-ú¥Ö„iOwÅU-ıñS kDû§AÇ¸¾•^BÖ/H+³®XI]`ÖKÔğëËåîÚ€.€GÁ¯‡R,éã•e\¤¨H+[®6¯¼¼)píª7x
+üÓ\ßAÏB*“!ôPª³BÛW”8­&¡›nD8gœ¢èÃwÙäş§4DÌè:x¹.•ù«gÏŸnŸà{k:~šÊwğ£Ghú
+¬‰ïA—àí% lÀZ¥‚’”Äç›†UÂŠÍˆxvë«ºø¸‹Z
+GN™"}ÿ´’ÕYH3i2Ğ©ƒ‘WE…ÖaB?N®%Ô>ÑAO°•9şêõüßêI¥uC¡‘ã¯vŸí®íâcÆ
+,dúmV—ò²›xHlÖ&á7Š9ª?Oo,ö+ïÊ)®$¼o'v}üßé™Ã—fsÄÜ¤á±<ğA*‘u;b‘±Upÿ3Ğ$"mÀŠKáIgtøşÚ1¾ğiİğ.İE×ÙŞØ2ÊÖ?RÜa/KfĞâ;ŠMó#´OÏXZ7œw¦lwÀ¿ijí´*6V¦™NAş‡áhATÌq^Z³‡N2©İjUØ–‰ØÌÿ#€yŞş'W Ñ?Lh¡¯|<y…Êá_–ß’À¢ég-·è&´2‹Ø¹Îƒå1„Â¾ŞÿW<½é$µKí«w˜t3,ZC‘'Èr@†!Å69Ï%¥áUˆ=úBÃñÇ®Üu
+‰G¼öÂô#,t“ sí¿¬ÄñS±ëüòü±¿Fáç¯I”ÿ‚¢B+±dçÙ³d5ÚåZÅé°ª Zš4K:Ø=q—=»’ƒÙzg¨=ª€ß wíùål=&®¡;P–Õü0…Yø(ŞèYŞhKóLÑôzñË…X´·•¯“"œ#8÷÷yè¦-û×$ÑkíEU™„Èj#7¡UğÍ‚¹ùŞ“Â¸ÈØKÉX>‘[ğÙÇb­ÌiÆòëñ ¿v2{¶uµ\ñ«@MtbƒÌ ¨V‘¤‚q±ë~¢qq;Ìİİ¿ü   ÿÿ å^æ
