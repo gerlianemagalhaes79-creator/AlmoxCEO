@@ -1,6 +1,3 @@
-import { TransactionModal } from './components/modals/TransactionModal';
-import { AddModal } from './components/modals/AddModal';
-import { DevolutionTab } from './components/tabs/DevolutionTab';
 import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
@@ -271,7 +268,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   O sistema continua armazenando suas altera√ß√µes e ativou a acelera√ß√£o por cache local no navegador.
                 </p>
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-6">
-                  <p className="text-xs font-bold text-amber-800 mb-1"> O que voc√™ pode fazer:</p>
+                  <p className="text-xs font-bold text-amber-800 mb-1">üí° O que voc√™ pode fazer:</p>
                   <ul className="text-[11px] text-amber-700 space-y-1 list-disc list-inside">
                     <li>Recarregue a p√°gina para utilizar os dados em cache no seu navegador.</li>
                     <li>As cotas di√°rias gratuitas s√£o renovadas automaticamente pelo Google Firebase a cada novo ciclo di√°rio.</li>
@@ -338,7 +335,7 @@ export default function App() {
   const [isEditingQuantitativoAnalysis, setIsEditingQuantitativoAnalysis] = useState(false);
   const quantitativoReportRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'history' | 'requests' | 'admin-devolutions' | 'reports' | 'my-requests' | 'new-request' | 'devolution' | 'users' | 'trash' | 'leader-stats'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'history' | 'requests' | 'reports' | 'my-requests' | 'new-request' | 'users' | 'trash' | 'leader-stats'>('dashboard');
   const leaderStatistics = useMemo(() => {
     if (userProfile?.role !== 'L√çDER' && userProfile?.role !== 'SETOR') return { topRequested: [], topDelivered: [] };
 
@@ -391,13 +388,7 @@ export default function App() {
   const [isDeletingTestData, setIsDeletingTestData] = useState(false);
   const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error' | 'info'}>({ show: false, message: '', type: 'info' });
   const [showRequestDetailModal, setShowRequestDetailModal] = useState<{show: boolean, request?: MaterialRequest}>({ show: false });
-  const [showDevolutionModal, setShowDevolutionModal] = useState<{show: boolean, request?: MaterialRequest}>({ show: false });
-  const [devolutionBasket, setDevolutionBasket] = useState<Array<{ product_id: string, product_name: string, quantity: number, maxQty: number, selectedBatchId: string }>>([]);
   const [selectedDevProduct, setSelectedDevProduct] = useState('');
-  const [devolutionReason, setDevolutionReason] = useState('N√£o teve uso');
-  const [devolutionObservation, setDevolutionObservation] = useState('');
-  const [isProcessingDevolution, setIsProcessingDevolution] = useState(false);
-  const [devolutionSubTab, setDevolutionSubTab] = useState<'my_returns' | 'eligible_deliveries' | 'sector_stock'>('my_returns');
   const [adminAddItemSearch, setAdminAddItemSearch] = useState('');
   const [isAdminAddingItem, setIsAdminAddingItem] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -445,7 +436,7 @@ export default function App() {
   }, [transactions]);
 
   // Request states
-  const [requestBasket, setRequestBasket] = useState<{product_id: string, product_name: string, quantity: number}[]>([]);
+  const [requestBasket, setRequestBasket] = useState<{product_id: string, product_name: string, quantity: number, batch_id?: string}[]>([]);
   const [requestObservation, setRequestObservation] = useState('');
   const [adminObservation, setAdminObservation] = useState('');
   const [isSyncingStock, setIsSyncingStock] = useState(false);
@@ -729,7 +720,14 @@ export default function App() {
   const [expiryReason, setExpiryReason] = useState('');
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [selectedItemName, setSelectedItemName] = useState<string>('');
-  const [basket, setBasket] = useState<{item_id: string, quantity: number}[]>([]);
+  const [basket, setBasket] = useState<{
+    item_id: string;
+    quantity: number;
+    name?: string;
+    batch_number?: string;
+    expiry_date?: string;
+    unit_measure?: string;
+  }[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [requestSearchTerm, setRequestSearchTerm] = useState('');
@@ -793,7 +791,15 @@ export default function App() {
   useEffect(() => {
     if (showTransactionModal.show) {
       if (showTransactionModal.type === 'exit' && showTransactionModal.item) {
-        setBasket([{ item_id: showTransactionModal.item.id, quantity: 1 }]);
+        const it = showTransactionModal.item;
+        setBasket([{
+          item_id: it.id!,
+          quantity: 1,
+          name: it.name,
+          batch_number: it.batch_number || '',
+          expiry_date: it.expiry_date || '',
+          unit_measure: it.unit_measure || ''
+        }]);
       }
     } else {
       setModalSearchTerm('');
@@ -1788,7 +1794,8 @@ export default function App() {
           product_id: item.product_id,
           product_name: item.product_name,
           quantity_requested: Math.max(1, Math.floor(Number(item.quantity) || 1)),
-          quantity_approved: Math.max(1, Math.floor(Number(item.quantity) || 1))
+          quantity_approved: Math.max(1, Math.floor(Number(item.quantity) || 1)),
+          batch_id: item.batch_id || ''
         });
       });
 
@@ -1834,11 +1841,12 @@ export default function App() {
 
   const handleEditRequest = (request: MaterialRequest) => {
     setSelectedSector(request.sector);
-    const items = allRequestItems.filter(ri => ri.request_id === request.id);
-    setRequestBasket(items.map(i => ({
+    const reqItems = allRequestItems.filter(ri => ri.request_id === request.id);
+    setRequestBasket(reqItems.map(i => ({
       product_id: i.product_id,
       product_name: i.product_name,
-      quantity: i.quantity_requested
+      quantity: i.quantity_requested,
+      batch_id: i.batch_id || ''
     })));
     setRequestObservation(request.observation || '');
     setEditingRequest(request);
@@ -1961,7 +1969,7 @@ export default function App() {
         </head>
         <body>
           ${filteredRequests.map((req, idx) => {
-            const items = allRequestItems.filter(ri => ri.request_id === req.id);
+            const reqItems = allRequestItems.filter(ri => ri.request_id === req.id);
             return `
               <div class="request-card">
                 <h1>Solicita√ß√£o de Material</h1>
@@ -1991,14 +1999,48 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    ${items.map(item => `
-                      <tr>
-                        <td style="font-weight: bold; font-size: 8.5px;">${item.product_name}</td>
-                        <td style="text-align: center; font-size: 8.5px; font-weight: bold;">${item.quantity_requested}</td>
-                        <td class="blank-col" style="border-bottom: 1px solid #1C1917;"></td>
-                        <td style="border-bottom: 1px solid #1C1917;"></td>
-                      </tr>
-                    `).join('')}
+                    ${reqItems.map(item => {
+                      const activeBatches = items.filter((it: any) => !it.deletedAt && normalizeString(it.name) === normalizeString(item.product_name) && (it.quantity || 0) > 0);
+                      const hasMultipleBatches = activeBatches.length > 1;
+                      const selectedBatch = item.batch_id ? items.find((it: any) => it.id === item.batch_id) : null;
+                      
+                      let lotesInfoHtml = '';
+                      if (selectedBatch) {
+                        lotesInfoHtml = `<div style="font-size: 8px; color: #1D4ED8; font-weight: bold; margin-top: 2px;">‚Ä¢ Lote Solicitado: <strong>${selectedBatch.batch_number || 'Sem Lote'}</strong> (Disp: ${selectedBatch.quantity} un | Venc: ${selectedBatch.expiry_date || 'Indet.'})</div>`;
+                      } else if (hasMultipleBatches) {
+                        lotesInfoHtml = `
+                          <div style="font-size: 8px; color: #B45309; font-weight: bold; margin-top: 2px; background-color: #FEF3C7; padding: 2px 4px; border-radius: 3px; display: inline-block;">
+                            ‚ö†Ô∏è Aten√ß√£o: ${activeBatches.length} Lotes no Estoque
+                          </div>
+                          <div style="font-size: 7.5px; color: #44403C; margin-top: 2px; padding-left: 4px; border-left: 2px solid #F59E0B;">
+                            ${activeBatches.map((b: any) => `‚Ä¢ Lote: <strong>${b.batch_number || 'S/L'}</strong> (Disp: ${b.quantity} un | Venc: ${b.expiry_date || 'Indet.'})`).join('<br/>')}
+                          </div>
+                        `;
+                      } else if (activeBatches.length === 1 && activeBatches[0].batch_number) {
+                        lotesInfoHtml = `<div style="font-size: 8px; color: #57534E; margin-top: 2px;">‚Ä¢ Lote: ${activeBatches[0].batch_number} (Disp: ${activeBatches[0].quantity} un | Venc: ${activeBatches[0].expiry_date || 'Indet.'})</div>`;
+                      }
+
+                      let obsLoteCol = '';
+                      if (selectedBatch) {
+                        obsLoteCol = `<strong>${selectedBatch.batch_number || '---'}</strong>`;
+                      } else if (hasMultipleBatches) {
+                        obsLoteCol = `<span style="font-size: 7.5px; color: #B45309; font-weight: bold;">[M√∫ltiplos Lotes]<br/>Anotar Lote: _________</span>`;
+                      } else if (activeBatches.length === 1) {
+                        obsLoteCol = activeBatches[0].batch_number || '---';
+                      }
+
+                      return `
+                        <tr>
+                          <td style="font-size: 8.5px; vertical-align: top;">
+                            <strong>${item.product_name}</strong>
+                            ${lotesInfoHtml}
+                          </td>
+                          <td style="text-align: center; font-size: 8.5px; font-weight: bold; vertical-align: top;">${item.quantity_requested}</td>
+                          <td class="blank-col" style="border-bottom: 1px solid #1C1917; vertical-align: top;"></td>
+                          <td style="border-bottom: 1px solid #1C1917; font-size: 8px; vertical-align: top;">${obsLoteCol}</td>
+                        </tr>
+                      `;
+                    }).join('')}
                   </tbody>
                 </table>
 
@@ -2100,7 +2142,7 @@ export default function App() {
       return;
     }
 
-    const items = allRequestItems.filter(ri => ri.request_id === request.id);
+    const reqItems = allRequestItems.filter(ri => ri.request_id === request.id);
     const dateStr = new Date(request.date).toLocaleDateString('pt-BR');
 
     const content = `
@@ -2152,14 +2194,48 @@ export default function App() {
               </tr>
             </thead>
             <tbody>
-              ${items.map(item => `
-                <tr>
-                  <td style="font-weight: bold;">${item.product_name}</td>
-                  <td style="text-align: center; font-size: 14px; font-weight: bold;">${item.quantity_requested}</td>
-                  <td class="blank-col" style="border-bottom: 1px solid #1C1917;"></td>
-                  <td style="border-bottom: 1px solid #1C1917;"></td>
-                </tr>
-              `).join('')}
+              ${reqItems.map(item => {
+                const activeBatches = items.filter((it: any) => !it.deletedAt && normalizeString(it.name) === normalizeString(item.product_name) && (it.quantity || 0) > 0);
+                const hasMultipleBatches = activeBatches.length > 1;
+                const selectedBatch = item.batch_id ? items.find((it: any) => it.id === item.batch_id) : null;
+                
+                let lotesInfoHtml = '';
+                if (selectedBatch) {
+                  lotesInfoHtml = `<div style="font-size: 11px; color: #1D4ED8; font-weight: bold; margin-top: 4px;">‚Ä¢ Lote Solicitado: <strong>${selectedBatch.batch_number || 'Sem Lote'}</strong> (Disp: ${selectedBatch.quantity} un | Venc: ${selectedBatch.expiry_date || 'Indeterminado'})</div>`;
+                } else if (hasMultipleBatches) {
+                  lotesInfoHtml = `
+                    <div style="font-size: 11px; color: #B45309; font-weight: bold; margin-top: 4px; background-color: #FEF3C7; padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                      ‚ö†Ô∏è Aten√ß√£o: Material com ${activeBatches.length} Lotes no Estoque
+                    </div>
+                    <div style="font-size: 10.5px; color: #44403C; margin-top: 4px; padding-left: 6px; border-left: 3px solid #F59E0B;">
+                      ${activeBatches.map((b: any) => `‚Ä¢ Lote: <strong>${b.batch_number || 'S/L'}</strong> (Saldo: ${b.quantity} un | Venc: ${b.expiry_date || 'Indeterminado'})`).join('<br/>')}
+                    </div>
+                  `;
+                } else if (activeBatches.length === 1 && activeBatches[0].batch_number) {
+                  lotesInfoHtml = `<div style="font-size: 11px; color: #57534E; margin-top: 3px;">‚Ä¢ Lote Dispon√≠vel: ${activeBatches[0].batch_number} (Saldo: ${activeBatches[0].quantity} un | Venc: ${activeBatches[0].expiry_date || 'Indet.'})</div>`;
+                }
+
+                let obsLoteCol = '';
+                if (selectedBatch) {
+                  obsLoteCol = `<strong>${selectedBatch.batch_number || '---'}</strong>`;
+                } else if (hasMultipleBatches) {
+                  obsLoteCol = `<span style="font-size: 10px; color: #B45309; font-weight: bold;">[M√∫ltiplos Lotes]<br/>Anotar Lote: _____________</span>`;
+                } else if (activeBatches.length === 1) {
+                  obsLoteCol = activeBatches[0].batch_number || '---';
+                }
+
+                return `
+                  <tr>
+                    <td style="font-size: 12px; vertical-align: top;">
+                      <strong>${item.product_name}</strong>
+                      ${lotesInfoHtml}
+                    </td>
+                    <td style="text-align: center; font-size: 13px; font-weight: bold; vertical-align: top;">${item.quantity_requested}</td>
+                    <td class="blank-col" style="border-bottom: 1px solid #1C1917; vertical-align: top;"></td>
+                    <td style="border-bottom: 1px solid #1C1917; font-size: 11px; vertical-align: top;">${obsLoteCol}</td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>
 
@@ -2226,6 +2302,12 @@ export default function App() {
           if (b.expiry_date === 'Indeterminada' || !b.expiry_date) return -1;
           return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
         });
+        if (reqItem.batch_id) {
+          const chosenBatch = batches.find(b => b.id === reqItem.batch_id);
+          if (chosenBatch) {
+            batches = [chosenBatch, ...batches.filter(b => b.id !== reqItem.batch_id)];
+          }
+        }
 
         let pharmItems: any[] = [];
         if (requestData.sector === 'Farm√°cia') {
@@ -2236,6 +2318,8 @@ export default function App() {
 
         itemsStockData.push({ reqItem, batches, pharmItems });
       }
+
+      const itemBatchesAllocated: Record<string, string[]> = {};
 
       await runTransaction(db, async (transaction) => {
         // Collect all batch and pharmacy refs to read them all first
@@ -2292,6 +2376,15 @@ export default function App() {
               quantity: currentQty - toTake,
               updatedAt: serverTimestamp()
             });
+
+            if (batch.batch_number) {
+              if (!itemBatchesAllocated[reqItem.product_name]) {
+                itemBatchesAllocated[reqItem.product_name] = [];
+              }
+              if (!itemBatchesAllocated[reqItem.product_name].includes(batch.batch_number)) {
+                itemBatchesAllocated[reqItem.product_name].push(batch.batch_number);
+              }
+            }
 
             // Log Transaction
             const transRef = doc(collection(db, 'transactions'));
@@ -2367,29 +2460,13 @@ export default function App() {
       }
 
       // Receipt
-      const itemsForReceipt: { product_name: string; quantity: number; batch_number: string }[] = [];
-      for (const { reqItem, batches } of itemsStockData) {
-        let remaining = reqItem.quantity_approved;
-        for (const batch of batches) {
-          if (remaining <= 0) break;
-          const available = batch.quantity || 0;
-          if (available <= 0) continue;
-          const toTake = Math.min(available, remaining);
-          itemsForReceipt.push({
-            product_name: reqItem.product_name,
-            quantity: toTake,
-            batch_number: batch.batch_number || '---'
-          });
-          remaining -= toTake;
-        }
-        if (remaining > 0 && !itemsForReceipt.some(i => i.product_name === reqItem.product_name)) {
-          itemsForReceipt.push({
-            product_name: reqItem.product_name,
-            quantity: reqItem.quantity_approved,
-            batch_number: '---'
-          });
-        }
-      }
+      const itemsForReceipt = currentRequestItems.filter(i => i.quantity_approved > 0).map(i => ({
+        product_name: i.product_name,
+        quantity: i.quantity_approved,
+        batch_number: (itemBatchesAllocated[i.product_name] && itemBatchesAllocated[i.product_name].length > 0)
+          ? itemBatchesAllocated[i.product_name].join(', ')
+          : (items.find(it => it.name === i.product_name && it.batch_number)?.batch_number || '---')
+      }));
       if (itemsForReceipt.length > 0) {
         handleExportDeliveryReceiptPDF({
           sector: requestData.sector,
@@ -2405,426 +2482,8 @@ export default function App() {
     }
   };
 
-  const handleRequestDevolution = async () => {
-    if (devolutionBasket.length === 0) {
-      showToast("Por favor, adicione pelo menos um item √† devolu√ß√£o.", "info");
-      return;
-    }
 
-    // Validate quantities
-    for (const item of devolutionBasket) {
-      if (item.quantity <= 0) {
-        showToast(`Por favor, insira uma quantidade maior que zero para ${item.product_name}.`, "error");
-        return;
-      }
-      if (item.quantity > item.maxQty) {
-        showToast(`Quantidade inv√°lida para ${item.product_name}. M√°ximo permitido: ${item.maxQty}`, "error");
-        return;
-      }
-    }
 
-    try {
-      setIsProcessingDevolution(true);
-      showToast("Enviando solicita√ß√£o de devolu√ß√£o...", "info");
-
-      const batch = writeBatch(db);
-      const newReqRef = doc(collection(db, 'requests'));
-      
-      const requestData = {
-        sector: selectedSector,
-        date: new Date().toISOString(),
-        status: 'DEVOLUCAO_PENDENTE',
-        isReturn: true,
-        originalRequestId: showDevolutionModal.request?.id || '',
-        returnReason: devolutionReason,
-        observation: devolutionObservation || '',
-        requesterEmail: user?.email || '',
-        requesterName: userProfile?.name || user?.displayName || user?.email || 'Usu√°rio',
-        isNewFlow: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      batch.set(newReqRef, requestData);
-
-      devolutionBasket.forEach((item) => {
-        const itemRef = doc(collection(db, 'request_items'));
-        const productBatches = items.filter(i => !i.deletedAt && i.name.trim().toLowerCase() === item.product_name.trim().toLowerCase());
-        const validBatchId = (item.selectedBatchId && productBatches.some(b => b.id === item.selectedBatchId))
-          ? item.selectedBatchId
-          : (productBatches[0]?.id || '');
-
-        batch.set(itemRef, {
-          request_id: newReqRef.id,
-          product_id: item.product_id,
-          product_name: item.product_name,
-          quantity_requested: item.quantity,
-          quantity_approved: item.quantity,
-          batch_id: validBatchId
-        });
-      });
-
-      // Notify administrators
-      try {
-        const adminSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'ADMIN')));
-        adminSnap.forEach(adminDoc => {
-          const notifRef = doc(collection(db, 'notifications'));
-          batch.set(notifRef, {
-            userId: adminDoc.id,
-            title: 'Solicita√ß√£o de Devolu√ß√£o',
-            message: `Setor ${selectedSector} solicitou devolu√ß√£o de materiais.`,
-            date: new Date().toISOString(),
-            read: false,
-            requestId: newReqRef.id,
-            type: 'REQUEST'
-          });
-        });
-      } catch (e) {
-        console.warn("Aviso ao notificar administradores:", e);
-      }
-
-      await batch.commit();
-
-      showToast("Solicita√ß√£o de devolu√ß√£o enviada para o almoxarifado!", "success");
-      setShowDevolutionModal({ show: false });
-      setDevolutionBasket([]);
-      setDevolutionObservation('');
-      
-      if (showRequestDetailModal.show && showDevolutionModal.request && showRequestDetailModal.request?.id === showDevolutionModal.request.id) {
-        setShowRequestDetailModal({ show: false });
-      }
-
-    } catch (error: any) {
-      console.error("Erro ao solicitar devolu√ß√£o:", error);
-      showToast(`Erro ao solicitar devolu√ß√£o: ${error.message}`, "error");
-    } finally {
-      setIsProcessingDevolution(false);
-    }
-  };
-
-  const handleApproveDevolution = async (requestId: string, devItems: RequestItem[]) => {
-    try {
-      setIsProcessingDevolution(true);
-      showToast("Aprovando devolu√ß√£o e retornando ao estoque...", "info");
-
-      // Fetch active stock items
-      const itemsSnapshot = await getDocs(collection(db, 'items'));
-      const allActiveItems = itemsSnapshot.docs
-        .map(d => ({ id: d.id, ...d.data() } as Item))
-        .filter(i => !i.deletedAt);
-
-      await runTransaction(db, async (transaction) => {
-        const requestRef = doc(db, 'requests', requestId);
-        const requestSnap = await transaction.get(requestRef);
-        if (!requestSnap.exists()) throw new Error("Solicita√ß√£o de devolu√ß√£o n√£o encontrada.");
-        const requestData = requestSnap.data() as MaterialRequest;
-
-        if (requestData.status === 'DEVOLUCAO_APROVADA') {
-          throw new Error("Esta devolu√ß√£o j√° foi aprovada anteriormente.");
-        }
-
-        // Collect all doc IDs that we need to read in the transaction:
-        // 1) Sector source items (Farm√°cia / Requesting sector)
-        // 2) Almoxarifado target items
-        const docIdsToRead = new Set<string>();
-
-        for (const item of devItems) {
-          const returnQty = item.quantity_approved || item.quantity_requested || 0;
-          if (returnQty <= 0) continue;
-
-          // Find source item in sector stock
-          if (item.batch_id && allActiveItems.some(i => i.id === item.batch_id)) {
-            docIdsToRead.add(item.batch_id);
-          }
-          const sectorItem = allActiveItems.find(i => 
-            i.name.trim().toLowerCase() === item.product_name.trim().toLowerCase() && 
-            i.location === requestData.sector
-          );
-          if (sectorItem) {
-            docIdsToRead.add(sectorItem.id);
-          }
-
-          // Find target item in Almoxarifado stock
-          const almoxItem = allActiveItems.find(i => 
-            i.name.trim().toLowerCase() === item.product_name.trim().toLowerCase() && 
-            (!i.location || i.location === 'Almoxarifado')
-          );
-          if (almoxItem) {
-            docIdsToRead.add(almoxItem.id);
-          }
-        }
-
-        // Read all docs inside transaction
-        const snapMap = new Map<string, any>();
-        for (const id of docIdsToRead) {
-          const itemRef = doc(db, 'items', id);
-          const snap = await transaction.get(itemRef);
-          snapMap.set(id, snap);
-        }
-
-        // Now perform transaction writes
-        for (const item of devItems) {
-          const returnQty = item.quantity_approved || item.quantity_requested || 0;
-          if (returnQty <= 0) continue;
-
-          // 1. DECREASE stock in sector (e.g., Farm√°cia)
-          let sourceItemDoc: { id: string, data: Item } | undefined;
-
-          // Check if item.batch_id is a valid sector item
-          if (item.batch_id && snapMap.has(item.batch_id)) {
-            const snap = snapMap.get(item.batch_id);
-            if (snap && snap.exists()) {
-              const data = snap.data() as Item;
-              if (data.location === requestData.sector) {
-                sourceItemDoc = { id: item.batch_id, data };
-              }
-            }
-          }
-
-          // Fallback search for sector item by name & location
-          if (!sourceItemDoc) {
-            for (const [id, snap] of snapMap.entries()) {
-              if (snap && snap.exists()) {
-                const data = snap.data() as Item;
-                if (data.location === requestData.sector && data.name.trim().toLowerCase() === item.product_name.trim().toLowerCase()) {
-                  sourceItemDoc = { id, data };
-                  break;
-                }
-              }
-            }
-          }
-
-          if (sourceItemDoc) {
-            const sourceRef = doc(db, 'items', sourceItemDoc.id);
-            const currentQty = Number(sourceItemDoc.data.quantity) || 0;
-            const newQty = Math.max(0, currentQty - returnQty);
-            transaction.update(sourceRef, {
-              quantity: newQty,
-              updatedAt: serverTimestamp()
-            });
-            sourceItemDoc.data.quantity = newQty; // update in-memory
-          }
-
-          // 2. INCREASE stock in Almoxarifado
-          let almoxItemDoc: { id: string, data: Item } | undefined;
-          for (const [id, snap] of snapMap.entries()) {
-            if (snap && snap.exists()) {
-              const data = snap.data() as Item;
-              if ((!data.location || data.location === 'Almoxarifado') && data.name.trim().toLowerCase() === item.product_name.trim().toLowerCase()) {
-                almoxItemDoc = { id, data };
-                break;
-              }
-            }
-          }
-
-          let almoxRef: DocumentReference;
-          let batchNumber = sourceItemDoc?.data.batch_number || 'Devolu√ß√£o';
-          let expiryDate = sourceItemDoc?.data.expiry_date || 'Indeterminada';
-          let category = sourceItemDoc?.data.category || 'Medicamentos';
-          let unitMeasure = sourceItemDoc?.data.unit_measure || 'Unidade (UN)';
-
-          if (almoxItemDoc) {
-            almoxRef = doc(db, 'items', almoxItemDoc.id);
-            const currentAlmoxQty = Number(almoxItemDoc.data.quantity) || 0;
-            const newAlmoxQty = currentAlmoxQty + returnQty;
-            transaction.update(almoxRef, {
-              quantity: newAlmoxQty,
-              updatedAt: serverTimestamp()
-            });
-            almoxItemDoc.data.quantity = newAlmoxQty; // update in-memory
-          } else {
-            // Create new stock item in Almoxarifado if none exists
-            const newStockRef = doc(collection(db, 'items'));
-            almoxRef = newStockRef;
-            transaction.set(newStockRef, {
-              name: item.product_name,
-              quantity: returnQty,
-              min_quantity: 10,
-              category: category,
-              unit: 'unid',
-              unit_measure: unitMeasure,
-              location: 'Almoxarifado',
-              origin: 'extra',
-              batch_number: batchNumber,
-              expiry_date: expiryDate,
-              entry_date: new Date().toISOString(),
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            });
-          }
-
-          // 3. Log entry transaction for Almoxarifado
-          const transRefEntry = doc(collection(db, 'transactions'));
-          transaction.set(transRefEntry, {
-            item_id: almoxRef.id,
-            item_name: item.product_name,
-            type: 'entry',
-            origin: 'extra',
-            quantity: returnQty,
-            sector: requestData.sector,
-            location: 'Almoxarifado',
-            date: new Date().toISOString(),
-            responsible: userProfile?.name || user?.displayName || user?.email || 'Administrador',
-            responsibleEmail: user?.email,
-            batch_number: batchNumber,
-            expiry_date: expiryDate,
-            isReturn: true,
-            returnReason: requestData.returnReason || 'N√£o especificado',
-            observation: requestData.observation || ''
-          });
-
-          // 4. Log exit transaction for Sector/Farm√°cia
-          const transRefExit = doc(collection(db, 'transactions'));
-          transaction.set(transRefExit, {
-            item_id: sourceItemDoc ? sourceItemDoc.id : almoxRef.id,
-            item_name: item.product_name,
-            type: 'exit',
-            origin: 'extra',
-            quantity: returnQty,
-            sector: requestData.sector,
-            location: requestData.sector,
-            date: new Date().toISOString(),
-            responsible: userProfile?.name || user?.displayName || user?.email || 'Administrador',
-            responsibleEmail: user?.email,
-            exitReason: 'vencido',
-            expiryReason: requestData.returnReason || 'Devolu√ß√£o ao Almoxarifado',
-            batch_number: batchNumber,
-            expiry_date: expiryDate,
-            isReturn: true
-          });
-        }
-
-        // Update main request status
-        transaction.update(requestRef, {
-          status: 'DEVOLUCAO_APROVADA',
-          adminObservation: adminObservation || '',
-          approvedAt: new Date().toISOString(),
-          approvedBy: user?.email || 'Administrador',
-          updatedAt: serverTimestamp()
-        });
-      });
-
-      // Post-transaction updates: update quantity_returned on original request items
-      const requestSnap = await getDoc(doc(db, 'requests', requestId));
-      const requestData = requestSnap?.data() as MaterialRequest | undefined;
-      if (requestData) {
-        const batch = writeBatch(db);
-        if (requestData.originalRequestId) {
-          const origItemsSnap = await getDocs(query(collection(db, 'request_items'), where('request_id', '==', requestData.originalRequestId)));
-          origItemsSnap.docs.forEach(d => {
-            const origItem = d.data() as RequestItem;
-            const matchedDevItem = devItems.find(di => di.product_name.trim().toLowerCase() === origItem.product_name.trim().toLowerCase());
-            if (matchedDevItem) {
-              const returnQty = matchedDevItem.quantity_approved || matchedDevItem.quantity_requested || 0;
-              const currentReturned = origItem.quantity_returned || 0;
-              batch.update(d.ref, {
-                quantity_returned: currentReturned + returnQty
-              });
-            }
-          });
-        } else {
-          // Direct flow: find and update ENTREGUE requests for this sector matching product_name
-          const sectorReqsSnap = await getDocs(query(
-            collection(db, 'requests'), 
-            where('sector', '==', requestData.sector),
-            where('status', '==', 'ENTREGUE')
-          ));
-          const sectorReqIds = sectorReqsSnap.docs.map(d => d.id);
-          if (sectorReqIds.length > 0) {
-            for (const matchedDevItem of devItems) {
-              const returnQty = matchedDevItem.quantity_approved || matchedDevItem.quantity_requested || 0;
-              if (returnQty <= 0) continue;
-
-              const origItemsSnap = await getDocs(query(
-                collection(db, 'request_items'),
-                where('product_name', '==', matchedDevItem.product_name)
-              ));
-
-              let remainingToDistribute = returnQty;
-              for (const d of origItemsSnap.docs) {
-                const origItem = d.data() as RequestItem;
-                if (sectorReqIds.includes(origItem.request_id)) {
-                  const maxCanReturn = origItem.quantity_approved - (origItem.quantity_returned || 0);
-                  if (maxCanReturn > 0 && remainingToDistribute > 0) {
-                    const toReturn = Math.min(maxCanReturn, remainingToDistribute);
-                    batch.update(d.ref, {
-                      quantity_returned: (origItem.quantity_returned || 0) + toReturn
-                    });
-                    remainingToDistribute -= toReturn;
-                  }
-                }
-              }
-            }
-          }
-        }
-        await batch.commit();
-      }
-
-      // Notify the requester
-      if (requestData && requestData.requesterEmail) {
-        const userSnap = await getDocs(query(collection(db, 'users'), where('email', '==', requestData.requesterEmail)));
-        if (!userSnap.empty) {
-          await addDoc(collection(db, 'notifications'), {
-            userId: userSnap.docs[0].id,
-            title: 'Devolu√ß√£o Aprovada',
-            message: `Sua solicita√ß√£o de devolu√ß√£o para o setor ${requestData.sector} foi aprovada. Os materiais retornaram ao estoque.`,
-            date: new Date().toISOString(),
-            read: false,
-            requestId: requestId,
-            type: 'REQUEST'
-          });
-        }
-      }
-
-      showToast("Devolu√ß√£o aprovada com sucesso! Materiais retornados ao estoque.", "success");
-      setShowRequestDetailModal({ show: false });
-
-    } catch (error: any) {
-      console.error("Erro ao aprovar devolu√ß√£o:", error);
-      showToast(`Erro ao aprovar devolu√ß√£o: ${error.message}`, "error");
-    } finally {
-      setIsProcessingDevolution(false);
-    }
-  };
-
-  const handleRejectDevolution = async (requestId: string) => {
-    try {
-      setIsProcessingDevolution(true);
-      showToast("Recusando devolu√ß√£o...", "info");
-
-      await updateDoc(doc(db, 'requests', requestId), {
-        status: 'DEVOLUCAO_RECUSADA',
-        adminObservation: adminObservation || '',
-        updatedAt: serverTimestamp()
-      });
-
-      // Notify requester
-      const requestSnap = await getDoc(doc(db, 'requests', requestId));
-      const requestData = requestSnap.data() as MaterialRequest | undefined;
-      if (requestData && requestData.requesterEmail) {
-        const userSnap = await getDocs(query(collection(db, 'users'), where('email', '==', requestData.requesterEmail)));
-        if (!userSnap.empty) {
-          await addDoc(collection(db, 'notifications'), {
-            userId: userSnap.docs[0].id,
-            title: 'Devolu√ß√£o Recusada',
-            message: `Sua solicita√ß√£o de devolu√ß√£o para o setor ${requestData.sector} foi recusada pelo almoxarifado.`,
-            date: new Date().toISOString(),
-            read: false,
-            requestId: requestId,
-            type: 'REQUEST'
-          });
-        }
-      }
-
-      showToast("Devolu√ß√£o recusada com sucesso.", "success");
-      setShowRequestDetailModal({ show: false });
-    } catch (error: any) {
-      console.error("Erro ao recusar devolu√ß√£o:", error);
-      showToast(`Erro ao recusar devolu√ß√£o: ${error.message}`, "error");
-    } finally {
-      setIsProcessingDevolution(false);
-    }
-  };
 
   const handleApproveRequest = async (requestId: string, items: RequestItem[]) => {
     try {
@@ -2898,6 +2557,12 @@ export default function App() {
           if (b.expiry_date === 'Indeterminada' || !b.expiry_date) return -1;
           return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
         });
+        if (reqItem.batch_id) {
+          const chosenBatch = batches.find(b => b.id === reqItem.batch_id);
+          if (chosenBatch) {
+            batches = [chosenBatch, ...batches.filter(b => b.id !== reqItem.batch_id)];
+          }
+        }
 
         let pharmItems: any[] = [];
         if (requestData.sector === 'Farm√°cia') {
@@ -2908,6 +2573,8 @@ export default function App() {
 
         itemsStockData.push({ reqItem, batches, pharmItems });
       }
+
+      const itemBatchesAllocated: Record<string, string[]> = {};
 
       await runTransaction(db, async (transaction) => {
         // Collect all batch and pharmacy refs to read them all first
@@ -2956,6 +2623,15 @@ export default function App() {
               quantity: currentQty - toTake,
               updatedAt: serverTimestamp()
             });
+
+            if (batch.batch_number) {
+              if (!itemBatchesAllocated[reqItem.product_name]) {
+                itemBatchesAllocated[reqItem.product_name] = [];
+              }
+              if (!itemBatchesAllocated[reqItem.product_name].includes(batch.batch_number)) {
+                itemBatchesAllocated[reqItem.product_name].push(batch.batch_number);
+              }
+            }
 
             // Log Transaction
             const transRef = doc(collection(db, 'transactions'));
@@ -3031,29 +2707,13 @@ export default function App() {
       }
 
       // Receipt
-      const itemsForReceipt: { product_name: string; quantity: number; batch_number: string }[] = [];
-      for (const { reqItem, batches } of itemsStockData) {
-        let remaining = reqItem.quantity_approved;
-        for (const batch of batches) {
-          if (remaining <= 0) break;
-          const available = batch.quantity || 0;
-          if (available <= 0) continue;
-          const toTake = Math.min(available, remaining);
-          itemsForReceipt.push({
-            product_name: reqItem.product_name,
-            quantity: toTake,
-            batch_number: batch.batch_number || '---'
-          });
-          remaining -= toTake;
-        }
-        if (remaining > 0 && !itemsForReceipt.some(i => i.product_name === reqItem.product_name)) {
-          itemsForReceipt.push({
-            product_name: reqItem.product_name,
-            quantity: reqItem.quantity_approved,
-            batch_number: '---'
-          });
-        }
-      }
+      const itemsForReceipt = requestItems.filter(i => i.quantity_approved > 0).map(i => ({
+        product_name: i.product_name,
+        quantity: i.quantity_approved,
+        batch_number: (itemBatchesAllocated[i.product_name] && itemBatchesAllocated[i.product_name].length > 0)
+          ? itemBatchesAllocated[i.product_name].join(', ')
+          : (items.find(it => it.name === i.product_name && it.batch_number)?.batch_number || '---')
+      }));
       handleExportDeliveryReceiptPDF({
         sector: requestData.sector,
         items: itemsForReceipt,
@@ -3237,9 +2897,43 @@ export default function App() {
     e.preventDefault();
     
     try {
-      if (showTransactionModal.type === 'exit') {
-        if (basket.length === 0) return;
-        
+      const isExit = showTransactionModal.type === 'exit';
+      const targetDestinationSector = modalSector?.trim() || '';
+
+      if (isExit) {
+        if (basket.length === 0) {
+          showToast('Adicione pelo menos um item √† lista de sa√≠da.', 'error');
+          return;
+        }
+
+        if (exitReason === 'consumo' && (!targetDestinationSector || targetDestinationSector === 'Almoxarifado')) {
+          showToast('Por favor, selecione um setor de destino v√°lido.', 'error');
+          return;
+        }
+
+        if (exitReason === 'doacao' && !targetDestinationSector) {
+          showToast('Por favor, informe a unidade receptora da doa√ß√£o.', 'error');
+          return;
+        }
+      }
+
+      const finalSectorValue = targetDestinationSector || (
+        exitReason === 'vencido' ? 'Descarte/Vencimento' :
+        exitReason === 'perda' ? 'Perda/Avaria' :
+        exitReason === 'doacao' ? 'Doa√ß√£o Externa' :
+        (inventoryLocation === 'Farm√°cia' ? 'Farm√°cia (Consumo Interno)' : 'Sem Setor Definido')
+      );
+
+      const exitReceiptItems: {
+        product_name: string;
+        quantity: number;
+        batch_number: string;
+        expiry_date?: string;
+        unit_measure?: string;
+      }[] = [];
+
+      if (isExit) {
+
         await runTransaction(db, async (transaction) => {
           const processedItems = [];
           
@@ -3258,7 +2952,7 @@ export default function App() {
             }
 
             let pharmacyItemSnap = null;
-            if (selectedSector === 'Farm√°cia' && exitReason === 'consumo') {
+            if ((finalSectorValue === 'Farm√°cia' || finalSectorValue === 'Farm√°cia (Consumo Interno)') && exitReason === 'consumo') {
               const pharmacyItemsQuery = query(
                 collection(db, 'items'),
                 where('name', '==', currentItemData.name),
@@ -3293,6 +2987,29 @@ export default function App() {
               updatedAt: serverTimestamp()
             });
 
+            // Resolve exact registered batch number
+            let resolvedBatch = (currentItemData.batch_number && currentItemData.batch_number.trim() !== '')
+              ? currentItemData.batch_number.trim()
+              : '';
+
+            if (!resolvedBatch) {
+              const matchingItem = items.find(it =>
+                it.name.trim().toLowerCase() === currentItemData.name.trim().toLowerCase() &&
+                it.batch_number && it.batch_number.trim() !== '' && it.batch_number !== '---'
+              );
+              if (matchingItem?.batch_number) {
+                resolvedBatch = matchingItem.batch_number.trim();
+              }
+            }
+
+            exitReceiptItems.push({
+              product_name: currentItemData.name,
+              quantity: quantity,
+              batch_number: resolvedBatch,
+              expiry_date: currentItemData.expiry_date || '',
+              unit_measure: currentItemData.unit_measure || ''
+            });
+
             const newTransRef = doc(transCol);
             const currentDonationNumber = exitReason === 'doacao' ? (() => {
               const currentYear = new Date().getFullYear();
@@ -3316,15 +3033,13 @@ export default function App() {
               return `${nextCount.toString().padStart(2, '0')}/${currentYear}`;
             })() : null;
 
-            const sectorValue = modalSector || (inventoryLocation === 'Farm√°cia' ? 'Farm√°cia (Consumo Interno)' : 'Almoxarifado');
-
             transaction.set(newTransRef, {
               item_id: currentItemData.id || itemRef.id,
               item_name: currentItemData.name,
               type: 'exit',
               origin: currentItemData.origin,
               quantity: quantity,
-              sector: sectorValue,
+              sector: finalSectorValue,
               location: inventoryLocation,
               date: new Date().toISOString(),
               responsible: user?.displayName || 'Sistema',
@@ -3336,7 +3051,7 @@ export default function App() {
               donationUnitCNPJ: exitReason === 'doacao' ? donationUnitCNPJ : null,
               donationRevisionDate: exitReason === 'doacao' ? donationRevisionDate : null,
               donationNumber: currentDonationNumber,
-              batch_number: currentItemData.batch_number,
+              batch_number: resolvedBatch || currentItemData.batch_number || null,
               expiry_date: currentItemData.expiry_date
             });
 
@@ -3435,13 +3150,21 @@ export default function App() {
       setShowTransactionModal({ show: false, type: 'entry' });
       
       // Auto-generate delivery receipt for manual exit
-      if (showTransactionModal.type === 'exit' && basket.length > 0 && selectedSector) {
-        const itemsForReceipt = basket.map(b => {
+      if (showTransactionModal.type === 'exit' && (exitReceiptItems.length > 0 || basket.length > 0)) {
+        const itemsForReceipt = exitReceiptItems.length > 0 ? exitReceiptItems : basket.map(b => {
           const foundItem = items.find(i => i.id === b.item_id);
+          const resolvedBatch = (b.batch_number && b.batch_number.trim() !== '')
+            ? b.batch_number.trim()
+            : (foundItem?.batch_number && foundItem.batch_number.trim() !== ''
+              ? foundItem.batch_number.trim()
+              : (items.find(it => it.name.trim().toLowerCase() === (b.name || foundItem?.name || '').trim().toLowerCase() && it.batch_number && it.batch_number.trim() !== '')?.batch_number?.trim() || ''));
+
           return {
-            product_name: foundItem?.name || 'Produto N√£o Identificado',
+            product_name: b.name || foundItem?.name || 'Produto N√£o Identificado',
             quantity: b.quantity,
-            batch_number: foundItem?.batch_number || '---'
+            batch_number: resolvedBatch,
+            expiry_date: b.expiry_date || foundItem?.expiry_date || '',
+            unit_measure: b.unit_measure || foundItem?.unit_measure || ''
           };
         });
         
@@ -3467,7 +3190,7 @@ export default function App() {
           handleExportDonationTermPDF({
             donatingUnitName: donationUnitName || 'CEO - Centro de Especialidades Odontol√≥gicas',
             receivingUnit: {
-              name: selectedSector || 'Unidade Receptora',
+              name: finalSectorValue || 'Unidade Receptora',
               address: donationUnitAddress,
               cnpj: donationUnitCNPJ
             },
@@ -3478,7 +3201,7 @@ export default function App() {
           });
         } else {
           handleExportDeliveryReceiptPDF({
-            sector: selectedSector,
+            sector: finalSectorValue,
             items: itemsForReceipt,
             date: new Date().toISOString()
           });
@@ -3489,7 +3212,7 @@ export default function App() {
       setTransactionQty(1);
       setExitReason('consumo');
       setExpiryReason('');
-      setSelectedSector(SECTORS[0]);
+      setModalSector('');
       setSelectedItemId('');
       setBasket([]);
       setDonationUnitName('');
@@ -3530,7 +3253,7 @@ export default function App() {
         // Sector breakdown rows
         Object.entries(item.sectors).forEach(([sector, qty]) => {
           const subRow: any = {
-            'Item': `   -> ${item.name}`,
+            'Item': `   ‚Ü≥ ${item.name}`,
             'Categoria': item.category,
             'Fornecedor': item.supplier,
             'Quantidade Total': qty,
@@ -3575,7 +3298,7 @@ export default function App() {
           'Categoria': group.category || '---',
           'Estoque Total': group.total_quantity,
           'M√≠nimo': group.min_quantity,
-          'Dura√ß√£o (Semanas)': group.durationWeeks === 'infinite' ? 'Infinito' : group.durationWeeks.toFixed(1),
+          'Dura√ß√£o (Semanas)': group.durationWeeks === 'infinite' ? '‚àû' : group.durationWeeks.toFixed(1),
           'Status': status
         };
       });
@@ -3613,7 +3336,7 @@ export default function App() {
           group.name,
           group.category || '---',
           group.total_quantity.toString(),
-          group.durationWeeks === 'infinite' ? 'Infinito' : group.durationWeeks.toFixed(1),
+          group.durationWeeks === 'infinite' ? '‚àû' : group.durationWeeks.toFixed(1),
           group.min_quantity.toString(),
           status
         ];
@@ -3665,8 +3388,8 @@ export default function App() {
       
       const startY = drawPDFLetterhead(
         doc,
-        `RELAT√ìRIO DE ITENS CR√çTICOS - ESTOQUE BAIXO`,
-        `Unidade: ${locationLabel} - Data de Emiss√£o: ${dateStr}`
+        `RELAT√ìRIO DE ITENS CR√çTICOS ‚Äî ESTOQUE BAIXO`,
+        `Unidade: ${locationLabel} ‚Ä¢ Data de Emiss√£o: ${dateStr}`
       );
 
       // Collect all active items for current location
@@ -3800,7 +3523,7 @@ export default function App() {
       const startY = drawPDFLetterhead(
         doc,
         'Cat√°logo de Materiais em Estoque',
-        `CEO - Centro de Especialidades Odontol√≥gicas - Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`
+        `CEO - Centro de Especialidades Odontol√≥gicas ‚Ä¢ Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`
       );
       
       // Filter unique items across all batches and locations
@@ -3876,11 +3599,9 @@ export default function App() {
       let requestsToExport = [];
       if (activeTab === 'requests') {
         requestsToExport = requests.filter(req => !req.deletedAt && !req.isReturn);
-      } else if (activeTab === 'admin-devolutions') {
         requestsToExport = requests.filter(req => !req.deletedAt && req.isReturn);
       } else if (activeTab === 'my-requests') {
         requestsToExport = requests.filter(r => r.sector === selectedSector && !r.deletedAt && !r.isReturn);
-      } else if (activeTab === 'devolution') {
         requestsToExport = requests.filter(r => r.sector === selectedSector && !r.deletedAt && r.isReturn);
       } else {
         requestsToExport = requests.filter(req => !req.deletedAt);
@@ -3933,16 +3654,20 @@ export default function App() {
       setDonationUnitAddress('');
       setDonationUnitCNPJ('');
       setDonationRevisionDate('');
-      setBasket(showTransactionModal.item ? [{ item_id: showTransactionModal.item.id!, quantity: 1 }] : []);
-      
-      // Default to item's current location or parent sector
-      if (showTransactionModal.item) {
-        setModalSector(showTransactionModal.item.location === 'Farm√°cia' ? 'Farm√°cia' : 'Almoxarifado');
-      } else {
-        setModalSector(userProfile?.sector || SECTORS[0]);
-      }
+      const targetItem = showTransactionModal.item;
+      setBasket(targetItem ? [{
+        item_id: targetItem.id!,
+        quantity: 1,
+        name: targetItem.name,
+        batch_number: targetItem.batch_number || '',
+        expiry_date: targetItem.expiry_date || '',
+        unit_measure: targetItem.unit_measure || ''
+      }] : []);
+      setModalSector('');
+    } else {
+      setModalSector('');
     }
-  }, [showTransactionModal.show, showTransactionModal.item, userProfile?.sector]);
+  }, [showTransactionModal.show, showTransactionModal.item]);
 
   const handleExportPCA = () => {
     if (selectedSector !== 'Almoxarifado') {
@@ -4598,7 +4323,7 @@ export default function App() {
   const handleExportDonationTermPDF = async (data: {
     donatingUnitName?: string;
     receivingUnit: { name: string; address: string; cnpj: string };
-    items: { product_name: string; quantity: number; batch_number?: string }[];
+    items: { product_name: string; quantity: number; batch_number?: string; expiry_date?: string }[];
     revisionDate: string;
     donationNumber?: string;
     date: string;
@@ -4779,12 +4504,27 @@ export default function App() {
         startY: tableStartY,
         margin: { left: margin, right: margin },
         head: [['Descri√ß√£o do Material', 'Lote', 'Qtd Doada', 'Confer√™ncia']],
-        body: data.items.map(i => [
-          i.product_name, 
-          (i.batch_number || '---').toUpperCase(), 
-          i.quantity.toString(), 
-          ' '
-        ]),
+        body: data.items.map(i => {
+          let batchNum = (i.batch_number && i.batch_number.trim() !== '' && i.batch_number !== '---')
+            ? i.batch_number.trim().toUpperCase()
+            : '';
+          if (!batchNum) {
+            const matchingItem = items.find(it =>
+              it.name.trim().toLowerCase() === i.product_name.trim().toLowerCase() &&
+              it.batch_number && it.batch_number.trim() !== '' && it.batch_number !== '---'
+            );
+            if (matchingItem?.batch_number) {
+              batchNum = matchingItem.batch_number.trim().toUpperCase();
+            }
+          }
+          const batchDisplay = batchNum || 'S/N';
+          return [
+            `${i.product_name}\n(Lote: ${batchDisplay})`,
+            batchDisplay,
+            i.quantity.toString(),
+            ' '
+          ];
+        }),
         theme: 'grid',
         headStyles: { 
           fillColor: [243, 244, 246], 
@@ -4804,7 +4544,7 @@ export default function App() {
         },
         columnStyles: {
           0: { cellWidth: 'auto' },
-          1: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
+           1: { cellWidth: 32, halign: 'center', fontStyle: 'bold' },
           2: { cellWidth: 25, halign: 'center', fontStyle: 'bold' },
           3: { cellWidth: 35, halign: 'center' }
         },
@@ -5217,7 +4957,7 @@ export default function App() {
 
   const handleExportDeliveryReceiptPDF = async (data: {
     sector: string;
-    items: { product_name: string; quantity: number; batch_number?: string }[];
+    items: { product_name: string; quantity: number; batch_number?: string; expiry_date?: string; unit_measure?: string }[];
     requestId?: string;
     date: string;
   }) => {
@@ -5348,12 +5088,54 @@ export default function App() {
       doc.text(format(new Date(data.date), 'dd/MM/yyyy'), pageWidth - 50, 68);
 
       // Materials Table
-      const tableData = data.items.map(i => [
-        i.product_name.toUpperCase(), 
-        (i.batch_number || '---').toUpperCase(),
-        i.quantity.toString(), 
-        '_________________'
-      ]);
+      const tableData = data.items.map(i => {
+        let batchNum = (i.batch_number && i.batch_number.trim() !== '' && i.batch_number !== '---')
+          ? i.batch_number.trim().toUpperCase()
+          : '';
+
+        // Fallback to find registered batch number from inventory items if missing
+        if (!batchNum) {
+          const matchingItem = items.find(it =>
+            it.name.trim().toLowerCase() === i.product_name.trim().toLowerCase() &&
+            it.batch_number && it.batch_number.trim() !== '' && it.batch_number !== '---'
+          );
+          if (matchingItem?.batch_number) {
+            batchNum = matchingItem.batch_number.trim().toUpperCase();
+          }
+        }
+
+        const batchDisplay = batchNum || 'S/N';
+
+        let expStr = '';
+        const expDate = i.expiry_date || items.find(it => it.name.trim().toLowerCase() === i.product_name.trim().toLowerCase() && it.expiry_date)?.expiry_date;
+        if (expDate) {
+          try {
+            if (expDate.toLowerCase().includes('indeterm')) {
+              expStr = 'Val: Indeterminada';
+            } else {
+              const d = new Date(expDate);
+              if (!isNaN(d.getTime())) {
+                expStr = `Val: ${format(d, 'dd/MM/yyyy')}`;
+              }
+            }
+          } catch (_) {}
+        }
+
+        const subInfo = [
+          `LOTE: ${batchDisplay}`,
+          expStr
+        ].filter(Boolean).join('   |   ');
+
+        const descCell = `${i.product_name.toUpperCase()}\n${subInfo}`;
+        const qtyCell = i.unit_measure ? `${i.quantity} ${i.unit_measure.toUpperCase()}` : `${i.quantity} UN`;
+
+        return [
+          descCell,
+          batchDisplay,
+          qtyCell,
+          '_________________'
+        ];
+      });
       
       autoTable(doc, {
         startY: 80,
@@ -5377,7 +5159,7 @@ export default function App() {
           0: { cellWidth: 'auto' },
           1: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
           2: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
-          3: { cellWidth: 40, halign: 'center' }
+          3: { cellWidth: 38, halign: 'center' }
         },
         alternateRowStyles: {
           fillColor: [252, 252, 252]
@@ -6347,19 +6129,6 @@ export default function App() {
                     )}
                   </button>
 
-                  <button 
-                    onClick={() => { setActiveTab('admin-devolutions'); setIsMobileMenuOpen(false); }}
-                    className={`group flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all duration-200 text-xs ${
-                      activeTab === 'admin-devolutions' 
-                        ? 'bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white font-extrabold shadow-md shadow-blue-600/20' 
-                        : 'text-slate-600 hover:text-blue-700 hover:bg-blue-50/80 font-bold'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <RotateCcw size={18} className={activeTab === 'admin-devolutions' ? 'text-white' : 'text-slate-400 group-hover:text-blue-600 transition-colors'} />
-                      <span>Devolu√ß√µes</span>
-                    </div>
-                  </button>
 
                   <button 
                     onClick={() => { setActiveTab('trash'); setIsMobileMenuOpen(false); }}
@@ -6433,19 +6202,6 @@ export default function App() {
                     </div>
                   </button>
 
-                  <button 
-                    onClick={() => { setActiveTab('devolution'); setIsMobileMenuOpen(false); }}
-                    className={`group flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all duration-200 text-xs ${
-                      activeTab === 'devolution' 
-                        ? 'bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white font-extrabold shadow-md shadow-blue-600/20' 
-                        : 'text-slate-600 hover:text-blue-700 hover:bg-blue-50/80 font-bold'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <RotateCcw size={18} className={activeTab === 'devolution' ? 'text-white' : 'text-slate-400 group-hover:text-blue-600 transition-colors'} />
-                      <span>Devolu√ß√£o de Materiais</span>
-                    </div>
-                  </button>
 
                   <button 
                     onClick={() => { setActiveTab('my-requests'); setIsMobileMenuOpen(false); }}
@@ -6544,11 +6300,9 @@ export default function App() {
               {activeTab === 'inventory' && 'Gerenciamento de Estoque'}
               {activeTab === 'history' && 'Hist√≥rico de Movimenta√ß√µes'}
               {activeTab === 'requests' && 'Solicita√ß√µes de Materiais'}
-              {activeTab === 'admin-devolutions' && 'Devolu√ß√µes de Materiais'}
               {activeTab === 'trash' && 'Lixeira (Exclus√£o em 3 dias)'}
               {activeTab === 'my-requests' && `Minhas Solicita√ß√µes - ${selectedSector || ''}`}
               {activeTab === 'new-request' && `Nova Solicita√ß√£o - ${selectedSector || ''}`}
-              {activeTab === 'devolution' && `Devolu√ß√£o de Materiais - ${selectedSector || ''}`}
               {editingRequest && ' - Editando Solicita√ß√£o'}
               {activeTab === 'reports' && 'Relat√≥rios e An√°lises'}
               {activeTab === 'leader-stats' && 'Estat√≠sticas do Almoxarifado'}
@@ -6629,7 +6383,7 @@ export default function App() {
                   )}
                 </div>
               )}
-              {(activeTab === 'requests' || activeTab === 'my-requests' || activeTab === 'admin-devolutions' || activeTab === 'devolution') && (
+              {(activeTab === 'requests' || activeTab === 'my-requests') && (
                 <div className="flex items-center gap-4 mt-2">
                   <button 
                     onClick={handleExportRequestsPDF}
@@ -7604,7 +7358,7 @@ export default function App() {
                             'bg-emerald-50 border-emerald-200 text-emerald-700'
                           }`}>
                             <span className="text-xs font-black">
-                              {group.durationWeeks === 'infinite' ? 'Infinito' : `${group.durationWeeks.toFixed(1)} sem`}
+                              {group.durationWeeks === 'infinite' ? '‚àû' : `${group.durationWeeks.toFixed(1)} sem`}
                             </span>
                           </div>
                         </td>
@@ -7968,6 +7722,32 @@ export default function App() {
                             {t.type === 'exit' && !t.deletedAt && (
                               <button 
                                 onClick={() => {
+                                  const tDate = new Date(t.date).getTime();
+                                  const sessionTransactions = transactions.filter(other =>
+                                    other.type === 'exit' &&
+                                    !other.deletedAt &&
+                                    other.sector === t.sector &&
+                                    other.exitReason === t.exitReason &&
+                                    Math.abs(new Date(other.date).getTime() - tDate) < 15000
+                                  );
+
+                                  const sessionItems = (sessionTransactions.length > 1 ? sessionTransactions : [t]).map(tr => {
+                                    let batch = tr.batch_number || '';
+                                    if (!batch) {
+                                      const matched = items.find(it =>
+                                        it.name.trim().toLowerCase() === tr.item_name.trim().toLowerCase() &&
+                                        it.batch_number && it.batch_number.trim() !== '' && it.batch_number !== '---'
+                                      );
+                                      if (matched?.batch_number) batch = matched.batch_number;
+                                    }
+                                    return {
+                                      product_name: tr.item_name,
+                                      quantity: tr.quantity,
+                                      batch_number: batch,
+                                      expiry_date: tr.expiry_date || ''
+                                    };
+                                  });
+
                                   if (t.exitReason === 'doacao') {
                                     handleExportDonationTermPDF({
                                       donatingUnitName: t.donationUnitName,
@@ -7976,7 +7756,7 @@ export default function App() {
                                         address: t.donationUnitAddress || '',
                                         cnpj: t.donationUnitCNPJ || ''
                                       },
-                                      items: [{ product_name: t.item_name, quantity: t.quantity, batch_number: t.batch_number || '---' }],
+                                      items: sessionItems,
                                       revisionDate: t.donationRevisionDate || '',
                                       donationNumber: t.donationNumber,
                                       date: t.date
@@ -7984,7 +7764,7 @@ export default function App() {
                                   } else {
                                     handleExportDeliveryReceiptPDF({
                                       sector: t.sector || 'Sem Setor',
-                                      items: [{ product_name: t.item_name, quantity: t.quantity, batch_number: t.batch_number || '---' }],
+                                      items: sessionItems,
                                       date: t.date
                                     });
                                   }
@@ -8789,7 +8569,7 @@ export default function App() {
                         Relat√≥rio Detalhado de Consumo por Item
                       </h4>
                       <p className="text-xs text-slate-500 font-medium">
-                        {isAdmin ? (reportSectorFilter === 'all' ? 'Todos os Setores' : `Setor: ${reportSectorFilter}`) : `Setor: ${selectedSector}`} - {format(parseISO(reportRange.start), 'dd/MM/yyyy')} a {format(parseISO(reportRange.end), 'dd/MM/yyyy')}
+                        {isAdmin ? (reportSectorFilter === 'all' ? 'Todos os Setores' : `Setor: ${reportSectorFilter}`) : `Setor: ${selectedSector}`} ‚Ä¢ {format(parseISO(reportRange.start), 'dd/MM/yyyy')} a {format(parseISO(reportRange.end), 'dd/MM/yyyy')}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
@@ -9815,98 +9595,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {activeTab === 'admin-devolutions' && (
-            <motion.div 
-              key="admin-devolutions"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="bg-white rounded-3xl border border-[#E7E5E4] shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-[#E7E5E4]">
-                  <h3 className="text-lg font-black">Solicita√ß√µes de Devolu√ß√£o pendentes de aprova√ß√£o</h3>
-                  <p className="text-xs text-[#78716C]">Visualize e aprove o retorno de materiais ao estoque.</p>
-                </div>
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[#FAFAF9] border-b border-[#E7E5E4]">
-                      <th className="px-6 py-4 font-bold text-sm text-[#78716C] uppercase tracking-wider">N¬∫ / Data</th>
-                      <th className="px-6 py-4 font-bold text-sm text-[#78716C] uppercase tracking-wider">Setor</th>
-                      <th className="px-6 py-4 font-bold text-sm text-[#78716C] uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 font-bold text-sm text-[#78716C] uppercase tracking-wider">Motivo</th>
-                      <th className="px-6 py-4 font-bold text-sm text-[#78716C] uppercase tracking-wider">Itens</th>
-                      <th className="px-6 py-4 font-bold text-sm text-[#78716C] uppercase tracking-wider text-right">A√ß√µes</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E7E5E4]">
-                    {requests.filter(req => !req.deletedAt && req.isReturn).map(req => (
-                      <tr key={req.id} className="hover:bg-[#FAFAF9] transition-all">
-                        <td className="px-6 py-4">
-                          <p className="font-bold text-sm">#{req.id.slice(-5).toUpperCase()}</p>
-                          <p className="text-xs text-[#A8A29E]">{new Date(req.date).toLocaleDateString('pt-BR')}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-bold px-2 py-1 rounded-lg" style={{ backgroundColor: `${SECTOR_COLORS[req.sector]}20`, color: SECTOR_COLORS[req.sector] }}>
-                            {req.sector}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest border ${
-                            req.status === 'DEVOLUCAO_PENDENTE' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                            req.status === 'DEVOLUCAO_APROVADA' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                            req.status === 'DEVOLUCAO_RECUSADA' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                            'bg-gray-50 text-gray-600 border-gray-200'
-                          }`}>
-                            {req.status === 'DEVOLUCAO_PENDENTE' ? 'PENDENTE' :
-                             req.status === 'DEVOLUCAO_APROVADA' ? 'APROVADA' :
-                             req.status === 'DEVOLUCAO_RECUSADA' ? 'RECUSADA' :
-                             req.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-bold text-amber-800 bg-amber-50 px-2 py-1 rounded-lg">
-                            {req.returnReason || 'N√£o especificado'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-xs font-bold text-[#57534E]">
-                            {allRequestItems.filter(ri => ri.request_id === req.id).length} itens a devolver
-                          </p>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end items-center gap-2">
-                            <button 
-                              onClick={() => setShowRequestDetailModal({ show: true, request: req })}
-                              className="bg-[#1C1917] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#292524] transition-all"
-                            >
-                              Ver Detalhes e Aprovar
-                            </button>
-                            {isAdmin && (
-                              <button 
-                                onClick={() => handleDeleteRequest(req.id)}
-                                className="p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all"
-                                title="Excluir"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {requests.filter(req => !req.deletedAt && req.isReturn).length === 0 && (
-                  <div className="p-20 text-center">
-                    <RotateCcw className="mx-auto text-[#E7E5E4] mb-4" size={48} />
-                    <p className="text-[#78716C] font-bold">Nenhuma devolu√ß√£o encontrada.</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
           {activeTab === 'my-requests' && (
             <motion.div 
               key="my-requests"
@@ -10169,31 +9857,46 @@ export default function App() {
                               );
                             }
 
-                            return filtered.map(group => (
-                              <button
-                                key={group.name}
-                                type="button"
-                                onClick={() => {
-                                  const existing = requestBasket.find(bi => bi.product_name === group.name);
-                                  if (existing) {
-                                    setRequestBasket(requestBasket.map(bi => bi.product_name === group.name ? { ...bi, quantity: bi.quantity + 1 } : bi));
-                                  } else {
-                                    setRequestBasket([...requestBasket, { product_id: group.id, product_name: group.name, quantity: 1 }]);
-                                  }
-                                  setRequestSearchTerm('');
-                                }}
-                                className="w-full px-6 py-4 text-left hover:bg-[#F5F5F4] transition-all flex items-center justify-between border-b border-[#F5F5F4] last:border-none"
-                              >
-                                <div>
-                                  <p className="font-bold text-[#1C1917]">{group.name}</p>
-                                  <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">{group.category}</p>
-                                </div>
-                                <div className="flex items-center gap-2 text-emerald-600">
-                                  <Plus size={16} />
-                                  <span className="text-xs font-bold">Adicionar</span>
-                                </div>
-                              </button>
-                            ));
+                            return filtered.map(group => {
+                              const groupBatches = items.filter(i => !i.deletedAt && normalizeString(i.name) === normalizeString(group.name) && (i.quantity || 0) > 0);
+                              const groupTotal = groupBatches.reduce((s, i) => s + (i.quantity || 0), 0);
+                              const hasMulti = groupBatches.length > 1;
+
+                              return (
+                                <button
+                                  key={group.name}
+                                  type="button"
+                                  onClick={() => {
+                                    const existing = requestBasket.find(bi => bi.product_name === group.name);
+                                    if (existing) {
+                                      setRequestBasket(requestBasket.map(bi => bi.product_name === group.name ? { ...bi, quantity: bi.quantity + 1 } : bi));
+                                    } else {
+                                      setRequestBasket([...requestBasket, { product_id: group.id, product_name: group.name, quantity: 1 }]);
+                                    }
+                                    setRequestSearchTerm('');
+                                  }}
+                                  className="w-full px-6 py-4 text-left hover:bg-[#F5F5F4] transition-all flex items-center justify-between border-b border-[#F5F5F4] last:border-none"
+                                >
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-bold text-[#1C1917]">{group.name}</p>
+                                      {hasMulti && (
+                                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-black uppercase rounded">
+                                          {groupBatches.length} lotes
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-[#A8A29E] uppercase font-black tracking-widest">
+                                      {group.category} ‚Ä¢ Saldo: {groupTotal} un
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-emerald-600">
+                                    <Plus size={16} />
+                                    <span className="text-xs font-bold">Adicionar</span>
+                                  </div>
+                                </button>
+                              );
+                            });
                           })()}
                         </motion.div>
                       )}
@@ -10203,26 +9906,62 @@ export default function App() {
                   {requestBasket.length > 0 && (
                     <div className="space-y-3">
                       <label className="block text-xs font-bold text-[#A8A29E] uppercase tracking-widest">Itens na Cesta</label>
-                      {requestBasket.map(item => (
-                        <div key={item.product_id} className="flex items-center justify-between p-4 bg-[#FAFAF9] rounded-2xl border border-[#E7E5E4]">
-                          <p className="font-bold text-sm">{item.product_name}</p>
-                          <div className="flex items-center gap-4">
-                            <input 
-                              type="number" 
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => setRequestBasket(requestBasket.map(bi => bi.product_id === item.product_id ? { ...bi, quantity: parseInt(e.target.value) || 1 } : bi))}
-                              className="w-20 px-3 py-1 bg-white border border-[#E7E5E4] rounded-lg text-center font-bold text-sm"
-                            />
-                            <button 
-                              onClick={() => setRequestBasket(requestBasket.filter(bi => bi.product_id !== item.product_id))}
-                              className="text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition-all"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                      {requestBasket.map(item => {
+                        const productBatches = items.filter(i => !i.deletedAt && normalizeString(i.name) === normalizeString(item.product_name) && (i.quantity || 0) > 0);
+                        const hasMultipleBatches = productBatches.length > 1;
+
+                        return (
+                          <div key={item.product_id} className="p-4 bg-[#FAFAF9] rounded-2xl border border-[#E7E5E4] space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-bold text-sm text-[#1C1917]">{item.product_name}</p>
+                                {hasMultipleBatches ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md mt-1">
+                                    üè∑Ô∏è {productBatches.length} Lotes Dispon√≠veis
+                                  </span>
+                                ) : productBatches.length === 1 && productBatches[0].batch_number ? (
+                                  <span className="text-[11px] font-medium text-[#78716C]">
+                                    Lote: {productBatches[0].batch_number} (Venc: {productBatches[0].expiry_date || 'Indet.'})
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <input 
+                                  type="number" 
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => setRequestBasket(requestBasket.map(bi => bi.product_id === item.product_id ? { ...bi, quantity: parseInt(e.target.value) || 1 } : bi))}
+                                  className="w-20 px-3 py-1 bg-white border border-[#E7E5E4] rounded-lg text-center font-bold text-sm"
+                                />
+                                <button 
+                                  onClick={() => setRequestBasket(requestBasket.filter(bi => bi.product_id !== item.product_id))}
+                                  className="text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition-all"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {hasMultipleBatches && (
+                              <div className="pt-2 border-t border-[#E7E5E4] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <label className="text-[11px] font-bold text-[#57534E]">Escolha o Lote Desejado:</label>
+                                <select
+                                  value={item.batch_id || ''}
+                                  onChange={(e) => setRequestBasket(requestBasket.map(bi => bi.product_id === item.product_id ? { ...bi, batch_id: e.target.value } : bi))}
+                                  className="text-xs font-bold bg-white border border-amber-200 text-amber-950 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-amber-500/20"
+                                >
+                                  <option value="">Autom√°tico (FEFO - Primeiro que vence)</option>
+                                  {productBatches.map(b => (
+                                    <option key={b.id} value={b.id}>
+                                      Lote {b.batch_number || 'Sem Lote'} ({b.quantity} un - Venc: {b.expiry_date || 'Indet.'})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
@@ -10248,164 +9987,895 @@ export default function App() {
             </motion.div>
           )}
 
-          {activeTab === 'devolution' && (
-            <DevolutionTab
-              selectedSector={selectedSector}
-              devolutionSubTab={devolutionSubTab}
-              setDevolutionSubTab={setDevolutionSubTab}
-              requests={requests}
-              allRequestItems={allRequestItems}
-              items={items}
-              isExpired={isExpired}
-              isNearExpiry={isNearExpiry}
-              setDevolutionBasket={setDevolutionBasket}
-              setSelectedDevProduct={setSelectedDevProduct}
-              setDevolutionReason={setDevolutionReason}
-              setDevolutionObservation={setDevolutionObservation}
-              setShowDevolutionModal={setShowDevolutionModal}
-              setShowRequestDetailModal={setShowRequestDetailModal}
-              showToast={showToast}
-            />
-          )}
         </AnimatePresence>
       </main>
 
       {/* Modals */}
-      <AddModal
-        showAddModal={showAddModal}
-        setShowAddModal={setShowAddModal}
-        handleAddItem={handleAddItem}
-        bulkEntry={bulkEntry}
-        setBulkEntry={setBulkEntry}
-        showNewCategoryInput={showNewCategoryInput}
-        setShowNewCategoryInput={setShowNewCategoryInput}
-        newCategoryName={newCategoryName}
-        setNewCategoryName={setNewCategoryName}
-        categories={categories}
-        setCategories={setCategories}
-        items={items}
-        uniqueSuppliers={uniqueSuppliers}
-        updateBulkItem={updateBulkItem}
-        duplicateBulkItem={duplicateBulkItem}
-        removeBulkItemRow={removeBulkItemRow}
-        addBulkItemRow={addBulkItemRow}
-      />
-
-      {showRoomInventoryModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl"
+            className="bg-white w-full max-w-5xl rounded-[40px] p-10 shadow-2xl max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <Printer className="text-blue-600" size={24} /> Mapa de Estoque (Porta)
-              </h3>
-              <button onClick={() => setShowRoomInventoryModal(false)} className="text-[#A8A29E] hover:text-[#1C1917]">
-                <X size={20} />
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h3 className="text-3xl font-black text-[#1C1917]">Entrada de Materiais</h3>
+                <p className="text-[#78716C] font-medium">Cadastre m√∫ltiplos itens de uma vez</p>
+              </div>
+              <button 
+                onClick={() => setShowAddModal(false)}
+                className="p-2 hover:bg-[#F5F5F4] rounded-full transition-colors"
+              >
+                <X size={24} className="text-[#A8A29E]" />
               </button>
             </div>
 
-            <div className="space-y-6">
-              <div>
-                <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2 ml-1">Selecione a Sala</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ROOMS.map(room => (
-                    <button
-                      key={room}
-                      onClick={() => setSelectedRoom(room)}
-                      className={`px-4 py-3 rounded-xl text-xs font-bold border transition-all ${selectedRoom === room ? 'bg-[#1C1917] text-white border-[#1C1917]' : 'bg-[#F5F5F4] text-[#78716C] border-[#E7E5E4] hover:bg-[#E7E5E4]'}`}
-                    >
-                      {room}
-                    </button>
-                  ))}
+            <form onSubmit={handleAddItem} className="space-y-8">
+              {/* Common Fields Section */}
+              <div className="bg-[#FAFAF9] p-8 rounded-[32px] border border-[#E7E5E4] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="lg:col-span-1">
+                  <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2">Fornecedor</label>
+                  <input 
+                    required
+                    list="supplier-suggestions"
+                    type="text" 
+                    placeholder="Nome do fornecedor"
+                    className="w-full px-4 py-3 bg-white border border-[#E7E5E4] rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                    value={bulkEntry.supplier}
+                    onChange={e => setBulkEntry({...bulkEntry, supplier: e.target.value.toUpperCase()})}
+                  />
+                </div>
+                
+                <div className="lg:col-span-1">
+                  <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2">Tipo de Item (Categoria)</label>
+                  <div className="flex gap-2">
+                    {showNewCategoryInput ? (
+                      <div className="flex-1 flex gap-2">
+                        <input 
+                          type="text"
+                          className="flex-1 px-4 py-3 bg-white border border-[#E7E5E4] rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                          placeholder="Nova..."
+                          value={newCategoryName}
+                          onChange={e => setNewCategoryName(e.target.value)}
+                          autoFocus
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            if (newCategoryName.trim()) {
+                              setCategories(prev => Array.from(new Set([...prev, newCategoryName.trim()])));
+                              setBulkEntry({...bulkEntry, category: newCategoryName.trim()});
+                              setNewCategoryName('');
+                              setShowNewCategoryInput(false);
+                            }
+                          }}
+                          className="bg-[#1C1917] text-white p-3 rounded-xl"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <select 
+                          className="flex-1 px-4 py-3 bg-white border border-[#E7E5E4] rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                          value={bulkEntry.category}
+                          onChange={e => setBulkEntry({...bulkEntry, category: e.target.value})}
+                        >
+                          {categories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                        <button 
+                          type="button"
+                          onClick={() => setShowNewCategoryInput(true)}
+                          className="bg-white text-[#1C1917] p-3 rounded-xl border border-[#E7E5E4] hover:bg-[#F5F5F4]"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-1">
+                  <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2">Origem</label>
+                  <select 
+                    className="w-full px-4 py-3 bg-white border border-[#E7E5E4] rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                    value={bulkEntry.origin}
+                    onChange={e => setBulkEntry({...bulkEntry, origin: e.target.value as any})}
+                  >
+                    <option value="contract">Contrato</option>
+                    <option value="extra">Produto Extra</option>
+                    <option value="donation">Doa√ß√£o</option>
+                  </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-black text-[#78716C] uppercase tracking-widest mb-2 ml-1">Filtrar Categorias</label>
-                <div className="max-h-48 overflow-y-auto space-y-2 p-2 bg-[#F5F5F4] rounded-xl border border-[#E7E5E4]">
-                  {categories.map(cat => (
-                    <label key={cat} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-all">
-                      <input 
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={selectedRoomCategories.includes(cat)}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setSelectedRoomCategories([...selectedRoomCategories, cat]);
-                          } else {
-                            setSelectedRoomCategories(selectedRoomCategories.filter(c => c !== cat));
-                          }
-                        }}
-                      />
-                      <span className="text-xs font-bold text-[#44403C]">{cat}</span>
-                    </label>
-                  ))}
+              {/* Items List Section */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-sm font-black text-[#1C1917] uppercase tracking-widest">Lista de Itens</h4>
+                  <button 
+                    type="button"
+                    onClick={addBulkItemRow}
+                    className="text-xs font-bold bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl border border-emerald-100 flex items-center gap-2 hover:bg-emerald-100 transition-all"
+                  >
+                    <Plus size={14} /> Adicionar Outro Item
+                  </button>
                 </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full border-separate border-spacing-y-2">
+                    <thead>
+                      <tr className="text-left">
+                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest min-w-[180px] md:min-w-[240px]">Nome do Item</th>
+                        {bulkEntry.category === 'Medicamentos' && (
+                          <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-36 min-w-[110px]">Tipo de Material</th>
+                        )}
+                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-36 min-w-[120px]">Unidade / Emb.</th>
+                        <th className="px-4 py-2 text-[10px] font-black text-emerald-800 uppercase tracking-widest min-w-[110px] bg-emerald-100/70 rounded-t-xl text-center">Qtd. Entrada</th>
+                        <th className="px-4 py-2 text-[10px] font-black text-amber-800 uppercase tracking-widest min-w-[100px] bg-amber-100/70 rounded-t-xl text-center">Estoque M√≠n</th>
+                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-24">Lote</th>
+                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-40">Validade</th>
+                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-28">Pre√ßo Un.</th>
+                        <th className="px-4 py-2 text-[10px] font-black text-[#A8A29E] uppercase tracking-widest w-20"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkEntry.items.map((item, index) => (
+                        <tr key={item.id} className="group">
+                          <td className="px-2 min-w-[180px] md:min-w-[240px]">
+                            <input 
+                              required
+                              list="item-suggestions"
+                              type="text"
+                              placeholder="Nome do produto"
+                              className="w-full px-3 py-2 bg-[#F5F5F4] border-none rounded-lg focus:ring-2 focus:ring-[#1C1917]/10 text-xs text-stone-900 font-bold"
+                              value={item.name}
+                              onChange={e => updateBulkItem(item.id, 'name', e.target.value)}
+                            />
+                            {/* Quick unit helpers for medications */}
+                            {bulkEntry.category === 'Medicamentos' && (
+                              <div className="mt-1.5 flex flex-col gap-1 bg-[#FAFAF9] p-2 rounded-lg border border-[#E7E5E4] max-w-[280px]">
+                                <div className="flex flex-wrap gap-1 items-center">
+                                  <span className="text-[8px] font-black text-[#78716C] uppercase tracking-wider mr-1">Unidades:</span>
+                                  {['mg', 'mcg', 'UI', 'g', 'ml', '%'].map(unit => (
+                                    <button
+                                      key={unit}
+                                      type="button"
+                                      onClick={() => {
+                                        let currentName = item.name.trim();
+                                        if (currentName) {
+                                          if (!currentName.endsWith(' ')) {
+                                            currentName += ' ';
+                                          }
+                                          currentName += unit;
+                                          updateBulkItem(item.id, 'name', currentName);
+                                        }
+                                      }}
+                                      className="px-1.5 py-0.5 bg-stone-200 hover:bg-[#1C1917] hover:text-white text-stone-700 rounded text-[9px] font-bold transition-all uppercase"
+                                    >
+                                      +{unit}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="flex flex-wrap gap-1 items-center">
+                                  <span className="text-[8px] font-black text-[#78716C] uppercase tracking-wider mr-1">Dosagem:</span>
+                                  {['500 mg', '1000 mg', '1000 UI', '5000 UI', '10.000 UI', '50.000 UI'].map(dose => (
+                                    <button
+                                      key={dose}
+                                      type="button"
+                                      onClick={() => {
+                                        let currentName = item.name.trim();
+                                        if (currentName) {
+                                          if (!currentName.endsWith(' ')) {
+                                            currentName += ' ';
+                                          }
+                                          currentName += dose;
+                                          updateBulkItem(item.id, 'name', currentName);
+                                        }
+                                      }}
+                                      className="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-600 rounded text-[9px] font-bold transition-all uppercase"
+                                    >
+                                      +{dose}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          {bulkEntry.category === 'Medicamentos' && (
+                            <td className="px-2 min-w-[110px]">
+                              <select 
+                                required
+                                className="w-full px-3 py-2 bg-[#F5F5F4] border-none rounded-lg focus:ring-2 focus:ring-[#1C1917]/10 text-[11px] text-stone-900 font-bold"
+                                value={item.medication_type || ''}
+                                onChange={e => updateBulkItem(item.id, 'medication_type', e.target.value)}
+                              >
+                                <option value="">Selecione...</option>
+                                <option value="PORTARIA 344">PORTARIA 344</option>
+                                <option value="COMPRIMIDO">COMPRIMIDO</option>
+                                <option value="AMPOLA">AMPOLA</option>
+                                <option value="SOLU√á√ÉO">SOLU√á√ÉO</option>
+                                <option value="SOLU√á√ÉO SPRAY">SOLU√á√ÉO SPRAY</option>
+                                <option value="POMADA">POMADA</option>
+                                <option value="GOTA">GOTA</option>
+                                <option value="COL√çRIO">COL√çRIO</option>
+                              </select>
+                            </td>
+                          )}
+                          <td className="px-2 min-w-[140px]">
+                            <select 
+                              required
+                              className="w-full px-3 py-2 bg-[#F5F5F4] border-none rounded-lg focus:ring-2 focus:ring-[#1C1917]/10 text-xs text-stone-900 font-bold"
+                              value={
+                                ['Unidade (UN)', 'Pacote (PCT)', 'Caixa (CX)', 'Frasco (FR)', 'Ampola (AMP)', 'Bisnaga (BSG)', 'Envelope (ENV)', 'Gal√£o (GL)', 'Rolo (RL)', 'Par (PR)', 'Metro (M)', 'Quilo (KG)', 'Litro (L)', 'Resma'].includes(item.unit_measure || '')
+                                  ? (item.unit_measure || 'Unidade (UN)')
+                                  : 'Outro'
+                              }
+                              onChange={e => {
+                                const val = e.target.value;
+                                if (val === 'Outro') {
+                                  updateBulkItem(item.id, 'unit_measure', '');
+                                } else {
+                                  updateBulkItem(item.id, 'unit_measure', val);
+                                }
+                              }}
+                            >
+                              <option value="Unidade (UN)">Unidade (UN)</option>
+                              <option value="Pacote (PCT)">Pacote (PCT)</option>
+                              <option value="Caixa (CX)">Caixa (CX)</option>
+                              <option value="Frasco (FR)">Frasco (FR)</option>
+                              <option value="Ampola (AMP)">Ampola (AMP)</option>
+                              <option value="Bisnaga (BSG)">Bisnaga (BSG)</option>
+                              <option value="Envelope (ENV)">Envelope (ENV)</option>
+                              <option value="Gal√£o (GL)">Gal√£o (GL)</option>
+                              <option value="Rolo (RL)">Rolo (RL)</option>
+                              <option value="Par (PR)">Par (PR)</option>
+                              <option value="Metro (M)">Metro (M)</option>
+                              <option value="Quilo (KG)">Quilo (KG)</option>
+                              <option value="Litro (L)">Litro (L)</option>
+                              <option value="Resma">Resma</option>
+                              <option value="Outro">Outro (digitar...)</option>
+                            </select>
+                            {!['Unidade (UN)', 'Pacote (PCT)', 'Caixa (CX)', 'Frasco (FR)', 'Ampola (AMP)', 'Bisnaga (BSG)', 'Envelope (ENV)', 'Gal√£o (GL)', 'Rolo (RL)', 'Par (PR)', 'Metro (M)', 'Quilo (KG)', 'Litro (L)', 'Resma'].includes(item.unit_measure || '') && (
+                              <input 
+                                type="text"
+                                placeholder="Especifique a embalagem..."
+                                className="w-full mt-1 px-2.5 py-1 bg-white border border-stone-300 rounded-lg text-xs text-stone-900 font-bold focus:ring-2 focus:ring-[#1C1917]/10"
+                                value={item.unit_measure || ''}
+                                onChange={e => updateBulkItem(item.id, 'unit_measure', e.target.value)}
+                              />
+                            )}
+                          </td>
+                          <td className="px-2 min-w-[110px]">
+                            <input 
+                              required
+                              type="number"
+                              min="1"
+                              placeholder="Qtd"
+                              className="w-full px-3 py-2 bg-emerald-50 border-2 border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm text-emerald-950 font-black shadow-sm text-center"
+                              value={isNaN(item.initial_quantity) ? '' : item.initial_quantity}
+                              onChange={e => updateBulkItem(item.id, 'initial_quantity', e.target.value === '' ? NaN : parseInt(e.target.value))}
+                            />
+                          </td>
+                          <td className="px-2 min-w-[100px]">
+                            <input 
+                              required
+                              type="number"
+                              min="0"
+                              placeholder="M√≠n"
+                              className="w-full px-3 py-2 bg-amber-50 border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-sm text-amber-950 font-extrabold text-center"
+                              value={isNaN(item.min_quantity) ? '' : item.min_quantity}
+                              onChange={e => updateBulkItem(item.id, 'min_quantity', e.target.value === '' ? NaN : parseInt(e.target.value))}
+                            />
+                          </td>
+                          <td className="px-2 w-24">
+                            <input 
+                              type="text"
+                              placeholder="Lote"
+                              className="w-full px-3 py-2 bg-[#F5F5F4] border-none rounded-lg focus:ring-2 focus:ring-[#1C1917]/10 text-xs text-stone-900 font-bold"
+                              value={item.batch_number}
+                              onChange={e => updateBulkItem(item.id, 'batch_number', e.target.value)}
+                            />
+                          </td>
+                          <td className="px-2 w-40">
+                            <div className="flex flex-col gap-1">
+                              <input 
+                                type="date"
+                                disabled={item.is_indeterminate_expiry}
+                                className="w-full px-3 py-1.5 bg-[#F5F5F4] border-none rounded-lg focus:ring-2 focus:ring-[#1C1917]/10 text-[11px] text-stone-900 font-bold disabled:opacity-30"
+                                value={item.expiry_date}
+                                onChange={e => updateBulkItem(item.id, 'expiry_date', e.target.value)}
+                              />
+                              <label className="flex items-center gap-1 cursor-pointer">
+                                <input 
+                                  type="checkbox"
+                                  className="w-3 h-3 rounded border-gray-300 text-[#1C1917]"
+                                  checked={item.is_indeterminate_expiry}
+                                  onChange={e => updateBulkItem(item.id, 'is_indeterminate_expiry', e.target.checked)}
+                                />
+                                <span className="text-[9px] font-bold text-[#78716C] uppercase">Indeterminada</span>
+                              </label>
+                            </div>
+                          </td>
+                          <td className="px-2 w-28">
+                            <input 
+                              type="number"
+                              step="0.01"
+                              placeholder="0,00"
+                              className="w-full px-3 py-2 bg-[#F5F5F4] border-none rounded-lg focus:ring-2 focus:ring-[#1C1917]/10 text-xs text-stone-900 font-bold"
+                              value={isNaN(item.unit_price) ? '' : item.unit_price}
+                              onChange={e => updateBulkItem(item.id, 'unit_price', e.target.value === '' ? NaN : parseFloat(e.target.value))}
+                            />
+                          </td>
+                          <td className="px-2 w-20">
+                            <div className="flex items-center gap-1">
+                              <button 
+                                type="button"
+                                onClick={() => duplicateBulkItem(item.id)}
+                                className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                title="Duplicar para outro lote"
+                              >
+                                <Copy size={18} />
+                              </button>
+                              {bulkEntry.items.length > 1 && (
+                                <button 
+                                  type="button"
+                                  onClick={() => removeBulkItemRow(item.id)}
+                                  className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                  title="Remover"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <datalist id="item-suggestions">
+                  {Array.from(new Set(items.map(i => i.name))).map(name => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                <datalist id="supplier-suggestions">
+                  {uniqueSuppliers.map(s => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 pt-6 border-t border-[#E7E5E4]">
                 <button 
-                  onClick={() => setShowRoomInventoryModal(false)}
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
                   className="flex-1 px-6 py-4 rounded-2xl font-bold text-[#78716C] hover:bg-[#F5F5F4] transition-all"
                 >
                   Cancelar
                 </button>
                 <button 
-                  onClick={() => {
-                    handleExportRoomInventoryPDF(selectedRoom, customRoomName, selectedRoomCategories);
-                    setShowRoomInventoryModal(false);
-                  }}
-                  className="flex-[2] px-6 py-4 bg-[#1C1917] text-white rounded-2xl font-bold hover:bg-[#292524] transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-3"
+                  type="submit"
+                  className="flex-[2] px-6 py-4 bg-[#1C1917] text-white rounded-2xl font-bold hover:bg-[#292524] transition-all shadow-lg shadow-[#1C1917]/20 flex items-center justify-center gap-3"
                 >
-                  <Printer size={20} /> Gerar Documento
+                  <Save size={20} /> Finalizar Entrada de {bulkEntry.items.length} Itens
                 </button>
               </div>
-            </div>
+            </form>
           </motion.div>
         </div>
       )}
 
-      <TransactionModal
-        showTransactionModal={showTransactionModal}
-        setShowTransactionModal={setShowTransactionModal}
-        handleTransaction={handleTransaction}
-        selectedItemId={selectedItemId}
-        setSelectedItemId={setSelectedItemId}
-        items={items}
-        weeklyExitRates={weeklyExitRates}
-        basket={basket}
-        setBasket={setBasket}
-        transactionQty={transactionQty}
-        setTransactionQty={setTransactionQty}
-        transactionMinStock={transactionMinStock}
-        setTransactionMinStock={setTransactionMinStock}
-        modalSector={modalSector}
-        setModalSector={setModalSector}
-        exitReason={exitReason}
-        setExitReason={setExitReason}
-        expiryReason={expiryReason}
-        setExpiryReason={setExpiryReason}
-        donationUnitName={donationUnitName}
-        setDonationUnitName={setDonationUnitName}
-        donationUnitAddress={donationUnitAddress}
-        setDonationUnitAddress={setDonationUnitAddress}
-        donationUnitCNPJ={donationUnitCNPJ}
-        setDonationUnitCNPJ={setDonationUnitCNPJ}
-        donationRevisionDate={donationRevisionDate}
-        setDonationRevisionDate={setDonationRevisionDate}
-        letterheadImage={letterheadImage}
-        setLetterheadImage={setLetterheadImage}
-        modalSearchTerm={modalSearchTerm}
-        setModalSearchTerm={setModalSearchTerm}
-        selectedItemName={selectedItemName}
-        setSelectedItemName={setSelectedItemName}
-        inventoryLocation={inventoryLocation}
-        isNearExpiry={isNearExpiry}
-        showToast={showToast}
-      />
+      {showTransactionModal.show && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <h3 className="text-2xl font-bold mb-6">
+              {showTransactionModal.type === 'entry' ? 'Registrar Entrada' : 'Registrar Sa√≠da'}
+            </h3>
+            
+            <form onSubmit={handleTransaction} className="space-y-6">
+              {showTransactionModal.type === 'entry' ? (
+                <>
+                  {showTransactionModal.item ? (
+                    <div className="mb-6">
+                      <p className="text-[#78716C] font-medium">{showTransactionModal.item.name}</p>
+                      <p className="text-xs font-bold text-emerald-600 mt-1">
+                        Dispon√≠vel em estoque: {showTransactionModal.item.quantity} unidades
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mb-6">
+                      <label className="block text-sm font-bold text-[#57534E] mb-2">Selecionar Item</label>
+                      <select 
+                        required
+                        className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10"
+                        value={selectedItemId}
+                        onChange={e => setSelectedItemId(e.target.value)}
+                      >
+                        <option value="">Selecione um item...</option>
+                        {items.map(item => (
+                          <option key={item.id} value={item.id}>
+                            {item.name} (Lote: {item.batch_number || 'N/A'}) - {item.quantity} un.
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-extrabold text-[#57534E] mb-2 text-center uppercase tracking-wider">Quantidade a Adicionar</label>
+                    <div className="flex items-center justify-center gap-4 py-2">
+                      <button 
+                        type="button"
+                        onClick={() => setTransactionQty(Math.max(1, transactionQty - 1))}
+                        className="w-12 h-12 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-300 flex items-center justify-center text-2xl font-black text-slate-800 shadow-sm transition-all"
+                      >
+                        -
+                      </button>
+                      <input 
+                        type="number"
+                        min="1"
+                        value={transactionQty}
+                        onChange={e => setTransactionQty(Math.max(1, parseInt(e.target.value) || 0))}
+                        className="text-3xl font-black w-32 py-2 px-3 text-center bg-emerald-50 text-emerald-950 border-2 border-emerald-500 rounded-2xl shadow-inner focus:ring-2 focus:ring-emerald-500/30"
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setTransactionQty(transactionQty + 1)}
+                        className="w-12 h-12 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-300 flex items-center justify-center text-2xl font-black text-slate-800 shadow-sm transition-all"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-[#57534E] mb-2">Estoque M√≠nimo (5 Semanas)</label>
+                    <input 
+                      type="number"
+                      placeholder="Calculando..."
+                      className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                      value={isNaN(transactionMinStock) ? (
+                        (() => {
+                          const item = showTransactionModal.item || items.find(i => i.id === selectedItemId);
+                          if (item) {
+                            const weeklyRate = weeklyExitRates[item.name] || 0;
+                            return weeklyRate > 0 ? Math.ceil(weeklyRate * 5) : item.min_quantity;
+                          }
+                          return '';
+                        })()
+                      ) : transactionMinStock}
+                      onChange={e => setTransactionMinStock(parseInt(e.target.value))}
+                    />
+                    <p className="text-[10px] text-[#A8A29E] mt-1 font-medium italic">
+                      Deixe em branco para usar o c√°lculo autom√°tico do sistema.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-[#57534E] mb-2">Motivo da Sa√≠da</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExitReason('consumo');
+                          if (modalSector === 'Descarte/Vencimento' || modalSector === 'Perda/Avaria') {
+                            setModalSector('');
+                          }
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${exitReason === 'consumo' ? 'bg-[#1C1917] text-white border-[#1C1917]' : 'bg-white text-[#78716C] border-[#E7E5E4] hover:bg-[#F5F5F4]'}`}
+                      >
+                        Consumo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExitReason('doacao');
+                          setModalSector('');
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${exitReason === 'doacao' ? 'bg-[#1C1917] text-white border-[#1C1917]' : 'bg-white text-[#78716C] border-[#E7E5E4] hover:bg-[#F5F5F4]'}`}
+                      >
+                        Doa√ß√£o
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExitReason('vencido');
+                          setModalSector('Descarte/Vencimento');
+                          setExpiryReason('');
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${exitReason === 'vencido' ? 'bg-[#1C1917] text-white border-[#1C1917]' : 'bg-white text-[#78716C] border-[#E7E5E4] hover:bg-[#F5F5F4]'}`}
+                      >
+                        Vencido
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExitReason('perda');
+                          setModalSector('Perda/Avaria');
+                          setExpiryReason('');
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${exitReason === 'perda' ? 'bg-[#1C1917] text-white border-[#1C1917]' : 'bg-white text-[#78716C] border-[#E7E5E4] hover:bg-[#F5F5F4]'}`}
+                      >
+                        Perda/Avaria
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-[#57534E] mb-2">
+                      {exitReason === 'doacao' ? 'Destinat√°rio da Doa√ß√£o' : 
+                       (exitReason === 'vencido' || exitReason === 'perda') ? 'Classifica√ß√£o' : 'Setor de Destino'}
+                    </label>
+                    {exitReason === 'doacao' ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-[#A8A29E] uppercase mb-1 ml-1">Unidade Doadora</label>
+                          <input 
+                            required
+                            type="text"
+                            placeholder="CEO - Centro de Especialidades Odontol√≥gicas"
+                            className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                            value={donationUnitName || 'CEO - Centro de Especialidades Odontol√≥gicas'}
+                            onChange={e => setDonationUnitName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-[#A8A29E] uppercase mb-1 ml-1">Unidade Receptora (Nome)</label>
+                          <input 
+                            required
+                            type="text"
+                            placeholder="Nome da unidade receptora..."
+                            className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                            value={modalSector}
+                            onChange={e => setModalSector(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-[#A8A29E] uppercase mb-1 ml-1">Endere√ßo Receptora</label>
+                            <input 
+                              required
+                              type="text"
+                              placeholder="Endere√ßo..."
+                              className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold text-xs"
+                              value={donationUnitAddress}
+                              onChange={e => setDonationUnitAddress(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-[#A8A29E] uppercase mb-1 ml-1">CNPJ Receptora</label>
+                            <input 
+                              required
+                              type="text"
+                              placeholder="00.000.000/0000-00"
+                              className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold text-xs"
+                              value={donationUnitCNPJ}
+                              onChange={e => setDonationUnitCNPJ(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-[#A8A29E] uppercase mb-1 ml-1">Papel Timbrado (Opcional - JPEG/PNG)</label>
+                          <div className="flex items-center gap-3">
+                            <label className="flex-1 cursor-pointer group">
+                              <div className="flex items-center gap-2 px-4 py-3 bg-[#F5F5F4] border-2 border-dashed border-[#E7E5E4] rounded-xl hover:border-[#1C1917]/20 transition-all">
+                                <Upload size={16} className="text-[#A8A29E] group-hover:text-[#1C1917]" />
+                                <span className="text-xs font-bold text-[#78716C] group-hover:text-[#1C1917]">
+                                  {letterheadImage ? 'Alterar Imagem' : 'Selecionar Timbrado'}
+                                </span>
+                              </div>
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      setLetterheadImage(reader.result as string);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </label>
+                            {letterheadImage && (
+                              <button 
+                                type="button"
+                                onClick={() => setLetterheadImage(null)}
+                                className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
+                                title="Remover imagem"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                          {letterheadImage && (
+                            <div className="mt-2 relative w-full h-12 bg-white rounded-lg border border-[#E7E5E4] overflow-hidden">
+                              <img 
+                                src={letterheadImage} 
+                                alt="Preview" 
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-[#A8A29E] uppercase mb-1 ml-1">Data da √öltima Revis√£o</label>
+                          <input 
+                            required
+                            type="text"
+                            placeholder="Ex: 24/04/2026"
+                            className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                            value={donationRevisionDate}
+                            onChange={e => setDonationRevisionDate(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    ) : (exitReason === 'vencido' || exitReason === 'perda') ? (
+                      <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100">
+                        <p className="text-xs font-bold text-rose-700 uppercase tracking-widest mb-1">Descarte por {exitReason === 'vencido' ? 'Vencimento' : 'Perda/Avaria'}</p>
+                        <p className="text-sm text-rose-600">Esta movimenta√ß√£o ser√° registrada como {modalSector}.</p>
+                      </div>
+                    ) : (
+                      <select 
+                        required
+                        className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                        value={modalSector}
+                        onChange={e => setModalSector(e.target.value)}
+                      >
+                        <option value="">Selecione o setor de destino...</option>
+                        <option value="Farm√°cia (Consumo Interno)">Farm√°cia (Consumo Interno)</option>
+                        {SECTORS.map(sector => (
+                          <option key={sector} value={sector}>{sector}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {(exitReason === 'vencido' || exitReason === 'perda') && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-2"
+                    >
+                      <label className="block text-sm font-bold text-[#57534E]">Justificativa do {exitReason === 'vencido' ? 'Vencimento' : 'Descarte'}</label>
+                      <textarea 
+                        required
+                        placeholder={exitReason === 'vencido' ? "Explique por que o item venceu no estoque..." : "Explique o motivo da perda ou avaria..."}
+                        className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold text-sm min-h-[100px] resize-none"
+                        value={expiryReason}
+                        onChange={e => setExpiryReason(e.target.value)}
+                      />
+                    </motion.div>
+                  )}
+
+                  <div className="space-y-4">
+                    <label className="block text-sm font-bold text-[#57534E]">Itens para Sa√≠da</label>
+                    {basket.map((b, index) => {
+                      const item = items.find(i => i.id === b.item_id);
+                      const itemName = b.name || item?.name || 'Item n√£o encontrado';
+                      const itemBatch = b.batch_number || item?.batch_number || (items.find(it => it.name.trim().toLowerCase() === itemName.trim().toLowerCase() && it.batch_number)?.batch_number) || 'S/N';
+                      const currentStock = item?.quantity ?? b.quantity;
+                      return (
+                        <div key={index} className="flex items-center gap-4 bg-[#F5F5F4] p-4 rounded-2xl">
+                          <div className="flex-1">
+                            <p className="font-bold text-sm text-[#1C1917]">{itemName}</p>
+                            <p className="text-[11px] text-[#78716C] mt-0.5">
+                              <span className="font-bold text-slate-700">Lote:</span> <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded">{itemBatch}</span> | <span className="font-bold text-slate-700">Estoque:</span> {currentStock} un.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const newBasket = [...basket];
+                                newBasket[index].quantity = Math.max(1, newBasket[index].quantity - 1);
+                                setBasket(newBasket);
+                              }}
+                              className="w-8 h-8 rounded-lg bg-white flex items-center justify-center font-bold hover:bg-gray-100"
+                            >
+                              -
+                            </button>
+                            <input 
+                              type="number"
+                              min="1"
+                              max={item?.quantity || 999}
+                              value={b.quantity}
+                              onChange={e => {
+                                const val = Math.max(1, Math.min(item?.quantity || 999, parseInt(e.target.value) || 0));
+                                const newBasket = [...basket];
+                                newBasket[index].quantity = val;
+                                setBasket(newBasket);
+                              }}
+                              className="font-bold w-16 text-center bg-transparent border-none focus:ring-0 text-sm"
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                const newBasket = [...basket];
+                                newBasket[index].quantity = Math.min(item?.quantity || 999, newBasket[index].quantity + 1);
+                                setBasket(newBasket);
+                              }}
+                              className="w-8 h-8 rounded-lg bg-white flex items-center justify-center font-bold hover:bg-gray-100"
+                            >
+                              +
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setBasket(basket.filter((_, i) => i !== index))}
+                              className="text-rose-500 hover:text-rose-700 ml-2"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-4">
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-[#A8A29E] uppercase mb-1 ml-1">1. Escolha o Item</label>
+                          <div className="relative">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A8A29E]" size={16} />
+                              <input 
+                                autoFocus
+                                type="text" 
+                                placeholder="Pesquisar item..."
+                                className="w-full pl-10 pr-4 py-3 bg-[#F5F5F4] border border-[#E7E5E4] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1C1917]/10 font-bold"
+                                value={modalSearchTerm}
+                                onChange={(e) => {
+                                  setModalSearchTerm(e.target.value);
+                                  if (selectedItemName) setSelectedItemName('');
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !modalSearchTerm && basket.length > 0) {
+                                    e.preventDefault();
+                                    // Submit the form
+                                    const form = e.currentTarget.closest('form');
+                                    if (form) form.requestSubmit();
+                                  }
+                                }}
+                              />
+                            </div>
+
+                            {modalSearchTerm.length >= 2 && !selectedItemName && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E7E5E4] rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto"
+                              >
+                                {(items.filter(i => i.quantity > 0) as Item[])
+                                  .filter(item => {
+                                    const combined = `${item.name} ${item.batch_number || ''}`;
+                                    return normalizeString(combined).includes(normalizeString(modalSearchTerm));
+                                  })
+                                  .sort((a, b) => a.name.localeCompare(b.name))
+                                  .slice(0, 10)
+                                  .map(item => (
+                                    <button
+                                      key={item.id}
+                                      type="button"
+                                      onClick={() => {
+                                        if (basket.some(b => b.item_id === item.id)) {
+                                          showToast('Este lote j√° est√° na lista de sa√≠da.', 'error');
+                                          return;
+                                        }
+                                        setBasket([...basket, {
+                                          item_id: item.id,
+                                          quantity: 1,
+                                          name: item.name,
+                                          batch_number: item.batch_number || '',
+                                          expiry_date: item.expiry_date || '',
+                                          unit_measure: item.unit_measure || ''
+                                        }]);
+                                        setModalSearchTerm('');
+                                        setSelectedItemName('');
+                                      }}
+                                      className="w-full px-4 py-3 text-left hover:bg-[#F5F5F4] transition-all border-b border-[#F5F5F4] last:border-none flex justify-between items-center"
+                                    >
+                                      <div>
+                                        <p className="font-bold text-sm text-[#1C1917]">{item.name}</p>
+                                        <p className="text-[11px] text-[#78716C]">Lote: <span className="font-mono font-bold text-slate-800">{item.batch_number || 'Sem Lote'}</span></p>
+                                      </div>
+                                      <div className="flex flex-col items-end">
+                                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">
+                                          {item.quantity} un.
+                                        </span>
+                                        {item.expiry_date && (
+                                          <span className={`text-[8px] font-bold ${isNearExpiry(item) ? 'text-rose-600' : 'text-[#A8A29E]'}`}>
+                                            {item.expiry_date === 'Indeterminada' ? 'Indeterminada' : new Date(item.expiry_date).toLocaleDateString('pt-BR')}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </button>
+                                  ))
+                                }
+                              </motion.div>
+                            )}
+                          </div>
+                        </div>
+
+                        {selectedItemName && (
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-bold text-[#A8A29E] uppercase mb-1 ml-1">2. Escolha o Lote</label>
+                            <select 
+                              className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl text-sm focus:ring-2 focus:ring-[#1C1917]/10"
+                              value={selectedItemId}
+                              onChange={e => {
+                                const id = e.target.value;
+                                if (!id) return;
+                                if (basket.some(b => b.item_id === id)) {
+                                  alert('Este lote j√° est√° na lista de sa√≠da.');
+                                  return;
+                                }
+                                const chosen = items.find(i => i.id === id);
+                                setBasket([...basket, {
+                                  item_id: id,
+                                  quantity: 1,
+                                  name: chosen?.name || selectedItemName,
+                                  batch_number: chosen?.batch_number || '',
+                                  expiry_date: chosen?.expiry_date || '',
+                                  unit_measure: chosen?.unit_measure || ''
+                                }]);
+                                setSelectedItemId('');
+                                setSelectedItemName('');
+                                setModalSearchTerm('');
+                              }}
+                            >
+                              <option value="">Selecione o lote...</option>
+                              {items
+                                .filter(i => i.name === selectedItemName && i.quantity > 0 && !basket.some(b => b.item_id === i.id))
+                                .map(item => (
+                                  <option key={item.id} value={item.id}>
+                                    Lote: {item.batch_number || 'S/N'} ({item.quantity} un.) {item.expiry_date ? `- Venc: ${new Date(item.expiry_date).toLocaleDateString('pt-BR')}` : ''}
+                                  </option>
+                                ))
+                              }
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowTransactionModal({ show: false, type: 'entry' });
+                    setLetterheadImage(null);
+                  }}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-[#78716C] hover:bg-[#F5F5F4] transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={showTransactionModal.type === 'exit' && basket.length === 0}
+                  className={`flex-1 px-4 py-3 text-white rounded-xl font-bold transition-all disabled:opacity-50 ${showTransactionModal.type === 'entry' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}
+                >
+                  Confirmar {showTransactionModal.type === 'exit' && basket.length > 0 && `(${basket.length})`}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {showDeleteModal.show && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
@@ -10465,7 +10935,7 @@ export default function App() {
                     ? 'Itens com Estoque Baixo' 
                     : showDetailModal.type === 'expiry'
                     ? 'Itens Pr√≥ximos ao Vencimento'
-                    : 'Aten√ß√£o Necess√°ria - Central de Alertas'}
+                    : 'Aten√ß√£o Necess√°ria ‚Äî Central de Alertas'}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-1">
                   Listagem de insumos que requerem provid√™ncia imediata
@@ -10489,7 +10959,20 @@ export default function App() {
             </div>
 
             <div className="space-y-3">
-              {showDetailModal.items.map((item, idx) => {
+              {showDetailModal.items.length === 0 ? (
+                <div className="p-10 text-center bg-slate-50 rounded-2xl border border-slate-100">
+                  <CheckCircle className="mx-auto text-emerald-600 mb-3" size={40} />
+                  <p className="text-base font-extrabold text-slate-800">Tudo em dia!</p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    {showDetailModal.type === 'low_stock' 
+                      ? 'Nenhum material est√° com estoque baixo ou cr√≠tico no momento.' 
+                      : showDetailModal.type === 'expiry' 
+                      ? 'Nenhum material est√° vencido ou pr√≥ximo do vencimento nos pr√≥ximos 30 dias.' 
+                      : 'Nenhuma pend√™ncia cr√≠tica ou alerta requerendo aten√ß√£o imediata.'}
+                  </p>
+                </div>
+              ) : (
+                showDetailModal.items.map((item, idx) => {
                 const isGroup = 'total_quantity' in item;
                 const quantity = isGroup ? (item as ItemGroup).total_quantity : (item as Item).quantity;
                 const minQuantity = isGroup ? (item as ItemGroup).min_quantity : (item as Item).min_quantity;
@@ -10563,7 +11046,7 @@ export default function App() {
                     </button>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </motion.div>
         </div>
@@ -10611,76 +11094,1593 @@ export default function App() {
                     settingsTab === 'tools'
                       ? 'bg-white text-blue-700 shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
-                  }`xúÏ}[S‰HñÊ˚¸
-œ®≤&Ë&ÇK^í\
-»j∆2ìl†z€√2EHÄ™R¥§‡RO˚∞?`˛¿ñÕC€éY=µÌÀæÚ«ˆøHÓíªÀYYU©ôŒ
-tsó˚Ò„Á˙ùª!ïc≥vÜêçÔ≤ ÕH˛ºº<Ω#ã⁄ª≤±oæ“‘qÓedÀÖÒ∆"=_{`cÒtíÁIÌ ¸›øTŒl∞ko»o∆¡Àªÿ©]M‚Ì(˛Ú∂;O^ní,»É<„ÛÏ»;ÌŒÖÒY2mUF^ñΩÉ/xy˚Ò,
-Æ{2æÈ-˜◊»¯∫∑B“d˚ÅﬂªéH\ÁΩÎåú%qﬁÉﬂ©wöD>Åˇ∆YòáI‹Û¢à‡;Hò£¨7ÑQ	RÚ˝$À√≥ÒÁπ7Ó-ìØo5#öï&/_æ$¨”ö	yEÊNœ{W–Îÿi4	zœññHv·˘…U/È\'sÙ˛,ÚÚ†˜∏H.Ét]:˘bi©˛Ï›«Íÿi¶x˙k'F4á…iË	EO&ã~xπ© úí¶ØoΩõﬁSÇt¡ ‹ÙºIûêq⁄t™›÷F;JŒì9Úá?ênΩ€¶∂jØ’›=Ó≠ò-:EkKãœó
-≤Z∫:MRËÇ˝á›4Äi)gÊC€4t±*∑£PËi‰ ìÒ8Há^ ùÄÔÌ]Öÿ\˘˙Á–ÿËËæN∫îVm„tèºÛ`oòƒ“úWªCõ 2ÎËôﬂiC E≤ùå∆Q ?¸ÄºÅ…√qíÈø~Òb’0.c›∞DÅÁ„ §A‰]~e›–A~8øx€ÛΩ,Oí¿€DﬂHrBÔ√å¯	–wû&Ò˘ÊˆÓ>–7˚Ω†\H‚Ï˛üÈ0Ñ/}¯ˆP◊∑H¬q≤x¯]y	‰;√f +Æˆ…n œ“˚ˇLH√è–áŒ·yy8§√ê`DÚ/$ÿﬂ·ÑzFﬁÔº^ 809t.Ñ¸5Oì¨o˚±ñÚ5Îî∑ã$o¬ÀÄÏF…üa:Ä∆ﬁß¡e\ë?.÷ô≥q)åäM"„ÉÚ¢tE√ëoZCïÃ¸4»ØÇ .V™¯¡:ÉÀh|j[.»Ójty<X_ü8,Ÿ,gﬂåÇ‘ã¸ﬁ*“¨v≈˙k∆Nh∫q€—¸OﬂŸ∂1cπ!/G¯ë„IîùM”/é˜È˝ˇÈ˝5Ã&^˛Ë›ˇIhw€;Óˇ·E¯WVPÇay#5Ÿö1åÁãb8≥`≤-∫‹€VëóæM¸ JêÊ…÷™≠39◊È¶ÿéëD%±AeÔ¨œ·ñt\#ÿ0éÉ‘8è∏úéí19HÆ÷…÷õ7dÖ2KXÔ˘s2JŒÉ8H&9Üπü#k–/0›ß4/$≥ëa˜}⁄%≤çík/œ‡≥H˜MpñìûË◊$Ú“yKœÙ}ÉΩÍ¢7Xñâ∂’µ• Xãk∏õJBH≥úV°Ô±Âc·sΩÒX˙"˙ŸØ4bÑÚa·ËúdÈ•Ê·;‚E˘ÀNm¯:ÚHåºÎﬁ[≠¯Ûä˝LNøáwı`SŒΩ0∂Ï∫xÃÉ8≠∑Ôoµì|7zå˛5Ù™BU¿X™¬8ëQkxlû_pÀ(†≥πıÊÌ˛ﬂ∂ˆ^oÌÏsV`È´ÖÜ-l\-À|µÄ‡@∫€åg∑L≤n¥KœÇÂ1N@5ã¬§êñ¥VyR¶9©œöﬁpl›iÁΩﬂÙÓË`üÏÏí›√˜ª€{[oˆv∂vv…˛Œ˛ª£˝7˜ˇÒÌﬁˆ÷·c„ä ∆ä∞J∫¥Á%Ã„A∞vÇ‘I•πTËÛ@K†¸RùFgL°@YÇ⁄í>ïÁÍ,ÜÆ5ëílËE¯Õküí\˘H∑†ÿ˝wá˜ˇq∞Ω∑/4ô•ı¢E⁄	/©R˚&åÉrß±\Œñπ≤jìº¬<
-»»Ó(Ã≤ÙﬂxêúÇPyEı¬6¬ñ4¶Ö∏dó‡/÷îUôH–t+≤•i>≠K‚ ÿœ7åO⁄˝væ›:⁄= Ædô»ã5KœÎzyÉºæf¥}∞ﬁCKù	P3÷…ÌYíÇÆ“çAßƒiÈŒ/ê9ﬂ_|˚vÒÚÁ?ØèF:K`˘	Z’ñ]2í©Òí]%˛¥tÏˇjiÎp‘ÑœÒI¸ÿFîCDô‹D6≤<Ó{‰=›UÔ∆m’H™u’{çJéŸÄÖ€ﬁriáj,T≥j<#|¿up˚Úi`S£Z’‹KisT]bmmgº)ç.¬◊˝∑™è„¿¢Ω6åA
-`≈'√öUq<Ë¥ÔS+UDı›}€˜Õj¸∫f∏ä’u+[‘»(o`jxNNañÛIH<ÿÅcÒŒí8!CçÉŸ8Yò§xa®ZJcñﬁb%>Œ∏∏v!ç´5KØcñlb˝Ê¬mq·≈~#ê[ﬁW§^ÎL‡
-Õ¶IV≥˜”sœäsHo)ó…∞T˜∫îG••^v±,≈+Ë ÏcSÎtÈùFÂad‰v©a#Íâa ◊·ŸpíÇX◊'!˚xXã„ñ¢xí*≤ßÜ]ˆñ≈&–˚ë®∞Ï›¡°ÑVßØ5ä÷úƒñW`¶KepYL{yjuiD
-O])»Cz”⁄í¸0_ÒswÔf´Í∂˝ò∏p€ÈïÉßÌTI⁄ú÷BY8h ÌFÙY97∞ã°èà˙«ß∫LcÛ-:Ù›8J<_]Ö[ºƒKπp–¥;–◊8Ï9Õ⁄@kÂEˇÂ63§˛=c∫ΩT_Œ¡SIÀ§cM◊}è:W KÚJ•?Q‡l?¯œnuÂë¶AüÁ–∫÷%V≥YW®wQ¯˜I@∆^Íë æÅB<™‹p±Ó§ñVááŒ:ˇ˛›∑‰ﬂﬁKí	9¸Î∑§˚ˆ˛ßÎ>Y~˚ÕºCõCˆhä*2òx<…y§¬Y‚á¡xKàŒ“≈?*¨Ö[&P∏@Ì[Hï˝üéÖ^6Èv÷ﬁâ![}çΩg∆∫∑1|QA=(åh3—*Ñ+R û&ZÉjZ|4ùa[±D~—æhNC’=ß≤jÆ2îzYk(œ:)ájØ;¥4–?ûÊ0ù≈ˇ1’>Æœî©˙•ïàb0~'∫DA‹ ú|—(ú5äZ\‹ı¢~y6ÍÖ"*<Ær!<…ªYé·?ã‰ªC¯ó«7í.\cêm*®Ìf@ ©üò] S*"ˆ„ãÊÒöá‹8'Zí«g©éÏ^áß°Ôi‘éÄ˜õjjêmÏAªuaF¯≠è¶Öh"‘M©F≥}QFæ(#N à6årÆ¬√πJ"E~ :ât⁄I))ÔüF+ô&ÓÛÒT{ )„±òRâı1ƒœ‘â˚%5îr,~'ÍIIÊÍú|QPúî4´ätK⁄qQæ()S*)Nˆ∏j *WS˛2Ò¸‘!Æ˚6à'®óÚ»ˆôk$4ÔÏã:ÚÍà»8úV1”¿ÁÆvå∞ø¯&`Ì†[‰…òF˚≈ﬁep^fayRB…c™è´c|Q,æ(≠ãä6AπW%Db∂¨GàsNJøyJ‚3P™∫B¡ë~bu°»»≥K*
-b ~'j'di"æ(N
-¬ﬂ≈ÇÒ ÉßÊ?írö&8$d∞> ›™¶–#ø?U·ÒıÉµ>yÔçac<
-Gß©ÁK0]äÇ1"[´3◊ä|§/J¬¨ïÑ0ˆ√ÛdJ5°â¸ÄºÜÊ§âœRgÿˆ2tOxàB#®òr˝˝Odúdxﬁ4¶_ôãØÑÔ
-ŸÁ›ˇ?ö7Dπ`BŒËó˙N·—‘	^ Éã¿ÛÈ?¢ZQ4ÙW.
-Ú˝¢eÃLÀ®Ri©mpv√ı˛WE„(œ:È≈Ì”hıû˛b⁄G•+\©∞ÿ≠UçÉWIú=Úõw“j,|*û)≥˚i-a±©C¯;Q`äU°ÃÃ%∆ÆƒîDSŸÙáL¥y<]‘‘\PÅ·>éµ_ë‚by∑¨”Xn´©;ñ{5öêÂÓRIÍSá8)Ω<Qê`…KÙs/=Ú>˛ùΩÍ/ù¸´ıÈåtÒﬁy¬5≤Ç©≥µ¡.⁄ﬁqwg˛òÈtŒ¥ßÎË§u‹»<I¢åGÜÖ@u√ê˜û∂FÖtÇõ40Uy\QMl&H<ˇuyŸ»œîªSÒ‚dêX`2;KΩÄ±z5»<ZéW¥\´>6C<n'i~èzÆá0ÀÔˇë)32â√3PzP’Å]!ÜÅü§AFÜí~0K'#8Îágàiô√O`np˙ãè¬§ƒpu2≈É>É^ïÂ	cùÍdYtAÇ0Ì°™QE◊Ã3_˜"πªoﬂã∫g^îŸñ9Ëm ÃÂp2Üa :ÎÊÈƒ¸–ùâG+ä>›‘A ZëÃò»ûjfÅµ•#T† #V™Í@ÚöÙ∑Ä¢øD?A–kyF∆wê‰∞ánØ∏]ÚñíZJ^K4j`é6’Ó≥!í=”G 9$i∆4"√ÃÕàL§ﬁ∂ßî˜–MTÒ¥t≤G“N¡ê~Ö¥≤Î‡<IoËo—˘¬Éss-ûz\âøõÑKFÙ1Ágªò0¶4˚t-i¢3&k˛ÊRuŸ◊ˆD}‰ù´-‘_>¿!ç®‘–ö™ÌòMá¡?h‘#.Iü·{”6˝Eˆßè‡TnhN£§¡qé~Å
-(ôZ|j◊Ù…‘Œ∏fì*ÈÀÃNÅ¬°Ÿ•‡Ü8Fﬂg c‰d¡o@-ﬁäÇ4?ÇŸD0[1˜kuºqaqµöwﬁÑ£q#•ëÉ‡<Dm*ò¡¨F]√ålfëHkØl§Ø¶ñÔ>»e2ºˇ/íà•ú`|O|ˇè√v√ﬂHs(ÑbˇGå‡C*ã&îÉ2…Cx4@I”#gÖ(Œ- ◊√h¶$!(Ó˛3ázù>ã
-„4¿ÒÓÿñˇIÜwûÖ1ÇKc(ëQó∑Å©˝¬{ ÆÍ ©a;âœ¬t¥áÍ~#ü/;¢Íswé3ÑI›8lÂ◊Ó±6â¬)1„-¢ ım¢üSläﬂÉÌªú–w≈zYz®m›;ÏNß]Ï¥⁄G+€Å∞˜ª¯êı¶˜l·ñ-ÌËœXÎ#aX·ˇ2)J“®ŒJh†·VÉ[˘‘©$É÷ÙQuo+§ámÉ√€4H¥!jˇ+®´˜ˇô¥ƒ•güëƒâﬁ˙Ç#?â>pØ¡2Æÿ•“u›ŸÙó˚Kpıü¡@Åz· b
-F0¬å4sL3t&ÇÏlﬁ“˜£ >œ/Óf44 ÖYä84ÿ∏äÆ÷o*u6'„$≈ d'»Ç¯2â.C∫Ω€ÄH«-FÈ˝À^kÛ‹ã.º {ˆ‚øùèº0ÍÉî–~{n…ˆ¨˜l,é‹'˙ yÂ∂‚∑YÕt§2ÀçáhÙ√R(yèG¬l,Æ¬o¯Øü&cÆS@˘±w¸|È§yßW*˛lî›WÖ*y—À€[ÜÊºNñ˙/HL/Ão‡ØÍ÷Õ+lH§€’€uÖ'Æd\iÿF≈¶pº≤å:Ó=;+lÚé™ŒZ{Vt\/Ñ¥q±R[*ÀBºêîá„Ø€ÉÉg'ùMùı
-∂ìï⁄´M‚°¶X›‹»‰?[%0t'ñbÕÒWØ◊‡ˇVOT¢*‰TÕ˙¯õ0®ØjÍ3({UüΩ^(b<jP¡ƒÆjXaìﬁ•úfQûî¶˜?ëL†9°¶Åft¢ÿ⁄ï¬EÃé∞9êDêRÖ©k#FßWÛınWS»äa‡§Ωı|k˘≈Óâ•¶Ó∞…è"‹
-J¬«Ωs?—+€=‰ÒπˇŸOÊçéØçTà°÷3©Q	ÆÅ"P/ 
-ôs*àì∏¢'Ÿzä}_ñˇ(‚`©&·åtí˚•TÚÚ6K&È∞Xò:M¶Ùab=+œtG%}•fQk7∞dLÌ7¨ÿÅqÃB¸\NyË˛I” O˙˝˛∆"ª]˜¶€IåæÙÇ∑ÙGﬁ∏õaWıa¢ÂÇõó∑Ÿ˜˜ææÕÓ>ﬁÉr∑	ˇ≥5:Ø˘L}ËºªS∏ë√xˇFD°ôq•Äî^€ÿJSPrì´òV™	R≈rI©w£∑∫÷<sI_MP's|Ê´Ñ<P˚“}áî∂ÕËÏ∑±†ŸZl∑†èîgkAäÂÃ:˛,gP`Vô(kr[Ïk°Hï´∞j™r‰´hÌŸ⁄ ÍÓIÕÙDâMíævüÌÆÌ‚cVÅKO€^<@§‘å∞…Æ„26,»E›h¯aÊùFÅˇÚ6Ãnt¸˚øì'ÍŒGO©kOUnBQÛì√`+P§ÛXÃ~™h˚ﬂà1¥\BôïG«Ié]KÆüF ™z?ÁÍÂjı"u⁄ª·‡Ñó»^îJÃ∆ò'«í˜i2≤CAÄ¥n-è0Vö;∑}ÿ”aÈ.aΩ‡&m–≥òæ2fõÆË∏ï~-ivÁ) 5 ç¯¢˝ˇ&µˇjL¬¨, ,ñ‰˜Æ˝K@0Õpy”Ÿ ‰‡ö÷f háXÕ°PÙuÅu}r$¨©Ï¬Â·t$ê˝ôº*Ú(π§5ëπˇRëïˆ$iŸR@Uä=°º˛6î
-&"‡óbØ⁄X	ƒ3è•TqúnjÖËS+b¯’“PÄ\‘|R“0ËüõÏ?_Ãø!≥ÅX‹øyÉAªµ}§<ÛXk∑?∏L’»CÛM˙ÿ´ú€>∑U˛X÷ª8ˆ;¥$–ioE'iÿÚ© M•Üm[u+Ç¯)	˝ÃñÜIÜ˝bK¯Õ⁄4AŸ_å
-ü±Q¡)—MX“î1<XRSÜü-)
-≤^0-√–Yr¶XShç∆jb7öX„ﬁuñ⁄åYw◊Çät6E^úGÜrC∞&£DÕÇæSdh√ãlÚwÂd;;è.…‚Q>’<ÊˆùJÚp˚Où‰gßπî4·®π»“¥†E≤Hˆ(µ|≈•é˙ õ∫LZå®Q”a™IÙfïf®KGr–lÙAÏ,+õL‡3—Ü®*è>4‹ò%øÀVŒEæ˙-¬$@ã,ÃÚF®bg√~,§,á˜arx˘6LìÙ≈hÕÉ¯mπZö˜Ë{†MË|KU—ñu˚e"Ô‘DÄƒäñO¯x˚Ñ‡è˘W≈à†p<wå bN?F¿≤'ilƒÔPuUx{oÑ”a“ToÅÔß◊I˜∂¸û;HñmAñ”}«›LÙﬂ_àoæK.Ωrû~OåRZ’nV #Oòµ=Hñx∏`”¥¬≈|qq≈∫ôÄpY¡	XTKZS¯◊&˝∑≠Ìßˆm>º€˝Ô>t6ˇî∆§∂î®Ñg˝ævã…8À,„Öw∆îÙ"iBíÚS*<˛Ì≠!và§ÎîΩéjëvŒßX—ín‡º§—Q‡«•M¨»2S{¢œáCOÉXçA˙≤≥{ΩNˆ}¯Ä$∫ˇÁy8L»÷ªóc"òd˝K…’Ûúıπföµ©Iën\ñx4pØ mm©¬¿¯•Ÿq0~«=›zí'ØÒÖö´Z=Pgö`G=5Lóë2clM…dãe˙s£5vπù9V$É}fYJ¬ H5Ÿgø˚fımK‚◊≠NPø“∞	å≤ä√`ï]∂ôe»∞Viö—y%èü%jRÎÌå°•…∂dŒm,∂µæ>¶Èñe¢z—Â/f∑ï∫ Yç~MF[MíÙTF€µﬂÖ—÷©’h´ÉÑÊ·ìnøX∫º8ô±ôWoπö$≤n‰])ﬁoë˛ﬁhﬁ’aNh„∑À–+%qäÙu5g}v^	CäßJ–ˇ}ˇs‚Kòü÷§´ÉDhk“-ÒÃ›M∫2b3;˘Ï≥∞Ûí‹¯¶áB(ß®g4Iê,¯œù¬∑Ü˛±[ñ≈babä∫ËÅß≈—5S∑Q≤fûõP
-k@Ÿ¿47I¸FÜH1¬;òñ¨vÈT°’^∑
-sºˇ?∞¬Ü†∆>å†¡àtˆ„rÂùÃõ‚OÄHÅß'ô@d)Lè"˙û¿Ä!…Y8D©*Y$˛Ñ6¯Ä–FD;⁄R…1◊˙p2y  ’ç 	W8˛$3Á81Œªqaq÷qCJôºÄ 
-1√
-Ë_;ÆÖèk%≠[ñ»Ja•–¨ãNΩ.µÂ}T˙ôµg˘Ü⁄Jû‰}
-<¯[˘ºÄ?–u––uÀnıYMoÑéòf‹†#~-u¸}f!ÀÑûÒ@•n`=”çïôØÏS#∞jNDe3cë0ct‰±lÙëfá≈Cˆsæªˇ˘&L%5Ñâ—å7˚È	 …x”Ñ1’d9@I@[°"Uj0H˚9leiŒY˙◊zèï_Èd…øäéö∞Ω ö	ønI¬≤ùÕ¯`µ`¬rµ`BQGaNÁ7r¥4õgaœ2wL©íçŒf5‹9DÕMJCŸdó}Ì(Rı(Ô*JîdU¶≥òjE63¿}ó éjOŸ‘÷8àΩ¨D˜*√`¬Ã\hÁ%vúA¸òÊVÿãD√>AÀ≥Îéáµ8≈ãÉOcZóÑw˝`KF2/Ú’‹Íß ∆	,rö*c∞ÓË¡•≠Ë>è¬∏ºÿˇ =˛´‡^eoø∞∞Y∞∞r<g¿«HÈ◊¬Ã
-.ÜN⁄¸˛'Zb∞@SÛìR$˛[û`O·ˇıH§Sn´‡=ÜËA; ˛Á¿µÄΩ|@¸—}?ké•ˆÙ∑z∑R«Úú Å|~-\Í Ä/$‘„≥OuÛZ áﬁ˝œ»eY“OÁY∂ı¶`G5ôÑ)62ÎË…‡a^äfÇgQ´ÒÓˇAsïQKöÏnÙßa`⁄ìZ[K«†Í4≈,6(’≥Qû¿_«`ÕwãÛÍÙË‘ÁhÚÑa5´œµFaèòQ‚ev¬stûÌÌ"Æˆˆ˛ª◊{o∑ÿ\_xßaîêgxÿL…=d‰h∑ò6Í¥CËLC‡L…Ã NA3≈ˆ`ô)–ﬂ•aï*^ÆË∏î∆Cb¢Ì-f$˙Ü:P2c—É¢f·∞Î∫È~∏≥ US∫¨TT=§£ƒ}≠¯ªñÎH‹ø`hçÛÄ≤–u$õ¢nvxq?ÜïtıK±ä¬®;ﬂœìÔêim”Ç)|Ç{<]˙‘æﬁ˙—ÇYL˜¯Óﬂ∂ﬂ|∑w–,M÷ËƒÜÂÆ!ëá˛HÌ&—Ù749f⁄•dñük–˘ëîuÎ‡ÒÉôòà≈Õhd¬„«4Ÿ∞˝ãy|ÜÅM∞¡$…Ñ∂Kt[ß7Ñ6ï€‹∆õÑ˜)¢ÑÉÚù4*
-ü.÷E9áEÕ2ó’5EhTÎ‡(BÇÎ0o”Ä>úÍ¯≈⁄Â’	âŒ◊πtøXt≤ÿZx’*…FÎï(+9ÄJç≠R7CßX®ˆô≥Ì"ë¨@]ÜÚ=∆zÉÔSf—®6"‡¨s›‹∑ﬁòZæΩ»#›˜Iö{:f‹"J»¨«_={˛lt˚ÑP=[÷*A÷ÅDM…∞⁄∫ä§êM IôÜúHñx˜P©)B∏Î+ﬁM÷|8ºô¡RcÖ8kd¶Ñ/\øœ	óÅ4qPÀÑe-Ù≤aöD—©ßã3)X≠ÕÒln_áÖfàÁ´O Ed÷òëSéPÆ®∫}AˇUfT ÌlZ™a˙D¶x\rmñö=hŸ *nˆ˜ﬂ“ú©'»ò4e],Ï†˘T¯sâgÁ*R¨<œsE“°›≥V3.≤`väS‘à±êì´5ôs5{îÑ¯Yjd/-Ωfﬁ≈«îüN≠°tv,»FÂuV™<†V
-(Í>-ÕÏ(ÌÕeÍàboïÚ™ä∞hÒ¯´’’’•ïÌìDÆóµŸaŒh≠’m‡Ÿíb=+ñ|gÛM2Dt[)X6Úµ◊‰4d∂síPÉ"%bBœøp…ÚXÓëŸGÖí8›àM…	ÈÓ˙a~ˇ”eµSê˘ß$Ì	û”Ë•ÊïåΩÇWMü¨˜M´<-l˛Ô≈I…£j´WÊdu∆LèU6Rak…$è¬8†PuéIët¬@F€û§.Ã»Ó(HœY¥Ö¡ºk˘◊Øõ"x∂bFcîuE50≠á_j!>¬R$d•O^áQÆ¿‡ò*Îóûadæ§I—àÌ“NZíH˜àÆL?1,8<¨µ«
-ã|±XÿFàÉö‚*—Mcû_`@vÎmÔ≠ó"LÔzˇß⁄§L·®«_Ì<›YŸút6ˇΩ°\‹Ïf‡·Éû˛£è˘Nêç:ÏmÎ∫›6 ˘ŸhΩö `ZIº`ëˇô∑“.˛ã9Õ¨Kå`‹Öo®z–j¢®,tñ[Cífï èˆÛoÿ¡Ãpö\b¯«ãàáLª&˙a<å&¿„ã	±,ëzÉM°`ê@ŒÕö¡Åƒa^ÿÜFxä≈{:§f˛≤5õ^	"XÀ”˜ôΩæWE'Nö:aπj—$+B€*lªÖ:Y4Áæï≠Drs5ŒÄåÄá•Ù∂1≈°¬Neñ—$∆ÅÈlñ+∫a_0√kÃP72ÁC’˘£§¸bÈ^¡NVÃ•˜Ñ˘±ù(≈äôD?9óÓyΩ~z1·,™∆XF›H§%RmEK/ä2®µz¬;¬†j2eÎïÔ«‰º6’÷±ÀΩCxØ˜;Ø	ÌUé'®°7ç” √ÙƒÂ Ù|…AçËäœ7ÆäÙ Nõ29HH~ˇs>âh⁄mñƒXÚ[/ÌT5ºé√ã1"^ó£”hDÓˇw¶Ô£ƒÀD˛n…⁄ùq„ FxôJæ≤O“R¶=$QÇ≈ËA•}M‰@Ñ˘D˛$e·ÜÒCÛª∑^≠3$ˆS±`Û∫$PË⁄∫ü Ã_Ü
-¨2Õ‹¨áW\!fµ‹V›tAçW·3Ç⁄∂…%,Ëd˜+1+@ë!à∫à~6¶9’B⁄Ÿ£_¨kòökó\(Âx˘D¶{π∞È)£∞˙VÏ8‹|]¸*åπ‚K◊• ã‚\=⁄¬-ñe≈—•%úó2ËµÊæo)ØÏ¶lÎ˝ROÈ¡¢*∑`c±¿Ø∞» ñøπ‰^QbÎ„i0\Êü_†∞ç®*+:øøŸ·_ÒU~†lìl_ìÀD@úB˙av¿`C_ë9º]0@Çù‡2âX4iíØñ1’pıNoìsÚŸegÛ´∆û˙˝⁄∫ΩµJî◊Èë€8∏";@!›Ü◊¯p>O=8>qò£R‘ù°‡å‡3É+TN∂√A©˜©{K◊Ô:°[á˘ÙWZ‘LÎ5~ä§˛¸± úπU8”[˛‰íˆH¯ŒÊ·Ó—˛9‹≥∑Ωw¥ıÓhW"RoZì§/⁄ei˙ÑõÅêê§:Í¥*QRå≈gúì¶&˘Étw◊‹Ü~FKáíyBëˆ!”ÈZ®	&3˜ÚIF∂@çâÙ[1v‹~4§SÄ–µå‚◊@]êÊhˆM$¿∫KÛôﬁÔæ€Ÿ}áµË™»@Eº9˚∏˜√⁄}˚·p˜˝÷¡÷ˆ÷æhl<I«ë›ŒˇûEs[Ôˆˇ∫µS4UÿS„∆√øÍ›—¡Ó∑ﬂ√'L¨ÚÑ7v∞ª˝›°ÙMz8≥7≥≥˚◊˝7ﬂ¡4}p"‚–Q3Ï
-üœ≠∆Å~6”f˘êoYÜ‹ÿ ﬁûz7Â˝ÙØß∫ËÓªèZl‚Ffn[`ªo	;qˇøÓˇÁ>ä_:UÙ·Ñ¡N”FHyA7"3òzπ±Ú¬ÏS&\n¨º0}cZHzç˝⁄VÆús 5º>˝?º,âu ‹’Ωã¡í∂`rØäΩ®q?~õ`<GEˇpïxTSÜ
-~Á"ÎîÈ(ÈTqüõöHN≥ Ωdπùø˙©öÇÈ…∫Ê>n<ÆÎõÍı§–9Ae÷$o∑ ë
-Óü“tZLÌÉ><∆˚≠à‰ˆ#ÍT@%eÏÕÒÚ*Nla,÷öSâ.ö	ó∂÷"3U∑”æX“É¨ó^˘ºF‡{Qﬂyµ˚Æ+Ü%åô>ñ°Õ∂-uÜ(¸¨Œe'$@ÉØŒídÂË4ΩXÎHªË;-õÈ≈Â™àÃœäÄŒﬁÆó…¶üﬁπr_:ÜìÃ”≤®-\æ!√AIµ≠≤IÃ\%ø•ëuU˘ cÒ/Ω~Â∞”©ÌŸhù˛Nì+ÊÑ„ñ€˘‚lÖô†ˇ‰eÅöc=Å;ÊyÒ%[9.∏çàÖ¶º(‚-ÌÒ2P4ò%•ï†“P¥˘!ÙY¥~˜>¸ƒÅÑãü¿&Ê7ºÒ8M.”qóÊ…&¸£o_{rq·’Ü‰*Ã/höë1L—kNÚã0#¬ó‡Qx§7$O¢™◊p+¬MiÙ	}Y<¡ùU◊V√{S‡Ö¥~ü/ŒmÂ∞‡
-cnÂ“|Z∆ß∫»’ª®]∑∏lõâvìlÒ{°}#v´¡É≠@∫¬¿Q7‹+ΩZnÊΩbæ˘üÊ'`Ú.˙ﬁi÷-F!ØéÈ’F{ûlê¡˘#y∫ˇ¿.ª§}=üe¸Ëé˙:IÅ·8_'∑4eò@∏ûuíQã˙øA™Îú.˛ïQ…ˆ◊+q#π;>Åi8>1¥ä§ÿÂ‘í‰¨XJÊ∏≤≤£bíïIØ Ù‚}¥Îl¯√æ¸9∆H.QèΩëªkqZbÀ ˚·£vΩ·ÎÇ-≠2⁄˝Ò$ªË⁄£◊‘Ÿêæo¡˙X9]y¡eÏO»”âO…”∫uΩ^œú´É≈ﬁ,	U∆kç|lˆigêNùS÷7‡£Ø4≈˜ß-o£vs•VﬁMîF (˙™v©⁄â'° )§äÄUä¨øå¥π´≠iH•†J˚6ö(i»∏UŸW	JåÌ44¢=_+‘ƒ±íÂ!rYœr–	g≥7¸y;10„ÓÎß7
-Ìÿzu
-Õ˜Û˝zœ_ÁÇÉ˘V‹/÷k€/ÃëÿPMÉ˚∞*ùQNç%Íß^ëlÕçÒ+‚ﬁeQKÂá§©é¬îl'#\?h¸–®¶ê™€'-Ãå›0£˙Œ˛4Ö˜i{dJñKúî¯ÇVnE˙jlÚU?¿øÁıµíEsÅ*ä€øÏ	¨6#G€EˆCêã÷EGX thÿº(<ˇÜÕp‘ó
-£M≈id¥M[Wä„£ ˆRœ≠{’÷öﬁ»wâoêoôTÊñjH˜b‹È‡Ge≥√3≠%∞¢Ê≠ÀV˙ Ff„ã≥ŸˇƒË⁄ny◊qæY
-“·›cüSH50·ÍË/ùºÍ≥sñ|i„:_ù6:G‚˚∏∫iç%JWbm‚1.Ø£ƒÀÚnÁ®ä6ãX†68˜»˜˜?°V‡ç@ÕΩà™á[.ìË2D£ŒÈÑÒY“i$≥¸`∏@a˛–Vç;«7ÙÂO56®<«‹›πwh: ÉÀ `2Áˆ¨d»ÈŒYüqå:jxCŸ≤˙xûNÇ!m¨7E"EÜ∆‹dùÄP∫)f*î~Ò&·†,≤‰&6zÙΩ4ΩÏÜBû¢’·2XWNÎ≤rÛ%÷WÉ0AòÉ˙PÇÍkî&a¢f*v±
-ô¢Ÿç…MáOZõµ!eSÜaÍ}u\’ÜÒä/≥µP#`F0∑6TìÓ˛ò¶ÉDÛõµ1À±≥O‘p%Ét◊ò\ëòÓEã2Ktê–L˘u-s≥ÀÆdÎ”ÍLIKºí'/!œï~î,π¡Z <Ωw?≈ŸNÛEQÛËçÏ5(ä≠ s.`2ƒ√¥K†zxbRBF≈2HÈ2@LX	Â-J6"U-ôœ`R('±·céhΩzÃWƒ=^ØH”T02™[6Ü©ñêV›Òy+dc‰€M·‘˙êƒf– •Uˇt\üÊañÓ„:6r·Hñí5Tt ∆4A+ùÕ-FV^±ÎFd7ÉÇîj√Æ|,Mƒ)¡)ï‘z3‹~xÈBÅ=ÕPæbKÁ…∏7X\&ä¨Ç' O_-Aˇ,á=◊]ƒ1›¢ øº2D†á°â°§ÈúûbÓöııÀà8Wbl3!≤ÅÑ
-tmeI6.`‡∂V¿ÃF¶OêôÚñÔ£Æ¡¶“¥ôY≥Ú¥RêæÅ!≥¯GΩóÖ9ı%Y∂H f¨QqHâCe≤–ÅaûÃ©ÛR˙Pô4D≥<§[$?b§ä»$B|rÂ‘9~©< Ô/ä.BﬂYîg-ØQ~cI7*ì@q€mpñ§hã™ﬂB«Ÿ:äå–˘Êî[ ∑≤3ØÑ6(œ†EÖ˝æ€$/…≠—ñ@*v ΩªC1-˛±£˜¡WæÂò9ONöÄ'è·«ˆıÏå¸ıaø¿7A” ˛·äÁÿhPGíel¿wfsäò16~‘Ë∑˙}0‰´6ÎVæ√tçáòÑsº«6Fy'fŒÛ†Ë˙’Û%îGı¶˙
-üü∑∂ö%iﬁÌz‰î“¶GËG4	Õ€ ãvOY´ˆ˜–0XÒk∂·BöÉÂl|*¨â∫¸©Ù≠Z¯òÜÜ#ñ∆Êª æ¿b&b{
-bƒ@%´œx•≈◊i˛ﬁß‚k–R\Ãù	]ÆNYÈü¢Ïîni. PZU®eaÏëdé.:®k§Ï†¯mQ‚ÿ!◊ª–-∂m–VàCÕÅ^≥Ÿ~Ñâ°Ì¨c		£‹2DNÙ!∏yê–6Ñè‚Kµd’(ÛI%j1"9X_œEj£πD 	ÂçI†1ZQÊ¯-Ô#–;J˘ñ!ìeKvd4Ñ©1õ÷ªÚ5%éÔtTî<#n°!KSEÑ1H4¡ç˜†1yÁÅ¢H¥ä!g≈Ùº¬¥Iç]Ï§˜akÆ[.Îh4∏ü∫QŸ$·Ud9›∑Ê»ç4Ã•‰¸≠¿"oúîΩ¸"|É∂ïßï®xû&9b¡:§ZÕ)€`¡+≥/∂¬"Øõ÷˝m,Ê3µZÉæµ¸%˜˚úTBüFÈ©ÇT<Le7wπï;]≤†ÃËS±H,bÎÏ
-dzË™i/k’◊uêÊõ±ó<{Ô>}Áﬁ$‘Aà¯ãy'ñÓ¡•TØÓﬂF~ö¯7r7ÅõÑ>pS¬4≠µ€ôÜ!†€wû
-ä¬ukz…∂'ëóM&CSk@9Èf…»Cî¨¢ (Aï¶™PøÏ!rQ ∆ç≤A-,¢®ˇYâ0ø$Â	Ë	›l2ÕåŸ?@6ˇì§f.ÿÿR†0˜∑K¡µ∞A⁄≥"p–,Ê.pﬂ,Ã#oß¢:m(Ù©≈∂“òÜ/˜ı+ÃA¨M	rP√5]k≤ UÆmÈk◊t	oÚ—bìPB 8òı ¿‰€tâ¶ëòv?±È|M„+ÿaì‘nÕœê•ª∆W!TÁ¸◊∑√ÿ E›í˙#gÊS}*c]æ›Æ˛—7¿˙k^J6LÇ3&›∑	_÷8á˙q„⁄”ãBy*É  5S™Q3ë‚™or°ÅÏ≈Ÿ‰ƒú<◊ÔlPµ›¥ÆÜ≈`m£] „„/è˛±W”:»^Ÿ<d¶ÑCÂKmŒã◊±∏<òÖàEo[ëãÀÜÒe«j„(Ó—3ÈÊuçGÕ+“,&@@{iÏ≈µ¬ÆAóÍÅÓUËÎVÖ¿2(4UEöƒpK˙˝~.ê⁄P¨”~ﬁlBCátXâç_ıñó–:∂Ç+hπL8ñÚ^´C]sÇ)>5kA˘0ÏŸõ2€u|ï-£yπä¢ñ∑µuJ‡»À~ñùG∫‹ÁZK¬©hÀ´)s=˘∞ö∫ÿ·¿‰mô  ´¥;õæ°&j÷WΩ€&÷∞Ö=lw˙§õSYÒµ*ïØ=[[Y›5[sä˛*ZÕ+Úu„uXoÚy%¡ËÓ#5ñÄZ_î™KoaÄç6`l&√j“¬ÈcÜHR,8UŒui◊‘&7-ÇãE ∑Kœ,‘ú—l*cbyÜ°ô·Ç$)ëÂ^w[Wpõ>⁄J∏˙,¢Å¯Hmã-ãä0˜‘AÄUw∑î[π©‹31©—%bY´•ÖÎµ¿€ü`!°uTf>lÖGcj≥›ª‡Íuî\YÂ”∆Ÿ1π«ﬂä}ûiçµq"Œﬁ¬f›Ã4–ê‹¶ßÅÊƒµë#pÚ≤Y÷∂⁄m∂±ÿ»vò£ä«f«K…7^xMk®q=”¬◊Ìn3ª Ò@⁄˘Uíã≈[O+ÑÓÈÊ}ã&¶*ÊÔÙ”k≤πúùÜ≠Æég◊¥…Õp≠	WÔ”ÓWerŒ√∂,9^‚}öÉ,„ÛÚÌ-7ªUe≥”Ïd⁄ÌOeZÅ9»vF¢>÷∏9ÆO5áú/µöƒOÃöÉ0J√•.ÛJü–ı ∫;$0?há4íapuUYü©ˆ≤1(
-åEoƒˇµ¬LPö[ËH5îWl÷Àçºâ_6m˛÷ßƒ÷—º∫hñ∑È≥©P^ªmekñ¢¸*0àKÃ#œ\ ¥•
-’|Øê¢€ÌE%nÚL¨∏∞˝ôäNöhΩ>~VR∂Á(YMªêmÕ[^¢“ıvüÖÈñ—.œ}ò¥ùZeÌYdâπd
-=iù‚˘≤ñ¯ ¥gå©§⁄C!‰ögÕ1d¸–’ˆ‡^b®A©®Å™ªËu;ƒ‘õ™6îbYU0yj´]yº R≥ô‡‘“¬º4ÉYû•µi∂≥|îzŸEuöØ±»‹¥Û¨gVÚu]d≠ÚT…‹®∫X¡=(J.µ(®ƒbT^,-->’U≤Üê%ïVì´YAÚÁ∫TZí¶ ™KO-•ñ‰\)Qv…•‘íπ<&†Ø≈ÁKr>T≠8~0˝ÓÁD‰4%ôñ5%ôà`~j.ŒDªG@‡‰∆™ÚúÅWË˙òÄ1L’|tÈd)íÜ/≈§Àßd,yOE	u6`ä]å°&©Ä)G<6J<#ù|^≠˙Z[H3K¯1Îügπ6†NàÃ+X§YRjNUj—aök∂F˙“‚`I©˘\‰Z7÷Ω–ì’`6ñóµ’í•p4/‘‘Ò“È∏Ç}T
-èw6ﬂÅb%ÎU⁄Z‡z∏◊„*»D8a¡iêÜ;õá"{A#	l0ZØªpµ8Úœ>á-:å®«÷ÇXÎ{r{‹n`jîLÚF≤ì®ã ôfˇŸe∑ı}:Pœ§Åíqò%ùT√◊°Œ’†«ï]§a¸CØ(›Î@äò¬‚Nä∫ÑCC„∆Ÿ•e∂ìQBŒ&1Õ¡&abD˘ ïüÔS«Bø˚Jd~cPrL·°2Yt 6ù‚<,XKo¸ç–û¬3ÃÀ#[„˚b
-âGmÙ9P`3SÉen°µ¬jπ®õ§±«^{lìpÖ°Oy– —/+·÷+‡>åË_'ÈàºÉ»œ÷“À$ƒƒ≤hZ	ï l2Ú◊´Ö⁄ÍUolÃéú0®@∆Wxé¡|gA‚—V1DìàxúŒÊM!"f ∆±tAÛ+H^Æÿ(50áÙ{[F¢˝º ◊J1°ëUÂÙ4∫H»n&0Ér{]ÆD$W¨@%UΩ8ÇáVeH∆‘«&†£ ß¡~(ˇπ±»ÓuxÕ_É°8:õ¸GõGEÏqzˇœkêò·%’S-^W‡É¯ ~ü!øÅ^iN∂xÂnö&$Æp≈Œ¶ˆtã◊≤Ñ˜Œ&˚Ø˘AXvtﬁg…aT^∫HD’”º√.+û∏0ñ)êóÙÅ-·ó:ª◊Î%ZMñú¶èD∑…1∫8¸˜ªƒÄ∂ÚõbV\ækbW.‚óiKﬂÚ}B! ÈZ!•dù´¡ÑÍ±∏H}Ú:¿`>*~í·$Maä¢ê\8“4…0∂™è“êfvì®¥u∞é⁄7W”¥j7tC
-Ó@?ÖZ˘% C¬∫ïS‘0¸⁄KG˜?Coé%)ÔêÆŒœk[UAD*óÎŸ^0vÀbÏ
-Ï¢‡Ö.kççYqÔAw„ãOîÆÍÈP†ì’oÖæßÊr)O“rpkv¿¡ÿ«¶±˙hg]•K,rúu›'˙wº≠∑ﬁ∏˝¢†Êä≥∫"⁄s6*]∞ƒÂ%ë-W÷Ä–C»T˛¨˘ñ8Jå	;Å@ÿXı/º¨´xüÊı` Œÿ»]#≤÷xÀ∫"ﬁj¡ïßÄ6Â‰W–á-†6ñáppç˛’) íßH÷ã•ÄÜ~,wó$U¡E6¬êzÙﬁFÀ‡j»„Oz≤—7ËÙÍÇ¬‡’-IØ˛A’3uÁÖe≥(* àC#*øÜ%!3§ö:ıÅ1Æœ&®ÎaÑ!'Îd¨]v„˙ó◊>¶¿Æ¶mè˚≈Kı∞’∞¨¿> ä>	Æ«!nl+uŸ@˘å≥ã©Ó™ nfªÏô.Mœ©wfµèêˇß ú&]≥rLË=ì´*§è`X8¯çzÜ˛CpSÁ‰Õ‹]öÎ^Äzù&#˙µØ÷A¢K¢ TÚÇ£W˙[Œƒ≥=c∫∫Úu«ÈlÙææ•O`BÙGÉ£ü≠π_«FîQ·w⁄Óc#ıQºñÊ?ìcëN¡N÷
-µ.æõª;—∂/ç5{ÿVÑGöKW•ôaà›uNP]¯2›≤/fÕ7œ/è¶LÏø0Ù!i£Å	‘okÆO˜7F ¶ÁÙªâL’gÏO0íPü1Ôà“Ñ≥Gä˙˚À9˜%‚
-´¸Õ÷¶„˘ZVRÙbü3ü*áW&•˛#ûÅs»ò‘¬%a|ıœ·˘EÑÚç«w∞Œí•r>ñ¯®∫◊@Õ¨%VΩ‚ÉtÅ&˙6!ƒ,˘\ÆÂNKÉËÛ"Yº¥óÄ~m2îÿq#¥’M5àZ’M≈Q¯Ø7∆eRB»7í¸£!Ro/Æg‘yûr$≈¯∫∑åŒJÜﬁØ˙jµ$bB3°ﬁŸà5∆¶™RxñK6ZÅ9F¯ô:Úï<F∂¥IÎj8|ß2?;v@ÕÊﬁf{T¿0°AåSÈ8x>M/5>zw&hÛJRêï¶7\?MrÍõIH‰˘‘+äéc#£ﬂˇ‘ãÍ.zá‰¿¬˜»Ó"m˝x¢ıÍóOo~dánÊQéÜ”Ê≠∂<xÈ√lãïÓŸ„EJÄâ˚ï∫%˝,›S|·©≤[Q
-„Õ1¸‡ôß˝J˝Â.+ÓçƒM1XÁ¶|Îù6æ}≠48dEZÖµXìÇMõÎÀ¬o+~#sÎq*v$Ò…‘6ÔÍuVqˇw6oÂ…p¡]‘.Sn0ØX…eSÁÿ‰wÆLÃmä(<Á“7ËEbŒë@¡£Ïüôõﬂ_Ï-õ∑ET—]F7XQ‘<yC±fÒéa;_˚Õ¡‹º‘Ù_rül!˛ïÎó©≥#‰u«¨t+Á(oqAÒt¿z≈√¬DUÂ&Õ†éŸ‰Éq.òG∆Ê±9daΩ‰ˆ∫•’gôÿ./2∑ÁÀj_Up{^îˇöÓÈZ=∞ÚÛû∑¬TóM‘´]˜˚˝ÍV≤ ¶Ìƒ	oD[ãã}ÊíV∆7»ÓÆèï∞®éôKE°¯ıòÈ
-ﬂŒœÊ?:|áÍäå∏RÇ≠húdÕ•Æ“©bz∞≈ÅIN®,uŸ√âúˆJÔ(±ŸU¯s8I≥$Ì≈Ié}OÆ∞Ê∏ﬁÖËà¡≤^bΩ(πhÖ+ÂçıöQWöW†≈ÍC£Ûo˜?ë≠"Ëâ
-¸EUØ._=˙"NÚ—å\ÃÓjÿv¨ïõÕ˘Z∆∑/ôÛµs/ˆΩ‘/Ω®;‹Bj0h|Ÿ#⁄<“: ïk‡_5ÑπA„Ø‡&∑Z¨jË°^ªXƒ5Íz≠ÆòÅá®ô3t•Xç_*‡ìFÅ&Ø©¨r≥(Nm∂Øa€ùëÍxÖÿaeºgªªyAËÇ(kœª’H¡CìäaÆ-”.‚¡©ﬁåK‘É{;,Ü5.®≥ŸÎDÑE∏
-*¢zµº-˜z∂x#v‹V≠ê^§x{û¥Ss«Í)¨Ÿ.Y{+∑†”ÿ÷è“›egÆ|‰®Æ;Ó√Ó˘≤ø1ú‘^ÉP≤f„$æˇ˘2 ›ÂVÚxYe¥+çÅHˆf~ÆèÒ*Æ7Ë%n˙HUÇzÍ,`æ°⁄+
-‰/VÜÆ–˛ÂEò$%ÆCj ÷vè∑–Tö∆©†rb2o µòrŸ¨ª&k_’Êöµ0Uˇ“u∑üç£0ÔŒqø⁄‹¸Ò“I”[K≠l–t´P¿D”òÚ®È^‚-»åGÉj6s•LøÌYä”NöÂ?8	Õ*u⁄XÂ¥:YB›hç≈N©U“´û◊S EÁ◊yZ®%Â9çz‚¨^—/`ídú\•ﬁxäÕ∏R÷∫≤¯ “ÄëÉ€Bπ©¨®ÓtÖäXıÂ
-ÛoB‡;…YxQR3aıµsÃ≤¯,ºn⁄
-(Nn47IﬁP}∏R%E„_S≈xVˇ$ˆËÄz¨ÊÅC/∏ﬂ÷D®f˜©´[M ¡+VwøZë¨e™§`Ë˙ù˘£wZÈF3TC÷vMÂ±Ë–°ÃL©&TKZΩ÷)‘√“T;W-baN∆45â‚0≠AÅ’ÒÆ≠¬€,ƒùzÅ”˛’\q°pE’KTK√qÉ¡√úL´’˝áU¥mY ¡¿qèa
-iÉk«1¢†Ÿ¶wû®‡œU/äÆòÑã≈ î/UÓ∞Ó\UÁ][ZRÛ´ëU9–»Êª«€˚üÆ˚Ñıü	îÕ6∏Ê3◊WïÓy¨˘Ròwå¬ÍËa	`ZUg›mín’•›Ãç™4¶‰U%æ"•ª@aOâœ¯◊Ññ£GÌQ'èü∏A±ÛóÀ<©˚‹âjçr{•Nc‡Õ8y[ú–·UËjæù‰¥üFXtn¬∑ñ§'´=l†µá5˚:]\ﬁU∆ÌÌ¥Ÿ⁄#≈ÍsJc8≠“?\z@{qj8·…çEû`b…å+ÅQcÅ3Ñ˚Ó^¢{[rÅù∫;øÊ)x£ãÅØÉiIvtTÒ>ª±©x◊@ËïH&≈\ä #Z˘ä∆e¥∞Îå–Á\-Õ;Ak˝eq*à}.Çuô„UÒª∑ÑQ!,‹Ü¬⁄4!s¥ÌãQîwbÊãò{JÃ”¶ˆ+6bÍÜl Q$ºΩDÉ˚
- ›¡ÇZÉÙ»†ΩWΩı>·∞KH!%J7@k„Ô\ıûì¯_£çE⁄Z
-m´‘ú¥†:Í~S≥˙¨‘±±*“Ì)⁄ ∏AhúÑ¥÷ŒÉ}¬Ωô¯um Í—≤ò-‰3h^8@ü/€à ˙≤?NÒGÌÂ8π [Ma‹ï:ª†¨1[†Å[·ùGÁ	–£œb·+Kw∞L◊nCu EƒÉJäèÛ™Úÿ–|cyõﬂ€Q•jïˇÈsﬂ-6π≠«ïÉ¸Æ˜ç?Õdﬂp≤F8≠¢6k®ı
-™ÆüöIíõªDYÿêÍIhûl&Ÿá|#π+V≈Âä"·¯·ij¿⁄öG‚X˙Å∞®"hˆ ·+`)BÁÅ˝±Fû™˘l ±fBl Ì±]nY7J˚&ìnYwS∑∑J,£ﬁºVòkM±d¬$54∫fËóR+– E∏·Cø¢C+‰o¥Â!∞lùÕwA|1±<öLƒâ˘I-c¶ohﬂoñ±A™",7NË1«ÿ‰»SÚt<8IÍ–n¶fLìfpŒhN’‹í¨Æ«mÜW≥á∑≠0U∫P≥õQ.Mÿ≈≥A$Uòé(ﬂùf?D¬ÓØ5Éë™˚ü≠zÉ’Yje]ıŸ›ˆ‚a’ ZÅÇáT‘W·ÃÊJMµ1P∞9óÊcPŒ«r}>fQI√}.§RS¸W—>8tÉ»oE—L Ìäo<~—„a‡åNêûÏ(´ÿãjË*_h∏†nÖ‘>™r6∞Ã£ƒZ≤Æfµ±≈∆˚}d,‹Úç∑9>ßÅŸ&≠¡≠·_á‹`≠ÒâÍ≠¡uò;ΩSNŒ`Ëﬂß	Èvˇ(8À{É≈e¬ÙV ØÈâ—7πtÇ˛∆ß¨^ÖíB^bb¿í—‘“ªÍ√>èŒZJG≥∂T6‚‚ò„	˙ s§ö›Z}Mê¶I:'W»mzﬁXîpïÔTÓSÛ%Tbº5~Pà±h∆ù˝¸C∫v›;Ïr“®≥…Aﬂ@@´fhÍóP± 7kãBZNﬂe.wy(÷?]Ttèw[Z∏®=Ï5¸-˙•÷ÑiOwé≈U-û˝ÒS kD˚ßA«∏æï^B÷/H+≥ÆXI]`÷K‘ÎÀÂÓ⁄Ä.ÄG¡ØáR,È„ïe\§®H+[Æ6Øºº)pÌ™7x
-¸”\ﬂAœB*ì!ÙP™≥B€Wî8≠&°õnD8gú¢Ë√wŸ‰˛ß4DÃË:xπ.ï˘´gœüûnü‡{ûk:~ö w£Gh˙
-¨âÔAó‡Ì%†l¿Z•ÇíîƒÁõÜU¬äÕàxvÎ´∫¯∏ãZ
-GûNô"}ˇ¥í’YH3i2–©ÉëWEÖ÷aB?NÆ%‘>—AO∞ï9˛Íı¸ﬂÍI•uC°ë„ØvüÌÆÌ‚c∆
-ù,dê˙mVóÅÚ≤õxHl÷&·7ä9™?Oo,ˆ+Ô )Æ$ºo'v}¸ﬂÈô√ófsƒ‹§·±<A*ëu;bë±Upˇ3–$"m¿ûäK·IgÅt¯˛⁄1æéi›.›E◊ÅŸﬁÿ2 ÷?R‹a/Kêf–‚;äMÛ#¥OœXZ7úw¶lw¿øijÌ¥*6V¶ôNA˛á·hATÃq^Z≥áN2©›jUÿñèâÿÃˇ#Äyﬁ˛'W†—ù?Lh°Ø|<yÖ ·_ñﬂí¿¢Èg-∑Ë&¥2ãÿπŒÉÂ1Ñ¬æﬁˇW<ΩÈ$µKÌ´wòt3,ZCë'»rê@Ü!≈69œ%•·Uà=ù˙B√Ò«Æ‹u
-âGºˆ¬Ù#,tì sÌø¨ƒÒS±Î¸Úê¸±øF·ÁØIîˇÇ¢èB+±dÁŸ≥d5⁄ÂZ≈Èé∞™†Zö4K:ÿ=qó=ªíÉŸzgç®=™Äﬂ wÌ˘Âl=&Æ°;Pñ’¸0ÖY¯(ﬁËYﬁhKÛL—ÙzÒÀûÖX¥∑ïØì"ú#8˜˜yË¶-˚◊$—kÌEUôÑ»j#7°UÕÇπ˘ﬁì¬∏»ÿK…X>ë[Ÿ«b≠Ãi∆ÚÎÒ†øv2{∂uµ\Ò´@MtbÉÃ ®Vë§Çq±Î~¢qq;Ã››ø¸   ˇˇ Â^Ê
+                  }`}
+                >
+                  <Users size={16} />
+                  <span>Ferramentas Admin</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setSettingsTab('info')}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
+                  settingsTab === 'info'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Info size={16} />
+                <span>Sobre</span>
+              </button>
+            </div>
+
+            <div className="space-y-6 overflow-y-auto pr-1">
+              {settingsTab === 'logo' && (
+                <div className="space-y-6">
+                  <div className="p-4 bg-blue-50/80 rounded-2xl border border-blue-100 text-blue-900">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-blue-800 mb-1 flex items-center gap-2">
+                      <ImageIcon size={16} className="text-blue-600" />
+                      Gerenciamento Completo de Logotipos
+                    </h4>
+                    <p className="text-xs leading-relaxed text-blue-700 font-medium">
+                      Cadastre os logotipos oficiais do <strong>CEO</strong>, do <strong>Cons√≥rcio CPSMS</strong>, do <strong>Governo/SUS</strong> e do <strong>Sistema</strong>. Eles ser√£o inseridos automaticamente em todos os documentos PDF, relat√≥rios e recibos.
+                    </p>
+                  </div>
+
+                  {/* Live Document Header Preview */}
+                  <div className="p-4 bg-slate-900 text-white rounded-2xl space-y-3 shadow-md">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Pr√©-Visualiza√ß√£o do Cabe√ßalho dos Documentos
+                      </span>
+                      <span className="text-[9px] font-semibold text-slate-400">Modelo PDF A4</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-slate-700 text-slate-900 space-y-3 shadow-inner">
+                      {/* Top Row: ALL 3 Logos as Homogeneous Rectangles */}
+                      <div className="flex items-center justify-between gap-3">
+                        {/* 1. Logo Almoxarifado (Left - Rectangular) */}
+                        <div className="flex-1 h-12 bg-emerald-50/50 border border-emerald-100 rounded-xl p-1.5 flex items-center justify-center overflow-hidden">
+                          {appRectangularLogo ? (
+                            <img src={appRectangularLogo} alt="Logo Almoxarifado" className="max-h-full max-w-full object-contain" />
+                          ) : appLogo ? (
+                            <img src={appLogo} alt="Logo Sistema" className="max-h-full max-w-full object-contain" />
+                          ) : (
+                            <div className="text-[9px] font-black text-emerald-800 uppercase tracking-tight text-center">ALMOXARIFADO</div>
+                          )}
+                        </div>
+
+                        {/* 2. Logo CEO (Center - Rectangular) */}
+                        <div className="flex-1 h-12 bg-sky-50/50 border border-sky-100 rounded-xl p-1.5 flex items-center justify-center overflow-hidden">
+                          {policlinicaLogo ? (
+                            <img src={policlinicaLogo} alt="Logo CEO" className="max-h-full max-w-full object-contain" />
+                          ) : (
+                            <div className="text-[9px] font-black text-sky-800 uppercase tracking-tight text-center">CEO - CENTRO DE ESPECIALIDADES ODONTOL√ìGICAS</div>
+                          )}
+                        </div>
+
+                        {/* 3. Logo Cons√≥rcio CPSMS (Right - Rectangular) */}
+                        <div className="flex-[1.15] h-14 bg-orange-50/50 border border-orange-100 rounded-xl p-1 flex items-center justify-center overflow-hidden">
+                          {consorcioLogo ? (
+                            <img src={consorcioLogo} alt="Logo Cons√≥rcio" className="max-h-full max-w-full object-contain scale-105" />
+                          ) : (
+                            <div className="text-[9px] font-black text-orange-800 uppercase tracking-tight text-center">CONS√ìRCIO CPSMS</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Divider Line */}
+                      <div className="border-t border-slate-200" />
+
+                      {/* Title & Emission Date below logos */}
+                      <div className="text-center space-y-0.5">
+                        <h5 className="font-black text-xs text-slate-900 uppercase tracking-tight">
+                          RECIBO DE ENTREGA DE MATERIAL
+                        </h5>
+                        <p className="text-[9px] font-semibold text-slate-500">
+                          Data de Emiss√£o: {format(new Date(), 'dd/MM/yyyy HH:mm')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Grid de 4 Logotipos */}
+                  <div className="grid grid-cols-1 gap-5">
+                    {/* 1. Logo da Policl√≠nica */}
+                    <div className="p-5 bg-white rounded-2xl border border-sky-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-sky-600 inline-block"></span>
+                            Logo Oficial do CEO
+                          </h4>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                            Substitui a marca do CEO no canto superior do cabe√ßalho dos documentos.
+                          </p>
+                        </div>
+                        {policlinicaLogo && (
+                          <button 
+                            onClick={handleRemovePoliclinicaLogo}
+                            className="text-xs font-extrabold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1"
+                          >
+                            <Trash2 size={13} /> Remover
+                          </button>
+                        )}
+                      </div>
+
+                      <label className="block w-full cursor-pointer group">
+                        <div className={`overflow-hidden rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${policlinicaLogo ? 'border-sky-300 bg-sky-50/20 hover:bg-sky-50/40' : 'border-slate-300 hover:border-sky-500 hover:bg-slate-50'}`}>
+                          {policlinicaLogo ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <img src={policlinicaLogo} alt="Logo CEO" className="max-h-16 object-contain" />
+                              <span className="text-xs font-bold text-sky-700 bg-sky-100/80 px-3 py-1 rounded-full flex items-center gap-1.5">
+                                <Upload size={13} /> Alterar Logo do CEO
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 bg-sky-50 text-sky-600 rounded-full group-hover:scale-110 transition-transform">
+                                <Upload size={18} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-slate-800">Clique para enviar a logo do CEO</p>
+                                <p className="text-[10px] font-bold text-slate-400">PNG, JPG ou SVG (M√°x. 2MB)</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <input type="file" accept="image/*" className="hidden" onChange={handlePoliclinicaLogoUpload} />
+                      </label>
+                    </div>
+
+                    {/* 2. Logo do Cons√≥rcio CPSMS */}
+                    <div className="p-5 bg-white rounded-2xl border border-orange-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>
+                            Logo Oficial do Cons√≥rcio CPSMS
+                          </h4>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                            Substitui a marca do Cons√≥rcio no canto superior do cabe√ßalho dos documentos.
+                          </p>
+                        </div>
+                        {consorcioLogo && (
+                          <button 
+                            onClick={handleRemoveConsorcioLogo}
+                            className="text-xs font-extrabold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1"
+                          >
+                            <Trash2 size={13} /> Remover
+                          </button>
+                        )}
+                      </div>
+
+                      <label className="block w-full cursor-pointer group">
+                        <div className={`overflow-hidden rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${consorcioLogo ? 'border-orange-300 bg-orange-50/20 hover:bg-orange-50/40' : 'border-slate-300 hover:border-orange-500 hover:bg-slate-50'}`}>
+                          {consorcioLogo ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <img src={consorcioLogo} alt="Logo Cons√≥rcio" className="max-h-16 object-contain" />
+                              <span className="text-xs font-bold text-orange-700 bg-orange-100/80 px-3 py-1 rounded-full flex items-center gap-1.5">
+                                <Upload size={13} /> Alterar Logo do Cons√≥rcio
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 bg-orange-50 text-orange-600 rounded-full group-hover:scale-110 transition-transform">
+                                <Upload size={18} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-slate-800">Clique para enviar a logo do Cons√≥rcio CPSMS</p>
+                                <p className="text-[10px] font-bold text-slate-400">PNG, JPG ou SVG (M√°x. 2MB)</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleConsorcioLogoUpload} />
+                      </label>
+                    </div>
+
+                    {/* 3. Logo Estado / SUS / Governo (Login e Canto Esquerdo) */}
+                    <div className="p-5 bg-white rounded-2xl border border-emerald-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span>
+                            Logo Estado / SUS / Governo (Login e Canto Esquerdo)
+                          </h4>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                            Exibida no canto superior esquerdo dos relat√≥rios e na tela de login.
+                          </p>
+                        </div>
+                        {appRectangularLogo && (
+                          <button 
+                            onClick={handleRemoveRectangularLogo}
+                            className="text-xs font-extrabold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1"
+                          >
+                            <Trash2 size={13} /> Remover
+                          </button>
+                        )}
+                      </div>
+
+                      <label className="block w-full cursor-pointer group">
+                        <div className={`overflow-hidden rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${appRectangularLogo ? 'border-emerald-300 bg-emerald-50/20 hover:bg-emerald-50/40' : 'border-slate-300 hover:border-emerald-500 hover:bg-slate-50'}`}>
+                          {appRectangularLogo ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <img src={appRectangularLogo} alt="Logo Estado/SUS" className="max-h-16 object-contain" />
+                              <span className="text-xs font-bold text-emerald-700 bg-emerald-100/80 px-3 py-1 rounded-full flex items-center gap-1.5">
+                                <Upload size={13} /> Alterar Logo Estado/SUS
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-full group-hover:scale-110 transition-transform">
+                                <Upload size={18} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-slate-800">Clique para enviar a logo retangular (Estado/SUS)</p>
+                                <p className="text-[10px] font-bold text-slate-400">PNG, JPG ou SVG (M√°x. 2MB)</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleRectangularLogoUpload} />
+                      </label>
+                    </div>
+
+                    {/* 4. Logo Quadrada (Menu do Sistema) */}
+                    <div className="p-5 bg-white rounded-2xl border border-blue-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+                            Logo Quadrada (Menu do Sistema)
+                          </h4>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                            Exibida no menu lateral e topo da navega√ß√£o do almoxarifado.
+                          </p>
+                        </div>
+                        {appLogo && (
+                          <button 
+                            onClick={handleRemoveLogo}
+                            className="text-xs font-extrabold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1"
+                          >
+                            <Trash2 size={13} /> Remover
+                          </button>
+                        )}
+                      </div>
+
+                      <label className="block w-full cursor-pointer group">
+                        <div className={`overflow-hidden rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${appLogo ? 'border-blue-300 bg-blue-50/20 hover:bg-blue-50/40' : 'border-slate-300 hover:border-blue-500 hover:bg-slate-50'}`}>
+                          {appLogo ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <img src={appLogo} alt="Logo Quadrada Menu" className="max-h-16 object-contain" />
+                              <span className="text-xs font-bold text-blue-700 bg-blue-100/80 px-3 py-1 rounded-full flex items-center gap-1.5">
+                                <Upload size={13} /> Alterar Logo Quadrada
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-full group-hover:scale-110 transition-transform">
+                                <Upload size={18} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-slate-800">Clique para enviar a logo quadrada do sistema</p>
+                                <p className="text-[10px] font-bold text-slate-400">Formato 1:1 (PNG, JPG ou SVG - M√°x. 2MB)</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                      </label>
+                    </div>
+
+                    {/* 5. Papel Timbrado Completo (Imagem A4) */}
+                    <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block"></span>
+                            Papel Timbrado Completo (Imagem de Fundo A4)
+                          </h4>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                            Caso sua institui√ß√£o j√° possua um papel timbrado em imagem √∫nica para o fundo do PDF.
+                          </p>
+                        </div>
+                        {letterheadImage && (
+                          <button 
+                            onClick={handleRemoveLetterhead}
+                            className="text-xs font-extrabold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1"
+                          >
+                            <Trash2 size={13} /> Remover Timbrado
+                          </button>
+                        )}
+                      </div>
+
+                      <label className="block w-full cursor-pointer group">
+                        <div className={`overflow-hidden rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${letterheadImage ? 'border-indigo-300 bg-indigo-50/20 hover:bg-indigo-50/40' : 'border-slate-300 hover:border-indigo-500 hover:bg-slate-50'}`}>
+                          {letterheadImage ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <img src={letterheadImage} alt="Papel Timbrado A4" className="max-h-20 object-contain rounded-md border border-slate-200 shadow-xs" />
+                              <span className="text-xs font-bold text-indigo-700 bg-indigo-100/80 px-3 py-1 rounded-full flex items-center gap-1.5">
+                                <Upload size={13} /> Alterar imagem de Papel Timbrado
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-full group-hover:scale-110 transition-transform">
+                                <Upload size={18} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-slate-800">Clique para enviar imagem de papel timbrado completa</p>
+                                <p className="text-[10px] font-bold text-slate-400">PNG ou JPG (M√°x. 5MB)</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleLetterheadUpload(file);
+                          }} 
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === 'tools' && isAdmin && (
+                <div className="p-6 bg-blue-50/80 rounded-2xl border border-blue-100">
+                  <div className="flex items-center gap-3 mb-3 text-blue-700">
+                    <Users size={22} />
+                    <h4 className="font-extrabold text-base">Ferramentas de Dados do Admin</h4>
+                  </div>
+                  <p className="text-xs text-blue-800 mb-5 leading-relaxed font-medium">
+                    Corrija inconsist√™ncias unificando fornecedores cadastrados com nomes diferentes ou mesclando itens duplicados no estoque.
+                  </p>
+                  <div className="grid grid-cols-1 gap-3">
+                    <button 
+                      onClick={() => {
+                        setShowSettingsModal(false);
+                        setShowMergeSuppliers(true);
+                      }}
+                      className="w-full py-3.5 bg-blue-700 text-white rounded-xl font-extrabold text-xs uppercase tracking-wider hover:bg-blue-800 transition-all flex items-center justify-center gap-2 shadow-md shadow-blue-700/20"
+                    >
+                      <RotateCcw size={16} /> Mesclar Fornecedores
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setShowSettingsModal(false);
+                        setShowMergeItems(true);
+                      }}
+                      className="w-full py-3.5 bg-emerald-700 text-white rounded-xl font-extrabold text-xs uppercase tracking-wider hover:bg-emerald-800 transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-700/20"
+                    >
+                      <Package size={16} /> Mesclar Itens Duplicados
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setShowSettingsModal(false);
+                        setCategoryModalMaterial('');
+                        setCategoryModalNewCategory('');
+                        setCustomModalCategory('');
+                        setShowChangeCategoryModal(true);
+                      }}
+                      className="w-full py-3.5 bg-indigo-700 text-white rounded-xl font-extrabold text-xs uppercase tracking-wider hover:bg-indigo-800 transition-all flex items-center justify-center gap-2 shadow-md shadow-indigo-700/20"
+                    >
+                      <Tag size={16} /> Alterar Categoria de Material
+                    </button>
+                  </div>
+
+                  {/* Section for deleting test entries / test data */}
+                  <div className="mt-6 pt-5 border-t border-blue-200/60">
+                    <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200/80 mb-3">
+                      <h5 className="font-black text-xs text-rose-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <AlertTriangle size={15} className="text-rose-600" />
+                        Limpeza de Registros de Teste
+                      </h5>
+                      <p className="text-xs text-rose-700 font-medium leading-relaxed">
+                        Se voc√™ realizou lan√ßamentos ou entradas de materiais como teste, utilize esta ferramenta para excluir o hist√≥rico de testes e preparar o sistema para o uso definitivo.
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setShowSettingsModal(false);
+                        setDeleteTestConfirmInput('');
+                        setDeleteTestTarget('entries_only');
+                        setShowDeleteTestDataModal(true);
+                      }}
+                      className="w-full py-3.5 bg-rose-600 text-white rounded-xl font-extrabold text-xs uppercase tracking-wider hover:bg-rose-700 transition-all flex items-center justify-center gap-2 shadow-md shadow-rose-600/20"
+                    >
+                      <Trash2 size={16} /> Excluir Entradas / Dados de Teste
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === 'info' && (
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                  <h4 className="font-extrabold text-slate-900 mb-3 text-sm">Informa√ß√µes do Sistema</h4>
+                  <div className="space-y-2.5 text-xs text-slate-600 font-medium">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                      <span>Vers√£o</span>
+                      <span className="font-mono font-bold text-slate-900 bg-slate-200/80 px-2 py-0.5 rounded">1.2.0</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                      <span>Total de Itens em Estoque</span>
+                      <span className="font-extrabold text-slate-900">{items.length}</span>
+                    </div>
+                    <div className="pt-2">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Suporte e Desenvolvimento</p>
+                      <p className="font-extrabold text-slate-900">gerlianemagalhaes79@gmail.com</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {showMergeSuppliers && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-[#1C1917]">Mesclar Fornecedores</h3>
+              <button 
+                onClick={() => setShowMergeSuppliers(false)}
+                className="p-2 hover:bg-[#F5F5F4] rounded-full transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 mb-4">
+                <p className="text-xs text-blue-700 font-medium">
+                  Esta a√ß√£o ir√° substituir o nome do fornecedor em todos os itens e transa√ß√µes do hist√≥rico.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-1.5 ml-1">Fornecedor de Origem (Ser√° substitu√≠do)</label>
+                <select 
+                  className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold text-sm"
+                  value={sourceSupplier}
+                  onChange={e => setSourceSupplier(e.target.value)}
+                >
+                  <option value="">Selecione o nome incorreto...</option>
+                  {uniqueSuppliers.map(s => (
+                    <option key={`source-${s}`} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-center">
+                <div className="bg-[#F5F5F4] p-2 rounded-full">
+                  <ArrowDownLeft className="text-[#A8A29E] rotate-45" size={20} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-1.5 ml-1">Fornecedor de Destino (Nome Correto)</label>
+                <select 
+                  className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold text-sm"
+                  value={targetSupplier}
+                  onChange={e => setTargetSupplier(e.target.value)}
+                >
+                  <option value="">Selecione o nome correto...</option>
+                  {uniqueSuppliers.map(s => (
+                    <option key={`target-${s}`} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setShowMergeSuppliers(false)}
+                  className="flex-1 py-3 bg-[#F5F5F4] text-[#57534E] rounded-xl font-bold hover:bg-[#E7E5E4] transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleMergeSuppliers}
+                  disabled={isMerging || !sourceSupplier || !targetSupplier || sourceSupplier === targetSupplier}
+                  className={`flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${isMerging || !sourceSupplier || !targetSupplier || sourceSupplier === targetSupplier ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                >
+                  {isMerging ? (
+                    <>
+                      <RotateCcw className="animate-spin" size={18} /> Processando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={18} /> Confirmar Mesclagem
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showMergeItems && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-[#1C1917]">Mesclar Itens Duplicados</h3>
+              <button 
+                onClick={() => setShowMergeItems(false)}
+                className="p-2 hover:bg-[#F5F5F4] rounded-full transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 mb-4">
+                <p className="text-xs text-emerald-700 font-medium">
+                  Esta a√ß√£o ir√° unificar dois itens com nomes diferentes. Todos os registros de estoque e hist√≥rico ser√£o movidos para o nome correto.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-1.5 ml-1">Item de Origem (Nome Incorreto)</label>
+                <select 
+                  className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold text-sm"
+                  value={sourceItemName}
+                  onChange={e => setSourceItemName(e.target.value)}
+                >
+                  <option value="">Selecione o nome duplicado...</option>
+                  {uniqueItemNames.map(name => (
+                    <option key={`source-item-${name}`} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-center">
+                <div className="bg-[#F5F5F4] p-2 rounded-full">
+                  <ArrowDownLeft className="text-[#A8A29E] rotate-45" size={20} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-[#A8A29E] uppercase tracking-widest mb-1.5 ml-1">Item de Destino (Nome Correto)</label>
+                <select 
+                  className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1C1917]/10 font-bold text-sm"
+                  value={targetItemName}
+                  onChange={e => setTargetItemName(e.target.value)}
+                >
+                  <option value="">Selecione o nome que deve permanecer...</option>
+                  {uniqueItemNames.map(name => (
+                    <option key={`target-item-${name}`} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setShowMergeItems(false)}
+                  className="flex-1 py-3 bg-[#F5F5F4] text-[#57534E] rounded-xl font-bold hover:bg-[#E7E5E4] transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleMergeItems}
+                  disabled={isMerging || !sourceItemName || !targetItemName || sourceItemName === targetItemName}
+                  className={`flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${isMerging || !sourceItemName || !targetItemName || sourceItemName === targetItemName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-emerald-700'}`}
+                >
+                  {isMerging ? (
+                    <>
+                      <RotateCcw className="animate-spin" size={18} /> Processando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={18} /> Confirmar Mesclagem
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showChangeCategoryModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-indigo-100 text-indigo-700 rounded-2xl">
+                  <Tag size={22} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-[#1C1917]">Alterar Categoria de Material</h3>
+                  <p className="text-xs text-slate-500 font-medium">Corrija a categoria de insumos cadastrados incorretamente</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowChangeCategoryModal(false)}
+                className="p-2 hover:bg-[#F5F5F4] rounded-full transition-all text-slate-400"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Selecione o Material / Insumo</label>
+                <select 
+                  className="w-full px-4 py-3 bg-[#F5F5F4] border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold text-sm text-slate-800"
+                  value={categoryModalMaterial}
+                  onChange={e => {
+                    const selectedName = e.target.value;
+                    setCategoryModalMaterial(selectedName);
+                    const itemGroup = items.find(i => i.name === selectedName);
+                    if (itemGroup && itemGroup.category) {
+                      setCategoryModalNewCategory(itemGroup.category);
+                    }
+                  }}
+                >
+                  <option value="">Selecione um material do estoque...</option>
+                  {uniqueItemNames.map(name => {
+                    const currentCat = items.find(i => i.name === name)?.category || 'Sem Categoria';
+                    return (
+                      <option key={`cat-modal-${name}`} value={name}>
+                        {name} ({currentCat})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Nova Categoria</label>
+                <select 
+                  className="w-full px-4 py-3 bg-[#F5F5F4] border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold text-sm text-slate-800"
+                  value={categoryModalNewCategory}
+                  onChange={e => setCategoryModalNewCategory(e.target.value)}
+                >
+                  <option value="">Selecione a categoria correta...</option>
+                  {categories.map(cat => (
+                    <option key={`cat-opt-${cat}`} value={cat}>{cat}</option>
+                  ))}
+                  <option value="__NEW__">+ Cadastrar Nova Categoria...</option>
+                </select>
+              </div>
+
+              {categoryModalNewCategory === '__NEW__' && (
+                <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
+                  <label className="block text-[10px] font-black text-indigo-700 uppercase tracking-widest mb-1.5 ml-1">Nome da Nova Categoria</label>
+                  <input 
+                    type="text"
+                    placeholder="Ex: Odontol√≥gico, Laboratorial..."
+                    value={customModalCategory}
+                    onChange={e => setCustomModalCategory(e.target.value)}
+                    className="w-full px-4 py-3 bg-indigo-50/50 border border-indigo-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold text-sm text-indigo-900"
+                    autoFocus
+                  />
+                </motion.div>
+              )}
+
+              <div className="pt-2 flex gap-3">
+                <button 
+                  onClick={() => setShowChangeCategoryModal(false)}
+                  className="flex-1 py-3.5 bg-[#F5F5F4] text-[#57534E] rounded-2xl font-bold hover:bg-[#E7E5E4] transition-all text-xs"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleModalChangeCategory}
+                  disabled={isUpdatingCategory || !categoryModalMaterial || !categoryModalNewCategory}
+                  className={`flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold transition-all text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 ${isUpdatingCategory || !categoryModalMaterial || !categoryModalNewCategory ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'}`}
+                >
+                  {isUpdatingCategory ? (
+                    <>
+                      <RotateCcw className="animate-spin" size={16} /> Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={16} /> Salvar Categoria
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {showDeleteTestDataModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-lg rounded-[32px] p-8 shadow-2xl border border-rose-100 flex flex-col max-h-[90vh]"
+          >
+            <div className="flex justify-between items-center mb-5">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Excluir Dados de Teste</h3>
+                  <p className="text-xs text-slate-500 font-medium">Limpeza de registros do per√≠odo de testes</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowDeleteTestDataModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-slate-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-5 overflow-y-auto pr-1">
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 space-y-1.5">
+                <div className="flex items-center gap-2 font-bold text-xs text-amber-800">
+                  <Info size={16} />
+                  Limpeza de Lan√ßamentos de Teste
+                </div>
+                <p className="text-xs leading-relaxed text-amber-800 font-medium">
+                  Esta a√ß√£o √© recomendada para limpar registros gerados durante os testes do sistema antes da entrada oficial em produ√ß√£o.
+                </p>
+              </div>
+
+              {/* Counters Summary */}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <span className="text-xs text-slate-500 font-bold block">Entradas</span>
+                  <span className="text-lg font-black text-slate-900">
+                    {transactions.filter(t => t.type === 'entry' && !t.deletedAt).length}
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <span className="text-xs text-slate-500 font-bold block">Itens Estoque</span>
+                  <span className="text-lg font-black text-slate-900">{items.length}</span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <span className="text-xs text-slate-500 font-bold block">Requisi√ß√µes</span>
+                  <span className="text-lg font-black text-slate-900">{requests.length}</span>
+                </div>
+              </div>
+
+              {/* Options Selection */}
+              <div className="space-y-2.5">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  Selecione o N√≠vel da Exclus√£o
+                </label>
+
+                <div 
+                  onClick={() => setDeleteTestTarget('entries_only')}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                    deleteTestTarget === 'entries_only' 
+                      ? 'border-rose-500 bg-rose-50/50' 
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="delete_target" 
+                    checked={deleteTestTarget === 'entries_only'}
+                    onChange={() => setDeleteTestTarget('entries_only')}
+                    className="mt-1 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900">Apenas Entradas de Materiais</h4>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                      Exclui o hist√≥rico de notas fiscais, doa√ß√µes e transfer√™ncias de entrada de teste e zera os saldos de estoque correspondentes.
+                    </p>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => setDeleteTestTarget('entries_and_stock')}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                    deleteTestTarget === 'entries_and_stock' 
+                      ? 'border-rose-500 bg-rose-50/50' 
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="delete_target" 
+                    checked={deleteTestTarget === 'entries_and_stock'}
+                    onChange={() => setDeleteTestTarget('entries_and_stock')}
+                    className="mt-1 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900">Entradas + Cat√°logo de Itens do Estoque</h4>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                      Exclui todas as entradas de materiais e limpa todos os itens de insumos cadastrados no estoque.
+                    </p>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => setDeleteTestTarget('all_test_data')}
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                    deleteTestTarget === 'all_test_data' 
+                      ? 'border-rose-500 bg-rose-50/50' 
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="delete_target" 
+                    checked={deleteTestTarget === 'all_test_data'}
+                    onChange={() => setDeleteTestTarget('all_test_data')}
+                    className="mt-1 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900">Reset Total de Testes (Entradas, Sa√≠das e Requisi√ß√µes)</h4>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                      Limpa todo o hist√≥rico de movimenta√ß√µes, solicita√ß√µes e insumos para come√ßar do zero em produ√ß√£o.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Confirmation Input */}
+              <div>
+                <label className="block text-[10px] font-black text-rose-700 uppercase tracking-widest mb-1.5 ml-1">
+                  Confirma√ß√£o de Seguran√ßa
+                </label>
+                <input 
+                  type="text"
+                  placeholder="Digite TESTE ou CONFIRMAR para habilitar..."
+                  value={deleteTestConfirmInput}
+                  onChange={e => setDeleteTestConfirmInput(e.target.value)}
+                  className="w-full px-4 py-3 bg-rose-50/50 border border-rose-200 rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-sm text-rose-900 placeholder:text-rose-300"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowDeleteTestDataModal(false)}
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-extrabold hover:bg-slate-200 transition-all text-xs"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleDeleteTestData}
+                  disabled={isDeletingTestData || (deleteTestConfirmInput.trim().toUpperCase() !== 'TESTE' && deleteTestConfirmInput.trim().toUpperCase() !== 'CONFIRMAR' && deleteTestConfirmInput.trim().toUpperCase() !== 'EXCLUIR')}
+                  className={`flex-1 py-3.5 bg-rose-600 text-white rounded-2xl font-extrabold transition-all text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 ${
+                    isDeletingTestData || (deleteTestConfirmInput.trim().toUpperCase() !== 'TESTE' && deleteTestConfirmInput.trim().toUpperCase() !== 'CONFIRMAR' && deleteTestConfirmInput.trim().toUpperCase() !== 'EXCLUIR')
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-rose-700'
+                  }`}
+                >
+                  {isDeletingTestData ? (
+                    <>
+                      <RotateCcw className="animate-spin" size={16} /> Excluindo Dados...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} /> Excluir Registros de Teste
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Room Inventory Modal */}
+      <AnimatePresence>
+        {showRoomInventoryModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-[95vw] lg:w-full lg:max-w-2xl rounded-[32px] p-4 sm:p-8 shadow-2xl max-h-[90vh] flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-2xl font-black text-[#1C1917] flex items-center gap-3">
+                    <Printer className="text-blue-600" size={28} />
+                    Mapa de Sala (Porta)
+                  </h3>
+                  <p className="text-sm text-[#78716C] mt-1 font-medium italic">Selecione a sala e as categorias para o documento de estoque</p>
+                </div>
+                <button 
+                  onClick={() => setShowRoomInventoryModal(false)}
+                  className="p-2 hover:bg-[#F5F5F4] rounded-full transition-all"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-8 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                {/* Room Selection */}
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-[#1C1917] uppercase tracking-widest flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                    1. Selecione a Sala
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {ROOMS.map(room => (
+                      <button 
+                        key={room}
+                        onClick={() => {
+                          setSelectedRoom(room);
+                          setCustomRoomName(room);
+                        }}
+                        className={`p-4 rounded-2xl border-2 text-sm font-bold transition-all text-left flex flex-col gap-1 ${
+                          selectedRoom === room 
+                            ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-md' 
+                            : 'border-[#E7E5E4] hover:border-blue-200 hover:bg-slate-50 text-[#44403C]'
+                        }`}
+                      >
+                        <span className="opacity-70 text-[10px] uppercase">Local</span>
+                        {room}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Name */}
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-[#1C1917] uppercase tracking-widest flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                    2. Nome da Sala no Relat√≥rio (Edit√°vel)
+                  </h3>
+                  <input 
+                    type="text"
+                    value={customRoomName}
+                    onChange={(e) => setCustomRoomName(e.target.value)}
+                    className="w-full px-6 py-4 bg-[#FAFAF9] border-2 border-[#E7E5E4] rounded-2xl text-sm font-bold focus:border-blue-600 transition-all outline-none"
+                    placeholder="Ex: Sala de Curativos, Emerg√™ncia..."
+                  />
+                </div>
+
+                {/* Categories Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black text-[#1C1917] uppercase tracking-widest flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                      3. Filtrar Categorias
+                    </h3>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setSelectedRoomCategories([...categories])}
+                        className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-tighter"
+                      >
+                        Marcar Todas
+                      </button>
+                      <span className="text-[#D6D3D1]">|</span>
+                      <button 
+                        onClick={() => setSelectedRoomCategories([])}
+                        className="text-[10px] font-bold text-red-600 hover:underline uppercase tracking-tighter"
+                      >
+                        Desmarcar Todas
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {categories.map(category => (
+                      <label 
+                        key={category}
+                        className="flex items-center gap-2.5 p-3 rounded-xl border border-[#E7E5E4] hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <input 
+                          type="checkbox" 
+                          checked={selectedRoomCategories.includes(category)}
+                          onChange={() => {
+                            if (selectedRoomCategories.includes(category)) {
+                              setSelectedRoomCategories(selectedRoomCategories.filter(c => c !== category));
+                            } else {
+                              setSelectedRoomCategories([...selectedRoomCategories, category]);
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-[#D6D3D1] text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-xs font-bold text-[#44403C] truncate">{category}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Summary */}
+                <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 italic">
+                  <div className="flex items-start gap-3">
+                    <Info size={18} className="text-blue-600 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-bold text-blue-900 mb-1">Informa√ß√µes do Documento</h4>
+                      <p className="text-xs text-blue-800 leading-relaxed">
+                        Ser√° gerado um PDF formatado para impress√£o contendo os itens de <strong>{selectedRoom}</strong> 
+                        com o t√≠tulo personalizado <strong>"{customRoomName}"</strong> 
+                        que pertencem √†s <strong>{selectedRoomCategories.length}</strong> categorias selecionadas.
+                        O relat√≥rio inclui lote, validade e situa√ß√£o do estoque em dias.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-[#E7E5E4] flex gap-4">
+                <button 
+                  onClick={() => setShowRoomInventoryModal(false)}
+                  className="flex-1 py-4 px-6 border-2 border-[#E7E5E4] text-[#78716C] rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-[#F5F5F4] transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => {
+                    handleExportRoomInventoryPDF(selectedRoom, customRoomName, selectedRoomCategories);
+                    setShowRoomInventoryModal(false);
+                  }}
+                  disabled={selectedRoomCategories.length === 0}
+                  className="flex-[2] py-4 px-6 bg-blue-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                >
+                  <Printer size={18} />
+                  Gerar Mapa de Sala
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {showRequestDetailModal.show && showRequestDetailModal.request && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[80] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-3xl rounded-[32px] p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-[#1C1917]">{showRequestDetailModal.request.isReturn ? 'Detalhes da Devolu√ß√£o' : 'Detalhes da Solicita√ß√£o'}</h3>
+                <p className="text-sm text-[#78716C] font-bold">#{showRequestDetailModal.request.id.slice(-5).toUpperCase()} - {new Date(showRequestDetailModal.request.date).toLocaleDateString('pt-BR')}</p>
+              </div>
+              <button 
+                onClick={() => setShowRequestDetailModal({ show: false })}
+                className="p-2 hover:bg-[#F5F5F4] rounded-full transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 mb-8">
+              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">SETOR SOLICITANTE</p>
+                <p className="text-lg font-black text-emerald-900">{showRequestDetailModal.request.sector}</p>
+                <p className="text-xs text-emerald-700/70 font-medium">{showRequestDetailModal.request.requesterEmail}</p>
+              </div>
+              <div className="p-4 bg-[#FAFAF9] rounded-2xl border border-[#E7E5E4]">
+                <p className="text-[10px] font-bold text-[#A8A29E] uppercase tracking-widest mb-1">Status Atual</p>
+                <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest ${
+                  showRequestDetailModal.request.status === 'PENDENTE' ? 'bg-amber-100 text-amber-600' :
+                  showRequestDetailModal.request.status === 'EM_SEPARACAO' ? 'bg-purple-100 text-purple-600' :
+                  showRequestDetailModal.request.status === 'APROVADO' ? 'bg-blue-100 text-blue-600' :
+                  showRequestDetailModal.request.status === 'ENTREGUE' ? 'bg-emerald-100 text-emerald-600' :
+                  showRequestDetailModal.request.status === 'RECUSADO' ? 'bg-rose-100 text-rose-600' :
+                  showRequestDetailModal.request.status === 'DEVOLUCAO_PENDENTE' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                  showRequestDetailModal.request.status === 'DEVOLUCAO_APROVADA' ? 'bg-emerald-100 text-emerald-700' :
+                  showRequestDetailModal.request.status === 'DEVOLUCAO_RECUSADA' ? 'bg-rose-100 text-rose-700' :
+                  'bg-gray-100 text-gray-600'
+                }`}>
+                  {showRequestDetailModal.request.status === 'EM_SEPARACAO' ? 'EM SEPARA√á√ÉO' : 
+                   showRequestDetailModal.request.status === 'DEVOLUCAO_PENDENTE' ? 'DEVOLU√á√ÉO PENDENTE' :
+                   showRequestDetailModal.request.status === 'DEVOLUCAO_APROVADA' ? 'DEVOLU√á√ÉO APROVADA' :
+                   showRequestDetailModal.request.status === 'DEVOLUCAO_RECUSADA' ? 'DEVOLU√á√ÉO RECUSADA' :
+                   showRequestDetailModal.request.status}
+                </span>
+              </div>
+            </div>
+
+            {showRequestDetailModal.request.isReturn && showRequestDetailModal.request.returnReason && (
+              <div className="mb-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Motivo da Devolu√ß√£o</p>
+                <p className="text-sm font-black text-amber-900">{showRequestDetailModal.request.returnReason}</p>
+              </div>
+            )}
+
+            {showRequestDetailModal.request.observation && (
+              <div className="mb-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">
+                  {showRequestDetailModal.request.isReturn ? 'Observa√ß√£o da Devolu√ß√£o' : 'Observa√ß√£o do Solicitante'}
+                </p>
+                <p className="text-sm text-amber-800 italic">"{showRequestDetailModal.request.observation}"</p>
+              </div>
+            )}
+
+            {showRequestDetailModal.request.adminObservation && (
+              <div className={`mb-8 p-5 rounded-[24px] border-2 ${
+                showRequestDetailModal.request.status === 'RECUSADO' 
+                  ? 'bg-rose-50 border-rose-100 text-rose-900' 
+                  : 'bg-blue-50 border-blue-100 text-blue-900'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {showRequestDetailModal.request.status === 'RECUSADO' ? (
+                    <AlertTriangle size={18} className="text-rose-600" />
+                  ) : (
+                    <Info size={18} className="text-blue-600" />
+                  )}
+                  <p className={`text-[10px] font-black uppercase tracking-widest ${
+                    showRequestDetailModal.request.status === 'RECUSADO' ? 'text-rose-600' : 'text-blue-600'
+                  }`}>
+                    {showRequestDetailModal.request.status === 'RECUSADO' ? 'Motivo da Recusa' : 'Observa√ß√£o do Administrador'}
+                  </p>
+                </div>
+                <p className="text-sm font-medium italic">"{showRequestDetailModal.request.adminObservation}"</p>
+              </div>
+            )}
+
+            {showRequestDetailModal.request.status === 'ENTREGUE' && (
+              <div className="flex flex-col sm:flex-row gap-4 w-full">
+                <button 
+                  onClick={() => {
+                    const itemsForReceipt = allRequestItems
+                      .filter(ri => ri.request_id === showRequestDetailModal.request?.id)
+                      .map(i => {
+                        const matchingTrans = transactions.filter(t => 
+                          t.type === 'exit' && 
+                          t.item_name === i.product_name && 
+                          (t.sector === showRequestDetailModal.request?.sector || (t as any).requestId === showRequestDetailModal.request?.id) &&
+                          !t.deletedAt
+                        );
+                        const uniqueBatches = Array.from(new Set(matchingTrans.map(t => t.batch_number).filter(Boolean)));
+                        const batchStr = uniqueBatches.length > 0 
+                          ? uniqueBatches.join(', ') 
+                          : (items.find(it => it.id === i.batch_id || it.name === i.product_name)?.batch_number || '---');
+
+                        return {
+                          product_name: i.product_name,
+                          quantity: i.quantity_approved || 0,
+                          batch_number: batchStr
+                        };
+                      });
+                    
+                    if (itemsForReceipt.length > 0 && showRequestDetailModal.request) {
+                      handleExportDeliveryReceiptPDF({
+                        sector: showRequestDetailModal.request.sector,
+                        items: itemsForReceipt,
+                        requestId: showRequestDetailModal.request.id,
+                        date: showRequestDetailModal.request.deliveredAt || showRequestDetailModal.request.date
+                      });
+                    }
+                  }}
+                  className="flex-1 py-4 px-6 bg-emerald-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-3"
+                >
+                  <Printer size={18} />
+                  Reimprimir Comprovante
+                </button>
+              </div>
+            )}
+
+            {isAdmin && showRequestDetailModal.request.status !== 'ENTREGUE' && (
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] font-bold text-[#A8A29E] uppercase tracking-widest block">
+                    {showRequestDetailModal.request.status === 'RECUSADO' ? 'Editar Motivo da Recusa' : 'Observa√ß√£o do Administrador (Opcional)'}
+                  </label>
+                  {showRequestDetailModal.request.status !== 'PENDENTE' && (
+                    <button 
+                      onClick={() => handleUpdateObservation(showRequestDetailModal.request!.id)}
+                      className="text-[10px] font-bold text-blue-600 uppercase hover:underline"
+                    >
+                      Salvar Apenas Observa√ß√£o
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={adminObservation}
+                  onChange={(e) => setAdminObservation(e.target.value)}
+                  placeholder={showRequestDetailModal.request.status === 'RECUSADO' ? "Explique o motivo da recusa..." : "Explique altera√ß√µes ou adicione informa√ß√µes..."}
+                  className="w-full p-4 bg-[#FAFAF9] border border-[#E7E5E4] rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all min-h-[100px]"
+                />
+              </div>
+            )}
+
+            {isAdmin && (showRequestDetailModal.request.status === 'PENDENTE' || showRequestDetailModal.request.status === 'EM_SEPARACAO') && (
+              <div className="mb-8 p-6 bg-blue-50/50 border border-blue-100 rounded-3xl">
+                <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-3">Adicionar Material Esquecido</label>
+                <div className="relative">
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Pesquisar material para adicionar..."
+                      className="w-full pl-12 pr-4 py-3 bg-white border border-blue-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm transition-all shadow-sm"
+                      value={adminAddItemSearch}
+                      onChange={(e) => setAdminAddItemSearch(e.target.value)}
+                    />
+                  </div>
+
+                  {adminAddItemSearch.length >= 2 && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute z-50 w-full mt-2 bg-white border border-[#E7E5E4] rounded-xl shadow-2xl overflow-hidden max-h-[250px] overflow-y-auto"
+                    >
+                      {(() => {
+                        const allActiveGroups: Record<string, {name: string, category: string, id: string}> = {};
+                        items.filter(i => !i.deletedAt && i.quantity > 0).forEach(i => {
+                          if (!allActiveGroups[i.name]) {
+                            allActiveGroups[i.name] = { name: i.name, category: i.category || 'Outros', id: i.id };
+                          }
+                        });
+
+                        const filtered = Object.values(allActiveGroups)
+                          .filter(group => normalizeString(group.name).includes(normalizeString(adminAddItemSearch)))
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .slice(0, 5);
+
+                        if (filtered.length === 0) {
+                          return <div className="p-4 text-center text-xs text-gray-500">Nenhum material encontrado.</div>;
+                        }
+
+                        return filtered.map(group => (
+                          <button
+                            key={group.name}
+                            type="button"
+                            onClick={() => handleAddExtraItemToRequest(showRequestDetailModal.request!.id, group.name, group.id)}
+                            disabled={isAdminAddingItem}
+                            className="w-full px-4 py-3 hover:bg-blue-50 flex items-center justify-between text-left transition-colors border-b border-[#F5F5F4] last:border-0"
+                          >
+                            <div>
+                              <p className="text-sm font-bold text-[#1C1917]">{group.name}</p>
+                              <p className="text-[10px] text-[#A8A29E] uppercase font-bold">{group.category}</p>
+                            </div>
+                            <Plus size={16} className="text-blue-600" />
+                          </button>
+                        ));
+                      })()}
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4 mb-8">
+              <h4 className="font-bold text-[#1C1917] flex items-center gap-2">
+                <Package size={18} /> {showRequestDetailModal.request.isReturn ? 'Itens a Devolver' : 'Itens Solicitados'}
+              </h4>
+              <div className="bg-white rounded-2xl border border-[#E7E5E4] overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#FAFAF9] border-bottom border-[#E7E5E4]">
+                      <th className="px-4 py-3 font-bold text-xs text-[#78716C]">Item / Material</th>
+                      <th className="px-4 py-3 font-bold text-xs text-[#78716C] text-center">{showRequestDetailModal.request.isReturn ? 'Qtd. Devolvida' : 'Qtd. Solicitada'}</th>
+                      {!showRequestDetailModal.request.isReturn && isAdmin && <th className="px-4 py-3 font-bold text-xs text-[#78716C] text-center">Saldo em Estoque</th>}
+                      {!showRequestDetailModal.request.isReturn && <th className="px-4 py-3 font-bold text-xs text-[#78716C]">Lote de Sa√≠da</th>}
+                      {!showRequestDetailModal.request.isReturn && <th className="px-4 py-3 font-bold text-xs text-[#78716C] text-center">Qtd. Liberada</th>}
+                      {showRequestDetailModal.request.isReturn && <th className="px-4 py-3 font-bold text-xs text-[#78716C] text-center">Lote de Destino</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E7E5E4]">
+                    {allRequestItems.filter(ri => ri.request_id === showRequestDetailModal.request?.id).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-slate-400 font-bold text-xs bg-slate-50/50">
+                          Nenhum item individual vinculado a esta solicita√ß√£o.
+                        </td>
+                      </tr>
+                    ) : (
+                      allRequestItems.filter(ri => ri.request_id === showRequestDetailModal.request?.id).map(item => {
+                      // Calcular lotes e estoque atual deste item (somando todos os lotes)
+                      const productBatches = items
+                        .filter(i => !i.deletedAt && normalizeString(i.name) === normalizeString(item.product_name) && (i.quantity || 0) > 0);
+                      const totalStock = productBatches.reduce((sum, i) => sum + i.quantity, 0);
+                      const matchedBatch = items.find(i => i.id === item.batch_id);
+                      const hasMultipleBatches = productBatches.length > 1;
+                      
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 font-bold text-sm text-[#1C1917]">
+                            <div>{item.product_name}</div>
+                            {hasMultipleBatches && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-black uppercase rounded-md">
+                                  üè∑Ô∏è {productBatches.length} Lotes no Estoque
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-bold text-center text-[#78716C] bg-slate-50/50">
+                            {showRequestDetailModal.request.isReturn ? item.quantity_approved : item.quantity_requested}
+                          </td>
+                          {!showRequestDetailModal.request.isReturn && isAdmin && (
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex flex-col items-center">
+                                <span className={`text-sm font-black ${totalStock <= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                  {totalStock}
+                                </span>
+                                {totalStock < item.quantity_requested && totalStock > 0 && (
+                                  <span className="text-[9px] text-amber-600 font-bold uppercase leading-none">Estoque Insuficiente</span>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                          {!showRequestDetailModal.request.isReturn && (
+                            <td className="px-4 py-3 text-xs">
+                              {isAdmin && (showRequestDetailModal.request?.status === 'PENDENTE' || showRequestDetailModal.request?.status === 'EM_SEPARACAO') ? (
+                                hasMultipleBatches ? (
+                                  <select
+                                    value={item.batch_id || ''}
+                                    onChange={async (e) => {
+                                      const newBatchId = e.target.value;
+                                      setAllRequestItems(allRequestItems.map(ri => ri.id === item.id ? { ...ri, batch_id: newBatchId } : ri));
+                                      try {
+                                        await updateDoc(doc(db, 'request_items', item.id), { batch_id: newBatchId });
+                                      } catch (err) {
+                                        console.error("Erro ao atualizar lote do item:", err);
+                                      }
+                                    }}
+                                    className="w-full text-xs font-bold bg-white border border-amber-300 text-amber-950 rounded-xl px-2.5 py-1.5 focus:ring-2 focus:ring-amber-500/20"
+                                  >
+                                    <option value="">Autom√°tico (FEFO - Primeiro que vence)</option>
+                                    {productBatches.map(b => (
+                                      <option key={b.id} value={b.id}>
+                                        Lote: {b.batch_number || 'Sem Lote'} ({b.quantity} un - Venc: {b.expiry_date || 'Indet.'})
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : productBatches.length === 1 && productBatches[0].batch_number ? (
+                                  <span className="font-bold text-[#57534E]">
+                                    Lote: {productBatches[0].batch_number} <span className="text-[10px] text-[#A8A29E]">(Venc: {productBatches[0].expiry_date || 'Indet.'})</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-[#A8A29E] font-medium">Lote Padr√£o</span>
+                                )
+                              ) : (
+                                <span className="font-bold text-[#57534E]">
+                                  {matchedBatch ? `Lote: ${matchedBatch.batch_number}` : (hasMultipleBatches ? 'Autom√°tico (M√∫ltiplos Lotes)' : (productBatches[0]?.batch_number ? `Lote: ${productBatches[0].batch_number}` : '---'))}
+                                </span>
+                              )}
+                            </td>
+                          )}
+                          {!showRequestDetailModal.request.isReturn && (
+                            <td className="px-4 py-3 text-center">
+                              {isAdmin && (showRequestDetailModal.request?.status === 'PENDENTE' || showRequestDetailModal.request?.status === 'EM_SEPARACAO') ? (
+                                <div className="flex justify-center">
+                                  <input 
+                                    type="number" 
+                                    min="0"
+                                    value={item.quantity_approved}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value) || 0;
+                                      setAllRequestItems(allRequestItems.map(ri => ri.id === item.id ? { ...ri, quantity_approved: val } : ri));
+                                    }}
+                                    className={`w-20 px-3 py-2 border-2 rounded-xl text-center font-black text-sm transition-all outline-none ${
+                                      item.quantity_approved > totalStock 
+                                        ? 'bg-rose-50 border-rose-200 text-rose-700 focus:border-rose-500' 
+                                        : 'bg-white border-blue-100 text-blue-700 focus:border-blue-500'
+                                    }`}
+                                  />
+                                </div>
+                              ) : (
+                                <span className="text-sm font-black text-[#1C1917]">{item.quantity_approved}</span>
+                              )}
+                            </td>
+                          )}
+                          {showRequestDetailModal.request.isReturn && (
+                            <td className="px-4 py-3 text-center text-xs font-bold text-[#57534E]">
+                              {matchedBatch ? `Lote: ${matchedBatch.batch_number}` : 'Qualquer Lote Ativo'}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    }))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {isAdmin && (
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex gap-3 w-full">
+                  {/* PENDENTE or EM_SEPARACAO Actions */}
+                  {!showRequestDetailModal.request.isReturn && (showRequestDetailModal.request.status === 'PENDENTE' || showRequestDetailModal.request.status === 'EM_SEPARACAO') && (
+                    <>
+                      <button 
+                        onClick={() => handleRejectRequest(showRequestDetailModal.request!.id)}
+                        className="flex-1 py-3 bg-rose-100 text-rose-600 rounded-xl font-bold hover:bg-rose-200 transition-all"
+                      >
+                        Recusar
+                      </button>
+
+                      {showRequestDetailModal.request.isNewFlow ? (
+                        <button 
+                          onClick={() => handleApproveAndDeliverNewRequest(showRequestDetailModal.request!.id, allRequestItems.filter(ri => ri.request_id === showRequestDetailModal.request?.id))}
+                          className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle size={18} /> Dar Baixa no Estoque
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleApproveRequest(showRequestDetailModal.request!.id, allRequestItems.filter(ri => ri.request_id === showRequestDetailModal.request?.id))}
+                          className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all"
+                        >
+                          Aprovar Solicita√ß√£o
+                        </button>
+                      )}
+                    </>
+                  )}
+
+
+                  {/* Old flow APROVADO delivery action */}
+                  {!showRequestDetailModal.request.isReturn && !showRequestDetailModal.request.isNewFlow && showRequestDetailModal.request.status === 'APROVADO' && (
+                    <button 
+                      onClick={() => handleDeliverRequest(showRequestDetailModal.request!.id, allRequestItems.filter(ri => ri.request_id === showRequestDetailModal.request?.id))}
+                      className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg"
+                    >
+                      <CheckCircle size={20} /> Confirmar Entrega e Baixar Estoque
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!isAdmin && showRequestDetailModal.request.status === 'PENDENTE' && showRequestDetailModal.request.requesterEmail === user?.email && (
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    setShowRequestDetailModal({ show: false });
+                    handleEditRequest(showRequestDetailModal.request!);
+                  }}
+                  className="flex-1 py-3 bg-blue-100 text-blue-600 rounded-xl font-bold hover:bg-blue-200 transition-all flex items-center justify-center gap-2"
+                >
+                  <Edit2 size={18} /> Editar Solicita√ß√£o
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowRequestDetailModal({ show: false });
+                    handleDeleteRequest(showRequestDetailModal.request!.id);
+                  }}
+                  className="flex-1 py-3 bg-rose-100 text-rose-600 rounded-xl font-bold hover:bg-rose-200 transition-all flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={18} /> Excluir Solicita√ß√£o
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast.show && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 min-w-[300px] ${
+              toast.type === 'success' ? 'bg-emerald-600 text-white' :
+              toast.type === 'error' ? 'bg-rose-600 text-white' :
+              'bg-[#1C1917] text-white'
+            }`}
+          >
+            {toast.type === 'success' && <CheckCircle size={20} />}
+            {toast.type === 'error' && <AlertTriangle size={20} />}
+            <p className="font-bold text-sm">{toast.message}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* User Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showUserDeleteConfirm.show && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-xl font-black mb-2">Excluir Usu√°rio?</h3>
+              <p className="text-[#78716C] mb-8">
+                Tem certeza que deseja excluir o acesso de <strong>{showUserDeleteConfirm.user?.name}</strong>? 
+                Esta a√ß√£o remover√° o perfil do sistema.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowUserDeleteConfirm({ show: false })}
+                  className="flex-1 py-3 bg-[#F5F5F4] text-[#57534E] rounded-xl font-bold hover:bg-[#E7E5E4] transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (showUserDeleteConfirm.user) {
+                      try {
+                        await deleteDoc(doc(db, 'users', showUserDeleteConfirm.user.id));
+                        showToast("Usu√°rio exclu√≠do com sucesso!", "success");
+                      } catch (error: any) {
+                        showToast(`Erro ao excluir: ${error.message}`, "error");
+                      }
+                      setShowUserDeleteConfirm({ show: false });
+                    }
+                  }}
+                  className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all"
+                >
+                  Sim, Excluir
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Stock Zero Acknowledge Confirmation Modal */}
+      <AnimatePresence>
+        {showStockConfirm.show && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle size={32} />
+              </div>
+              <h3 className="text-xl font-black mb-2 uppercase tracking-tight text-[#1C1917]">Confirmar Ci√™ncia?</h3>
+              <p className="text-[#78716C] mb-8 font-medium">
+                Deseja confirmar que est√° ciente de que o material <strong>"{showStockConfirm.itemName}"</strong> est√° com estoque zero? 
+                Esta notifica√ß√£o ser√° exclu√≠da.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowStockConfirm({ show: false })}
+                  className="flex-1 py-3 bg-[#F5F5F4] text-[#57534E] rounded-xl font-bold hover:bg-[#E7E5E4] transition-all"
+                >
+                  Voltar
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (showStockConfirm.notificationId) {
+                      try {
+                        const itemName = showStockConfirm.itemName;
+                        if (itemName) {
+                          const safeId = getSafeDocId(itemName);
+                          await setDoc(doc(db, 'dismissed_stock_alerts', safeId), {
+                            itemName: itemName,
+                            dismissedAt: new Date().toISOString()
+                          });
+                        }
+                        await deleteDoc(doc(db, 'notifications', showStockConfirm.notificationId));
+                        showToast("Ci√™ncia confirmada! Notifica√ß√£o exclu√≠da.", "success");
+                      } catch (error: any) {
+                        showToast(`Erro ao confirmar: ${error.message}`, "error");
+                      }
+                      setShowStockConfirm({ show: false });
+                    }
+                  }}
+                  className="flex-[1.5] py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-200"
+                >
+                  <Check size={18} /> Sim, Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
