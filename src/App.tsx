@@ -718,6 +718,9 @@ export default function App() {
   const [transactionQty, setTransactionQty] = useState(1);
   const [exitReason, setExitReason] = useState<'consumo' | 'doacao' | 'vencido' | 'perda'>('consumo');
   const [expiryReason, setExpiryReason] = useState('');
+  const [isRetroactiveDate, setIsRetroactiveDate] = useState<boolean>(false);
+  const [retroactiveDate, setRetroactiveDate] = useState<string>('');
+  const [retroactiveTime, setRetroactiveTime] = useState<string>('');
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [selectedItemName, setSelectedItemName] = useState<string>('');
   const [basket, setBasket] = useState<{
@@ -807,6 +810,9 @@ export default function App() {
       setSelectedItemId('');
       if (showTransactionModal.type === 'exit') {
         setBasket([]);
+        setIsRetroactiveDate(false);
+        setRetroactiveDate('');
+        setRetroactiveTime('');
       }
     }
   }, [showTransactionModal.show, showTransactionModal.type, showTransactionModal.item]);
@@ -2906,6 +2912,19 @@ export default function App() {
           return;
         }
 
+        if (isRetroactiveDate) {
+          if (!retroactiveDate) {
+            showToast('Por favor, informe a data retroativa da saída.', 'error');
+            return;
+          }
+          const [ry, rm, rd] = retroactiveDate.split('-').map(Number);
+          const retroCheckDate = new Date(ry, rm - 1, rd, 23, 59, 59);
+          if (retroCheckDate.getTime() > new Date().getTime()) {
+            showToast('A data retroativa não pode ser futura.', 'error');
+            return;
+          }
+        }
+
         if (exitReason === 'consumo' && (!targetDestinationSector || targetDestinationSector === 'Almoxarifado')) {
           showToast('Por favor, selecione um setor de destino válido.', 'error');
           return;
@@ -2915,6 +2934,23 @@ export default function App() {
           showToast('Por favor, informe a unidade receptora da doação.', 'error');
           return;
         }
+      }
+
+      let finalTransactionDate = new Date().toISOString();
+      if (isExit && isRetroactiveDate && retroactiveDate) {
+        const [year, month, day] = retroactiveDate.split('-').map(Number);
+        let hours = 12;
+        let minutes = 0;
+        if (retroactiveTime && retroactiveTime.includes(':')) {
+          const [h, m] = retroactiveTime.split(':').map(Number);
+          if (!isNaN(h)) hours = h;
+          if (!isNaN(m)) minutes = m;
+        } else {
+          const now = new Date();
+          hours = now.getHours();
+          minutes = now.getMinutes();
+        }
+        finalTransactionDate = new Date(year, month - 1, day, hours, minutes, 0).toISOString();
       }
 
       const finalSectorValue = targetDestinationSector || (
@@ -3012,11 +3048,11 @@ export default function App() {
 
             const newTransRef = doc(transCol);
             const currentDonationNumber = exitReason === 'doacao' ? (() => {
-              const currentYear = new Date().getFullYear();
+              const targetYear = new Date(finalTransactionDate).getFullYear();
               const yearlyDonations = transactions.filter(t => 
                 t.exitReason === 'doacao' && 
                 !t.deletedAt && 
-                new Date(t.date).getFullYear() === currentYear
+                new Date(t.date).getFullYear() === targetYear
               );
               const uniqueDonations = new Set();
               yearlyDonations.forEach(t => {
@@ -3030,7 +3066,7 @@ export default function App() {
                 }
               });
               const nextCount = uniqueDonations.size + 1;
-              return `${nextCount.toString().padStart(2, '0')}/${currentYear}`;
+              return `${nextCount.toString().padStart(2, '0')}/${targetYear}`;
             })() : null;
 
             transaction.set(newTransRef, {
@@ -3041,7 +3077,8 @@ export default function App() {
               quantity: quantity,
               sector: finalSectorValue,
               location: inventoryLocation,
-              date: new Date().toISOString(),
+              date: finalTransactionDate,
+              isRetroactive: isRetroactiveDate ? true : false,
               responsible: user?.displayName || 'Sistema',
               responsibleEmail: user?.email || '',
               exitReason: exitReason,
@@ -3079,7 +3116,7 @@ export default function App() {
                   category: currentItemData.category,
                   batch_number: currentItemData.batch_number,
                   location: 'Farmácia',
-                  createdAt: new Date().toISOString()
+                  createdAt: finalTransactionDate
                 });
               }
 
@@ -3091,7 +3128,8 @@ export default function App() {
                 origin: currentItemData.origin,
                 quantity: quantity,
                 location: 'Farmácia',
-                date: new Date().toISOString(),
+                date: finalTransactionDate,
+                isRetroactive: isRetroactiveDate ? true : false,
                 responsible: 'Sistema (Transferência)',
                 batch_number: currentItemData.batch_number,
                 expiry_date: currentItemData.expiry_date,
@@ -3170,11 +3208,11 @@ export default function App() {
         
         if (exitReason === 'doacao') {
           // Calculate donation number for this year
-          const currentYear = new Date().getFullYear();
+          const targetYear = new Date(finalTransactionDate).getFullYear();
           const yearlyDonations = transactions.filter(t => 
             t.exitReason === 'doacao' && 
             !t.deletedAt && 
-            new Date(t.date).getFullYear() === currentYear
+            new Date(t.date).getFullYear() === targetYear
           );
           const uniqueDonations = new Set();
           yearlyDonations.forEach(t => {
@@ -3185,7 +3223,7 @@ export default function App() {
               uniqueDonations.add(`${dateKey}-${t.sector}`);
             }
           });
-          const currentDonationNumber = `${(uniqueDonations.size + 1).toString().padStart(2, '0')}/${currentYear}`;
+          const currentDonationNumber = `${(uniqueDonations.size + 1).toString().padStart(2, '0')}/${targetYear}`;
 
           handleExportDonationTermPDF({
             donatingUnitName: donationUnitName || 'CEO - Centro de Especialidades Odontológicas',
@@ -3197,13 +3235,13 @@ export default function App() {
             items: itemsForReceipt,
             revisionDate: donationRevisionDate,
             donationNumber: currentDonationNumber,
-            date: new Date().toISOString()
+            date: finalTransactionDate
           });
         } else {
           handleExportDeliveryReceiptPDF({
             sector: finalSectorValue,
             items: itemsForReceipt,
-            date: new Date().toISOString()
+            date: finalTransactionDate
           });
         }
       }
@@ -3220,6 +3258,9 @@ export default function App() {
       setDonationUnitCNPJ('');
       setDonationRevisionDate('');
       setLetterheadImage(null);
+      setIsRetroactiveDate(false);
+      setRetroactiveDate('');
+      setRetroactiveTime('');
 
       // Stock Zero Notifications check
       if (showTransactionModal.type === 'exit') {
@@ -3654,6 +3695,9 @@ export default function App() {
       setDonationUnitAddress('');
       setDonationUnitCNPJ('');
       setDonationRevisionDate('');
+      setIsRetroactiveDate(false);
+      setRetroactiveDate('');
+      setRetroactiveTime('');
       const targetItem = showTransactionModal.item;
       setBasket(targetItem ? [{
         item_id: targetItem.id!,
@@ -3666,6 +3710,9 @@ export default function App() {
       setModalSector('');
     } else {
       setModalSector('');
+      setIsRetroactiveDate(false);
+      setRetroactiveDate('');
+      setRetroactiveTime('');
     }
   }, [showTransactionModal.show, showTransactionModal.item]);
 
@@ -7007,6 +7054,11 @@ export default function App() {
                               <Clock size={11} />
                               {new Date(t.date).toLocaleDateString('pt-BR')} às {new Date(t.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                             </span>
+                            {t.isRetroactive && (
+                              <span className="text-[9px] text-amber-800 font-extrabold bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded-md">
+                                Retroativo
+                              </span>
+                            )}
                             {t.responsible && (
                               <span className="text-[9px] text-blue-800 font-bold bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
                                 {t.responsible.split('@')[0]}
@@ -7655,7 +7707,12 @@ export default function App() {
                       .map(t => (
                       <tr key={t.id} className={`hover:bg-[#FAFAF9] transition-all ${t.deletedAt ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                         <td className="px-6 py-5 text-sm text-[#57534E] whitespace-nowrap">
-                          {new Date(t.date).toLocaleString('pt-BR')}
+                          <div>{new Date(t.date).toLocaleString('pt-BR')}</div>
+                          {t.isRetroactive && (
+                            <span className="inline-block mt-1 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                              Retroativo
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-5">
                           <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${t.type === 'entry' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
@@ -10660,6 +10717,82 @@ export default function App() {
                     </motion.div>
                   )}
 
+                  {/* Opção de Data Retroativa */}
+                  <div className="bg-[#F5F5F4] p-4 rounded-2xl border border-stone-200 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isRetroactiveDate ? 'bg-amber-500 text-white' : 'bg-stone-200 text-stone-600'}`}>
+                          <Calendar size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <label htmlFor="retroactive-exit-toggle" className="text-xs font-bold text-[#1C1917] cursor-pointer flex items-center gap-1.5 flex-wrap">
+                            <span>Baixa com Data Retroativa</span>
+                            {isRetroactiveDate && (
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                                Ativado
+                              </span>
+                            )}
+                          </label>
+                          <p className="text-[11px] text-[#78716C] leading-snug">
+                            {isRetroactiveDate 
+                              ? 'A movimentação e o recibo serão emitidos com a data passada informada.' 
+                              : 'Ative para lançar esta saída com uma data anterior à data atual.'}
+                          </p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input 
+                          id="retroactive-exit-toggle"
+                          type="checkbox" 
+                          checked={isRetroactiveDate} 
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setIsRetroactiveDate(checked);
+                            if (checked && !retroactiveDate) {
+                              setRetroactiveDate(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+                              setRetroactiveTime(format(new Date(), 'HH:mm'));
+                            }
+                          }} 
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                      </label>
+                    </div>
+
+                    {isRetroactiveDate && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-dashed border-stone-300"
+                      >
+                        <div>
+                          <label className="block text-[10px] font-bold text-[#57534E] uppercase mb-1">
+                            Data da Saída (Retroativa) *
+                          </label>
+                          <input 
+                            type="date"
+                            required={isRetroactiveDate}
+                            max={format(new Date(), 'yyyy-MM-dd')}
+                            value={retroactiveDate}
+                            onChange={(e) => setRetroactiveDate(e.target.value)}
+                            className="w-full px-3.5 py-2.5 bg-white border border-[#E7E5E4] rounded-xl text-xs font-bold text-stone-900 focus:ring-2 focus:ring-amber-500/20 shadow-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-[#57534E] uppercase mb-1">
+                            Horário da Saída (Opcional)
+                          </label>
+                          <input 
+                            type="time"
+                            value={retroactiveTime}
+                            onChange={(e) => setRetroactiveTime(e.target.value)}
+                            className="w-full px-3.5 py-2.5 bg-white border border-[#E7E5E4] rounded-xl text-xs font-bold text-stone-900 focus:ring-2 focus:ring-amber-500/20 shadow-sm"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
                   <div className="space-y-4">
                     <label className="block text-sm font-bold text-[#57534E]">Itens para Saída</label>
                     {basket.map((b, index) => {
@@ -10859,6 +10992,9 @@ export default function App() {
                   onClick={() => {
                     setShowTransactionModal({ show: false, type: 'entry' });
                     setLetterheadImage(null);
+                    setIsRetroactiveDate(false);
+                    setRetroactiveDate('');
+                    setRetroactiveTime('');
                   }}
                   className="flex-1 px-4 py-3 rounded-xl font-bold text-[#78716C] hover:bg-[#F5F5F4] transition-all"
                 >

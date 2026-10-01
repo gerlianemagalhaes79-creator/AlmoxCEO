@@ -94,6 +94,7 @@ export interface Transaction {
   donationNumber?: string;
   batch_number?: string;
   expiry_date?: string;
+  isRetroactive?: boolean;
   isReturn?: boolean;
   returnReason?: string;
   observation?: string;
