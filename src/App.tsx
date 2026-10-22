@@ -721,6 +721,11 @@ export default function App() {
   const [isRetroactiveDate, setIsRetroactiveDate] = useState<boolean>(false);
   const [retroactiveDate, setRetroactiveDate] = useState<string>('');
   const [retroactiveTime, setRetroactiveTime] = useState<string>('');
+  const [movFilterMode, setMovFilterMode] = useState<'recent' | 'single_date' | 'date_range' | 'all'>('recent');
+  const [movSingleDate, setMovSingleDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [movRangeStart, setMovRangeStart] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [movRangeEnd, setMovRangeEnd] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [movSearchTerm, setMovSearchTerm] = useState<string>('');
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [selectedItemName, setSelectedItemName] = useState<string>('');
   const [basket, setBasket] = useState<{
@@ -2835,6 +2840,36 @@ export default function App() {
     e.preventDefault();
     
     try {
+      if (isRetroactiveDate) {
+        if (!retroactiveDate) {
+          showToast('Por favor, informe a data retroativa da entrada.', 'error');
+          return;
+        }
+        const [ry, rm, rd] = retroactiveDate.split('-').map(Number);
+        const retroCheckDate = new Date(ry, rm - 1, rd, 23, 59, 59);
+        if (retroCheckDate.getTime() > new Date().getTime()) {
+          showToast('A data retroativa não pode ser futura.', 'error');
+          return;
+        }
+      }
+
+      let finalEntryDate = new Date().toISOString();
+      if (isRetroactiveDate && retroactiveDate) {
+        const [year, month, day] = retroactiveDate.split('-').map(Number);
+        let hours = 12;
+        let minutes = 0;
+        if (retroactiveTime && retroactiveTime.includes(':')) {
+          const [h, m] = retroactiveTime.split(':').map(Number);
+          if (!isNaN(h)) hours = h;
+          if (!isNaN(m)) minutes = m;
+        } else {
+          const now = new Date();
+          hours = now.getHours();
+          minutes = now.getMinutes();
+        }
+        finalEntryDate = new Date(year, month - 1, day, hours, minutes, 0).toISOString();
+      }
+
       for (const itemData of bulkEntry.items) {
         const trimmedName = itemData.name.trim();
         if (!trimmedName) {
@@ -2896,7 +2931,9 @@ export default function App() {
               quantity: initial_qty,
               location: inventoryLocation,
               room: bulkEntry.room,
-              date: new Date().toISOString(),
+              date: finalEntryDate,
+              createdAt: new Date().toISOString(),
+              isRetroactive: isRetroactiveDate ? true : false,
               responsible: user?.displayName || 'Sistema',
               responsibleEmail: user?.email || '',
               supplier: bulkEntry.supplier || currentItemData.supplier,
@@ -2925,7 +2962,7 @@ export default function App() {
             batch_number: itemData.batch_number,
             quantity: initial_qty,
             location: inventoryLocation,
-            createdAt: new Date().toISOString()
+            createdAt: finalEntryDate
           });
 
           await addDoc(transCol, {
@@ -2936,7 +2973,9 @@ export default function App() {
             quantity: initial_qty,
             location: inventoryLocation,
             room: bulkEntry.room,
-            date: new Date().toISOString(),
+            date: finalEntryDate,
+            createdAt: new Date().toISOString(),
+            isRetroactive: isRetroactiveDate ? true : false,
             responsible: user?.displayName || 'Sistema',
             responsibleEmail: user?.email || '',
             supplier: bulkEntry.supplier,
@@ -2948,6 +2987,9 @@ export default function App() {
       }
 
       setShowAddModal(false);
+      setIsRetroactiveDate(false);
+      setRetroactiveDate('');
+      setRetroactiveTime('');
       setBulkEntry({ 
         supplier: '',
         category: 'Expediente',
@@ -2979,23 +3021,23 @@ export default function App() {
       const isExit = showTransactionModal.type === 'exit';
       const targetDestinationSector = modalSector?.trim() || '';
 
+      if (isRetroactiveDate) {
+        if (!retroactiveDate) {
+          showToast(`Por favor, informe a data retroativa da ${isExit ? 'saída' : 'entrada'}.`, 'error');
+          return;
+        }
+        const [ry, rm, rd] = retroactiveDate.split('-').map(Number);
+        const retroCheckDate = new Date(ry, rm - 1, rd, 23, 59, 59);
+        if (retroCheckDate.getTime() > new Date().getTime()) {
+          showToast('A data retroativa não pode ser futura.', 'error');
+          return;
+        }
+      }
+
       if (isExit) {
         if (basket.length === 0) {
           showToast('Adicione pelo menos um item à lista de saída.', 'error');
           return;
-        }
-
-        if (isRetroactiveDate) {
-          if (!retroactiveDate) {
-            showToast('Por favor, informe a data retroativa da saída.', 'error');
-            return;
-          }
-          const [ry, rm, rd] = retroactiveDate.split('-').map(Number);
-          const retroCheckDate = new Date(ry, rm - 1, rd, 23, 59, 59);
-          if (retroCheckDate.getTime() > new Date().getTime()) {
-            showToast('A data retroativa não pode ser futura.', 'error');
-            return;
-          }
         }
 
         if (exitReason === 'consumo' && (!targetDestinationSector || targetDestinationSector === 'Almoxarifado')) {
@@ -3010,7 +3052,7 @@ export default function App() {
       }
 
       let finalTransactionDate = new Date().toISOString();
-      if (isExit && isRetroactiveDate && retroactiveDate) {
+      if (isRetroactiveDate && retroactiveDate) {
         const [year, month, day] = retroactiveDate.split('-').map(Number);
         let hours = 12;
         let minutes = 0;
@@ -3249,7 +3291,9 @@ export default function App() {
             quantity: transactionQty,
             sector: null,
             location: inventoryLocation,
-            date: new Date().toISOString(),
+            date: finalTransactionDate,
+            createdAt: new Date().toISOString(),
+            isRetroactive: isRetroactiveDate ? true : false,
             responsible: user?.displayName || 'Sistema',
             responsibleEmail: user?.email || '',
             batch_number: currentItemData.batch_number,
@@ -6075,11 +6119,33 @@ export default function App() {
     .filter(i => !i.deletedAt && (i.location || 'Almoxarifado') === inventoryLocation)
     .reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)), 0);
 
+  const matchesMovFilter = (t: Transaction) => {
+    if (movSearchTerm.trim()) {
+      const combined = `${t.item_name} ${t.batch_number || ''} ${t.sector || ''} ${t.supplier || ''} ${t.responsible || ''}`;
+      if (!normalizeString(combined).includes(normalizeString(movSearchTerm))) {
+        return false;
+      }
+    }
+    const txDay = format(new Date(t.date), 'yyyy-MM-dd');
+    if (movFilterMode === 'single_date') {
+      return movSingleDate ? txDay === movSingleDate : true;
+    }
+    if (movFilterMode === 'date_range') {
+      if (movRangeStart && txDay < movRangeStart) return false;
+      if (movRangeEnd && txDay > movRangeEnd) return false;
+      return true;
+    }
+    return true;
+  };
+
   const recentTransactions = (() => {
     const sevenDaysAgo = startOfDay(subDays(new Date(), 7));
     const activeForLoc = transactions.filter(
-      t => !t.deletedAt && (t.location || 'Almoxarifado') === inventoryLocation
+      t => !t.deletedAt && (t.location || 'Almoxarifado') === inventoryLocation && matchesMovFilter(t)
     );
+    if (movFilterMode !== 'recent' || movSearchTerm.trim() !== '') {
+      return activeForLoc.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
     const weekIds = new Set(
       activeForLoc
         .filter(t => new Date(t.date) >= sevenDaysAgo || ((t as any).createdAt && new Date((t as any).createdAt) >= sevenDaysAgo))
@@ -6092,6 +6158,20 @@ export default function App() {
         const timeB = Math.max(new Date(b.date).getTime(), (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0);
         return timeB - timeA;
       });
+  })();
+
+  const filteredHistoryTransactions = (() => {
+    const sevenDaysAgo = startOfDay(subDays(new Date(), 7));
+    const base = transactions.filter(
+      t => (showDeletedHistory ? !!t.deletedAt : !t.deletedAt) &&
+           (t.location || 'Almoxarifado') === inventoryLocation &&
+           matchesMovFilter(t)
+    );
+    if (movFilterMode === 'recent') {
+      const weekList = base.filter(t => new Date(t.date) >= sevenDaysAgo || ((t as any).createdAt && new Date((t as any).createdAt) >= sevenDaysAgo));
+      return weekList.length > 0 ? weekList : base.slice(0, 20);
+    }
+    return base;
   })();
 
   const pendingRequestsCount = requests.filter(r => 
@@ -7093,31 +7173,122 @@ export default function App() {
 
                 {/* Right Column: Movimentações Recentes (7/12 cols) */}
                 <div className="lg:col-span-7 bg-white rounded-3xl border border-blue-100 shadow-sm overflow-hidden space-y-0">
-                  <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 bg-blue-500/20 text-blue-300 rounded-xl border border-blue-400/30">
-                        <History size={18} />
+                  <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-5 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 bg-blue-500/20 text-blue-300 rounded-xl border border-blue-400/30">
+                          <History size={18} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-white">
+                            Movimentações do Estoque
+                          </h4>
+                          <p className="text-[10px] text-blue-200 font-medium">
+                            Filtre por data ou período para consultar ou estornar entradas e saídas
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-xs font-extrabold uppercase tracking-wider text-white">
-                          Movimentações Recentes do Estoque
-                        </h4>
-                        <p className="text-[10px] text-blue-200 font-medium">
-                          Histórico de saídas e entradas registradas no almoxarifado
-                        </p>
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2.5 py-1 rounded-full shrink-0">
+                        {recentTransactions.length} registro(s)
+                      </span>
+                    </div>
+
+                    {/* Filtros de Data / Período e Busca */}
+                    <div className="bg-white/10 backdrop-blur-sm p-3 rounded-2xl border border-white/10 space-y-2.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setMovFilterMode('recent')}
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold transition-all ${movFilterMode === 'recent' ? 'bg-blue-500 text-white shadow-sm' : 'bg-white/10 text-blue-100 hover:bg-white/20'}`}
+                        >
+                          Últimos 7 dias
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMovFilterMode('single_date')}
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 ${movFilterMode === 'single_date' ? 'bg-amber-500 text-white shadow-sm' : 'bg-white/10 text-blue-100 hover:bg-white/20'}`}
+                        >
+                          <Calendar size={11} /> Escolher Data
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMovFilterMode('date_range')}
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 ${movFilterMode === 'date_range' ? 'bg-amber-500 text-white shadow-sm' : 'bg-white/10 text-blue-100 hover:bg-white/20'}`}
+                        >
+                          <Calendar size={11} /> Período de Tempo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMovFilterMode('all')}
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold transition-all ${movFilterMode === 'all' ? 'bg-blue-500 text-white shadow-sm' : 'bg-white/10 text-blue-100 hover:bg-white/20'}`}
+                        >
+                          Todas
+                        </button>
+                      </div>
+
+                      {movFilterMode === 'single_date' && (
+                        <div className="flex items-center gap-2 pt-1">
+                          <label className="text-[10px] font-bold text-blue-200 uppercase shrink-0">Data da Movimentação:</label>
+                          <input
+                            type="date"
+                            value={movSingleDate}
+                            onChange={e => setMovSingleDate(e.target.value)}
+                            className="px-2.5 py-1.5 bg-white text-slate-900 rounded-xl text-xs font-bold border-none focus:ring-2 focus:ring-amber-400"
+                          />
+                        </div>
+                      )}
+
+                      {movFilterMode === 'date_range' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-[10px] font-bold text-blue-200 uppercase w-8 shrink-0">De:</label>
+                            <input
+                              type="date"
+                              value={movRangeStart}
+                              onChange={e => setMovRangeStart(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white text-slate-900 rounded-xl text-xs font-bold border-none focus:ring-2 focus:ring-amber-400"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-[10px] font-bold text-blue-200 uppercase w-8 shrink-0">Até:</label>
+                            <input
+                              type="date"
+                              value={movRangeEnd}
+                              onChange={e => setMovRangeEnd(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white text-slate-900 rounded-xl text-xs font-bold border-none focus:ring-2 focus:ring-amber-400"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="relative">
+                        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-300" />
+                        <input
+                          type="text"
+                          value={movSearchTerm}
+                          onChange={e => setMovSearchTerm(e.target.value)}
+                          placeholder="Filtrar por nome do material, lote ou setor..."
+                          className="w-full pl-8 pr-8 py-1.5 bg-white/10 text-white placeholder:text-blue-200/70 rounded-xl text-xs font-medium border border-white/15 focus:outline-none focus:bg-white/15"
+                        />
+                        {movSearchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => setMovSearchTerm('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-blue-200 hover:text-white"
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2.5 py-1 rounded-full">
-                      Últimos 7 dias ({recentTransactions.length})
-                    </span>
                   </div>
 
                   <div className="p-5 space-y-3 max-h-[520px] overflow-y-auto">
                     {recentTransactions.length === 0 && (
                       <div className="py-14 text-center">
                         <History size={40} className="mx-auto text-slate-300 mb-3" />
-                        <p className="text-sm text-slate-800 font-bold">Sem registros no momento</p>
-                        <p className="text-xs text-slate-500">Nenhuma movimentação realizada nesta localização.</p>
+                        <p className="text-sm text-slate-800 font-bold">Nenhuma movimentação encontrada para este filtro</p>
+                        <p className="text-xs text-slate-500">Altere a data, o período selecionado ou o termo de busca acima.</p>
                       </div>
                     )}
 
@@ -7137,6 +7308,7 @@ export default function App() {
                           </div>
                           <p className="text-[10px] text-slate-500 font-medium mt-0.5">
                             {t.type === 'entry' ? 'Entrada / Adição em estoque' : `Saída e entrega p/ setor: ${t.sector || '---'}`}
+                            {t.batch_number ? ` • Lote: ${t.batch_number}` : ''}
                           </p>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 pt-1.5 border-t border-dashed border-slate-200/80">
                             <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
@@ -7167,16 +7339,10 @@ export default function App() {
                               setShowDeleteModal({ show: true, transactionId: t.id });
                             }}
                             className="px-2.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-xl transition-all self-center shrink-0 flex items-center gap-1 text-[10px] font-extrabold"
-                            title={t.type === 'exit' ? "Cancelar Saída e Devolver ao Estoque" : "Cancelar Entrada"}
+                            title={t.type === 'exit' ? "Cancelar Saída e Devolver ao Estoque" : "Cancelar Entrada e Descontar do Estoque"}
                           >
-                            {t.type === 'exit' ? (
-                              <>
-                                <RotateCcw size={13} />
-                                <span>Estornar</span>
-                              </>
-                            ) : (
-                              <Trash2 size={14} />
-                            )}
+                            <RotateCcw size={13} />
+                            <span>Estornar</span>
                           </button>
                         )}
                       </div>
@@ -7739,42 +7905,133 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-[#E7E5E4] shadow-sm">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-lg font-bold text-[#1C1917]">Histórico de Movimentações</h3>
-                  {isAdmin && (
-                    <div className="flex items-center gap-2 bg-[#F5F5F4] p-1 rounded-2xl border border-[#E7E5E4]">
+              <div className="bg-white p-4 rounded-3xl border border-[#E7E5E4] shadow-sm space-y-4">
+                <div className="flex flex-wrap justify-between items-center gap-3">
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-lg font-bold text-[#1C1917]">Histórico de Movimentações</h3>
+                    {isAdmin && (
+                      <div className="flex items-center gap-2 bg-[#F5F5F4] p-1 rounded-2xl border border-[#E7E5E4]">
+                        <button 
+                          onClick={() => setInventoryLocation('Almoxarifado')}
+                          className={`px-4 py-1.5 rounded-xl text-[10px] font-bold transition-all ${inventoryLocation === 'Almoxarifado' ? 'bg-[#1C1917] text-white shadow-sm' : 'text-[#78716C] hover:bg-[#E7E5E4]'}`}
+                        >
+                          Almoxarifado
+                        </button>
+                        <button 
+                          onClick={() => setInventoryLocation('Farmácia')}
+                          className={`px-4 py-1.5 rounded-xl text-[10px] font-bold transition-all ${inventoryLocation === 'Farmácia' ? 'bg-[#1C1917] text-white shadow-sm' : 'text-[#78716C] hover:bg-[#E7E5E4]'}`}
+                        >
+                          Farmácia
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {showDeletedHistory && transactions.filter(t => !!t.deletedAt).length > 0 && (
                       <button 
-                        onClick={() => setInventoryLocation('Almoxarifado')}
-                        className={`px-4 py-1.5 rounded-xl text-[10px] font-bold transition-all ${inventoryLocation === 'Almoxarifado' ? 'bg-[#1C1917] text-white shadow-sm' : 'text-[#78716C] hover:bg-[#E7E5E4]'}`}
+                        onClick={handleRecoverAllTransactions}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm"
                       >
-                        Almoxarifado
+                        <RotateCcw size={14} /> Restaurar Tudo
                       </button>
-                      <button 
-                        onClick={() => setInventoryLocation('Farmácia')}
-                        className={`px-4 py-1.5 rounded-xl text-[10px] font-bold transition-all ${inventoryLocation === 'Farmácia' ? 'bg-[#1C1917] text-white shadow-sm' : 'text-[#78716C] hover:bg-[#E7E5E4]'}`}
-                      >
-                        Farmácia
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {showDeletedHistory && transactions.filter(t => !!t.deletedAt).length > 0 && (
+                    )}
                     <button 
-                      onClick={handleRecoverAllTransactions}
-                      className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm"
+                      onClick={() => setShowDeletedHistory(!showDeletedHistory)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${showDeletedHistory ? 'bg-rose-100 text-rose-700' : 'bg-[#F5F5F4] text-[#78716C] hover:bg-[#E7E5E4]'}`}
                     >
-                      <RotateCcw size={14} /> Restaurar Tudo
+                      {showDeletedHistory ? <History size={14} /> : <Trash2 size={14} />}
+                      {showDeletedHistory ? 'Ver Histórico Ativo' : 'Ver Excluídos / Estornados'}
                     </button>
-                  )}
-                  <button 
-                    onClick={() => setShowDeletedHistory(!showDeletedHistory)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${showDeletedHistory ? 'bg-rose-100 text-rose-700' : 'bg-[#F5F5F4] text-[#78716C] hover:bg-[#E7E5E4]'}`}
-                  >
-                    {showDeletedHistory ? <History size={14} /> : <Trash2 size={14} />}
-                    {showDeletedHistory ? 'Ver Histórico Ativo' : 'Ver Excluídos (Testes)'}
-                  </button>
+                  </div>
+                </div>
+
+                {/* Barra de Filtro por Data, Período e Busca no Histórico */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#E7E5E4]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-extrabold text-[#78716C] uppercase mr-1">Período:</span>
+                    <button
+                      type="button"
+                      onClick={() => setMovFilterMode('recent')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${movFilterMode === 'recent' ? 'bg-[#1C1917] text-white' : 'bg-[#F5F5F4] text-[#57534E] hover:bg-[#E7E5E4]'}`}
+                    >
+                      Últimos 7 dias
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMovFilterMode('single_date')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${movFilterMode === 'single_date' ? 'bg-amber-600 text-white' : 'bg-[#F5F5F4] text-[#57534E] hover:bg-[#E7E5E4]'}`}
+                    >
+                      <Calendar size={13} /> Escolher Data
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMovFilterMode('date_range')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${movFilterMode === 'date_range' ? 'bg-amber-600 text-white' : 'bg-[#F5F5F4] text-[#57534E] hover:bg-[#E7E5E4]'}`}
+                    >
+                      <Calendar size={13} /> Período de Tempo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMovFilterMode('all')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${movFilterMode === 'all' ? 'bg-[#1C1917] text-white' : 'bg-[#F5F5F4] text-[#57534E] hover:bg-[#E7E5E4]'}`}
+                    >
+                      Todas ({transactions.filter(t => (showDeletedHistory ? !!t.deletedAt : !t.deletedAt) && (t.location || 'Almoxarifado') === inventoryLocation).length})
+                    </button>
+
+                    {movFilterMode === 'single_date' && (
+                      <div className="flex items-center gap-2 ml-2">
+                        <input
+                          type="date"
+                          value={movSingleDate}
+                          onChange={e => setMovSingleDate(e.target.value)}
+                          className="px-3 py-1.5 bg-[#F5F5F4] border border-[#E7E5E4] rounded-xl text-xs font-bold text-[#1C1917]"
+                        />
+                      </div>
+                    )}
+
+                    {movFilterMode === 'date_range' && (
+                      <div className="flex flex-wrap items-center gap-2 ml-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-[#78716C]">De:</span>
+                          <input
+                            type="date"
+                            value={movRangeStart}
+                            onChange={e => setMovRangeStart(e.target.value)}
+                            className="px-3 py-1.5 bg-[#F5F5F4] border border-[#E7E5E4] rounded-xl text-xs font-bold text-[#1C1917]"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-[#78716C]">Até:</span>
+                          <input
+                            type="date"
+                            value={movRangeEnd}
+                            onChange={e => setMovRangeEnd(e.target.value)}
+                            className="px-3 py-1.5 bg-[#F5F5F4] border border-[#E7E5E4] rounded-xl text-xs font-bold text-[#1C1917]"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative w-full sm:w-72">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A8A29E]" />
+                    <input
+                      type="text"
+                      value={movSearchTerm}
+                      onChange={e => setMovSearchTerm(e.target.value)}
+                      placeholder="Buscar item, lote ou setor..."
+                      className="w-full pl-9 pr-8 py-2 bg-[#F5F5F4] border border-[#E7E5E4] rounded-xl text-xs font-bold text-[#1C1917] focus:outline-none"
+                    />
+                    {movSearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setMovSearchTerm('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#78716C]"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -7798,8 +8055,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E7E5E4]">
-                    {transactions
-                      .filter(t => (showDeletedHistory ? !!t.deletedAt : !t.deletedAt) && (t.location || 'Almoxarifado') === inventoryLocation)
+                    {filteredHistoryTransactions
                       .map(t => (
                       <tr key={t.id} className={`hover:bg-[#FAFAF9] transition-all ${t.deletedAt ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                         <td className="px-6 py-5 text-sm text-[#57534E] whitespace-nowrap">
@@ -7943,16 +8199,10 @@ export default function App() {
                                   setShowDeleteModal({ show: true, transactionId: t.id });
                                 }}
                                 className="px-2.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-all flex items-center gap-1 text-xs font-bold"
-                                title={t.type === 'exit' ? "Cancelar Saída e Devolver ao Estoque" : "Apagar Movimentação"}
+                                title={t.type === 'exit' ? "Cancelar Saída e Devolver ao Estoque" : "Cancelar Entrada e Descontar do Estoque"}
                               >
-                                {t.type === 'exit' ? (
-                                  <>
-                                    <RotateCcw size={15} />
-                                    <span>Estornar</span>
-                                  </>
-                                ) : (
-                                  <Trash2 size={18} />
-                                )}
+                                <RotateCcw size={15} />
+                                <span>Estornar</span>
                               </button>
                             )}
                           </div>
@@ -7962,11 +8212,10 @@ export default function App() {
                   </tbody>
                 </table>
                 </div>
-                {((showDeletedHistory && transactions.filter(t => !!t.deletedAt && (t.location || 'Almoxarifado') === inventoryLocation).length === 0) || 
-                  (!showDeletedHistory && transactions.filter(t => !t.deletedAt && (t.location || 'Almoxarifado') === inventoryLocation).length === 0)) && (
+                {filteredHistoryTransactions.length === 0 && (
                   <div className="p-20 text-center">
                     <History className="mx-auto text-[#E7E5E4] mb-4" size={48} />
-                    <p className="text-[#78716C]">Nenhuma movimentação encontrada para {inventoryLocation}.</p>
+                    <p className="text-[#78716C]">Nenhuma movimentação encontrada para o período ou filtro selecionado em {inventoryLocation}.</p>
                   </div>
                 )}
               </div>
@@ -10509,10 +10758,87 @@ export default function App() {
                 </datalist>
               </div>
 
+              {/* Opção de Data Retroativa na Entrada em Lote */}
+              <div className="bg-[#FAFAF9] p-5 rounded-3xl border border-[#E7E5E4] space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isRetroactiveDate ? 'bg-amber-500 text-white' : 'bg-stone-200 text-stone-600'}`}>
+                      <Calendar size={18} />
+                    </div>
+                    <div>
+                      <label htmlFor="retroactive-bulk-entry-toggle" className="text-xs font-bold text-[#1C1917] cursor-pointer flex items-center gap-1.5">
+                        <span>Entrada com Data Retroativa</span>
+                        {isRetroactiveDate && (
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                            Ativado
+                          </span>
+                        )}
+                      </label>
+                      <p className="text-[11px] text-[#78716C]">
+                        {isRetroactiveDate
+                          ? 'Os itens serão registrados no histórico com a data retroativa informada.'
+                          : 'Ative caso queira registrar esta entrada com uma data anterior à data de hoje.'}
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      id="retroactive-bulk-entry-toggle"
+                      type="checkbox"
+                      checked={isRetroactiveDate}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsRetroactiveDate(checked);
+                        if (checked && !retroactiveDate) {
+                          setRetroactiveDate(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+                          setRetroactiveTime(format(new Date(), 'HH:mm'));
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                  </label>
+                </div>
+
+                {isRetroactiveDate && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-dashed border-stone-300">
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#57534E] uppercase mb-1">
+                        Data da Entrada (Retroativa) *
+                      </label>
+                      <input
+                        type="date"
+                        required={isRetroactiveDate}
+                        max={format(new Date(), 'yyyy-MM-dd')}
+                        value={retroactiveDate}
+                        onChange={(e) => setRetroactiveDate(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-[#E7E5E4] rounded-xl text-xs font-bold text-stone-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#57534E] uppercase mb-1">
+                        Horário da Entrada (Opcional)
+                      </label>
+                      <input
+                        type="time"
+                        value={retroactiveTime}
+                        onChange={(e) => setRetroactiveTime(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-[#E7E5E4] rounded-xl text-xs font-bold text-stone-900"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-4 pt-6 border-t border-[#E7E5E4]">
                 <button 
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setIsRetroactiveDate(false);
+                    setRetroactiveDate('');
+                    setRetroactiveTime('');
+                  }}
                   className="flex-1 px-6 py-4 rounded-2xl font-bold text-[#78716C] hover:bg-[#F5F5F4] transition-all"
                 >
                   Cancelar
@@ -10616,6 +10942,78 @@ export default function App() {
                     <p className="text-[10px] text-[#A8A29E] mt-1 font-medium italic">
                       Deixe em branco para usar o cálculo automático do sistema.
                     </p>
+                  </div>
+
+                  {/* Opção de Data Retroativa na Entrada Individual */}
+                  <div className="bg-[#F5F5F4] p-4 rounded-2xl border border-stone-200 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isRetroactiveDate ? 'bg-amber-500 text-white' : 'bg-stone-200 text-stone-600'}`}>
+                          <Calendar size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <label htmlFor="retroactive-entry-toggle" className="text-xs font-bold text-[#1C1917] cursor-pointer flex items-center gap-1.5 flex-wrap">
+                            <span>Entrada com Data Retroativa</span>
+                            {isRetroactiveDate && (
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                                Ativado
+                              </span>
+                            )}
+                          </label>
+                          <p className="text-[11px] text-[#78716C] leading-snug">
+                            {isRetroactiveDate
+                              ? 'A entrada será registrada com a data anterior informada.'
+                              : 'Ative para lançar esta entrada com uma data anterior à data atual.'}
+                          </p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          id="retroactive-entry-toggle"
+                          type="checkbox"
+                          checked={isRetroactiveDate}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setIsRetroactiveDate(checked);
+                            if (checked && !retroactiveDate) {
+                              setRetroactiveDate(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+                              setRetroactiveTime(format(new Date(), 'HH:mm'));
+                            }
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                      </label>
+                    </div>
+
+                    {isRetroactiveDate && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-dashed border-stone-300">
+                        <div>
+                          <label className="block text-[10px] font-bold text-[#57534E] uppercase mb-1">
+                            Data da Entrada (Retroativa) *
+                          </label>
+                          <input
+                            type="date"
+                            required={isRetroactiveDate}
+                            max={format(new Date(), 'yyyy-MM-dd')}
+                            value={retroactiveDate}
+                            onChange={(e) => setRetroactiveDate(e.target.value)}
+                            className="w-full px-3.5 py-2.5 bg-white border border-[#E7E5E4] rounded-xl text-xs font-bold text-stone-900 shadow-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-[#57534E] uppercase mb-1">
+                            Horário da Entrada (Opcional)
+                          </label>
+                          <input
+                            type="time"
+                            value={retroactiveTime}
+                            onChange={(e) => setRetroactiveTime(e.target.value)}
+                            className="w-full px-3.5 py-2.5 bg-white border border-[#E7E5E4] rounded-xl text-xs font-bold text-stone-900 shadow-sm"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
