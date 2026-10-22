@@ -1595,6 +1595,8 @@ export default function App() {
   const handleDeleteTransaction = async (id: string, reason: string) => {
     if (!id) return;
     try {
+      let cancelledTrans: Transaction | null = null;
+
       await runTransaction(db, async (transaction) => {
         const transRef = doc(db, 'transactions', id);
         const transSnap = await transaction.get(transRef);
@@ -1604,48 +1606,119 @@ export default function App() {
         }
         
         const transData = transSnap.data() as Transaction;
+        cancelledTrans = transData;
 
         if (transData.deletedAt) {
-          throw new Error("Esta movimentação já foi excluída.");
+          throw new Error("Esta movimentação já foi cancelada/excluída.");
         }
 
-        if (transData.item_id) {
-          const itemRef = doc(db, 'items', transData.item_id);
-          const itemSnap = await transaction.get(itemRef);
-          
-          if (itemSnap.exists()) {
-            const itemData = itemSnap.data() as Item;
-            const qty = Number(transData.quantity) || 0;
-            let currentQty = Number(itemData.quantity) || 0;
-            
-            let newQty;
-            if (transData.type === 'entry') {
-              newQty = currentQty - qty;
-            } else {
-              newQty = currentQty + qty;
-            }
-            
-            transaction.update(itemRef, { 
-              quantity: Math.max(0, newQty),
-              updatedAt: serverTimestamp()
-            });
+        const qty = Number(transData.quantity) || 0;
+        let targetItemRef = transData.item_id ? doc(db, 'items', transData.item_id) : null;
+        let targetItemSnap = targetItemRef ? await transaction.get(targetItemRef) : null;
+
+        // Fallback lookup by name + batch + location if item_id was not found
+        if (!targetItemSnap || !targetItemSnap.exists()) {
+          const fallbackItem = items.find(i =>
+            !i.deletedAt &&
+            i.name.trim().toLowerCase() === (transData.item_name || '').trim().toLowerCase() &&
+            (i.batch_number || '') === (transData.batch_number || '') &&
+            (i.location || 'Almoxarifado') === (transData.location || 'Almoxarifado')
+          ) || items.find(i =>
+            !i.deletedAt &&
+            i.name.trim().toLowerCase() === (transData.item_name || '').trim().toLowerCase() &&
+            (i.location || 'Almoxarifado') === (transData.location || 'Almoxarifado')
+          );
+
+          if (fallbackItem?.id) {
+            targetItemRef = doc(db, 'items', fallbackItem.id);
+            targetItemSnap = await transaction.get(targetItemRef);
           }
         }
 
+        // Check if this exit was a transfer to Farmácia so we can also reverse Farmácia stock
+        let pharmItemRef: DocumentReference | null = null;
+        let pharmItemSnap: any = null;
+        let pharmTransRef: DocumentReference | null = null;
+
+        if (
+          transData.type === 'exit' &&
+          (transData.sector === 'Farmácia' || transData.sector === 'Farmácia (Consumo Interno)') &&
+          (!transData.exitReason || transData.exitReason === 'consumo')
+        ) {
+          const matchingPharmItem = items.find(i =>
+            !i.deletedAt &&
+            i.location === 'Farmácia' &&
+            i.name.trim().toLowerCase() === (transData.item_name || '').trim().toLowerCase() &&
+            (i.batch_number || '') === (transData.batch_number || '')
+          );
+          if (matchingPharmItem?.id) {
+            pharmItemRef = doc(db, 'items', matchingPharmItem.id);
+            pharmItemSnap = await transaction.get(pharmItemRef);
+          }
+
+          const matchingPharmTrans = transactions.find(t =>
+            !t.deletedAt &&
+            t.type === 'entry' &&
+            t.location === 'Farmácia' &&
+            t.responsible === 'Sistema (Transferência)' &&
+            t.item_name === transData.item_name &&
+            t.quantity === transData.quantity &&
+            Math.abs(new Date(t.date).getTime() - new Date(transData.date).getTime()) < 15000
+          );
+          if (matchingPharmTrans?.id) {
+            pharmTransRef = doc(db, 'transactions', matchingPharmTrans.id);
+          }
+        }
+
+        // Perform all writes after reads
+        if (targetItemRef && targetItemSnap && targetItemSnap.exists()) {
+          const itemData = targetItemSnap.data() as Item;
+          const currentQty = Number(itemData.quantity) || 0;
+          const newQty = transData.type === 'entry' ? currentQty - qty : currentQty + qty;
+
+          transaction.update(targetItemRef, { 
+            quantity: Math.max(0, newQty),
+            updatedAt: serverTimestamp()
+          });
+        }
+
+        if (pharmItemRef && pharmItemSnap && pharmItemSnap.exists()) {
+          const pharmData = pharmItemSnap.data() as Item;
+          const currentPharmQty = Number(pharmData.quantity) || 0;
+          transaction.update(pharmItemRef, {
+            quantity: Math.max(0, currentPharmQty - qty),
+            updatedAt: serverTimestamp()
+          });
+        }
+
+        const nowIso = new Date().toISOString();
+        if (pharmTransRef) {
+          transaction.update(pharmTransRef, {
+            deletedAt: nowIso,
+            deletionReason: `Estorno automático de transferência (${reason || 'Saída cancelada'})`,
+            deletedByEmail: user?.email
+          });
+        }
+
         transaction.update(transRef, {
-          deletedAt: new Date().toISOString(),
-          deletionReason: reason || 'Sem justificativa',
+          deletedAt: nowIso,
+          deletionReason: reason || (transData.type === 'exit' ? 'Saída cancelada / Estorno ao estoque' : 'Sem justificativa'),
           deletedByEmail: user?.email
         });
       });
 
       setShowDeleteModal({ show: false });
-      const itemName = transactions.find(t => t.id === id)?.item_name;
+      const itemName = (cancelledTrans as Transaction | null)?.item_name || transactions.find(t => t.id === id)?.item_name;
       setDeletionReason('');
+      if ((cancelledTrans as Transaction | null)?.type === 'exit') {
+        showToast(`Saída cancelada! ${(cancelledTrans as Transaction).quantity} un. de "${(cancelledTrans as Transaction).item_name}" devolvidas ao estoque.`, "success");
+      } else {
+        showToast("Movimentação cancelada e estoque atualizado!", "success");
+      }
       if (itemName) await checkStockAndNotify(itemName);
     } catch (error: any) {
       console.error("Error deleting transaction:", error);
-      alert(`Erro ao excluir movimentação: ${error.message}`);
+      showToast(`Erro ao cancelar movimentação: ${error.message}`, "error");
     }
   };
 
@@ -3078,6 +3151,7 @@ export default function App() {
               sector: finalSectorValue,
               location: inventoryLocation,
               date: finalTransactionDate,
+              createdAt: new Date().toISOString(),
               isRetroactive: isRetroactiveDate ? true : false,
               responsible: user?.displayName || 'Sistema',
               responsibleEmail: user?.email || '',
@@ -6001,9 +6075,24 @@ export default function App() {
     .filter(i => !i.deletedAt && (i.location || 'Almoxarifado') === inventoryLocation)
     .reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)), 0);
 
-  const recentTransactions = transactions
-    .filter(t => (t.location || 'Almoxarifado') === inventoryLocation)
-    .slice(0, 5);
+  const recentTransactions = (() => {
+    const sevenDaysAgo = startOfDay(subDays(new Date(), 7));
+    const activeForLoc = transactions.filter(
+      t => !t.deletedAt && (t.location || 'Almoxarifado') === inventoryLocation
+    );
+    const weekIds = new Set(
+      activeForLoc
+        .filter(t => new Date(t.date) >= sevenDaysAgo || ((t as any).createdAt && new Date((t as any).createdAt) >= sevenDaysAgo))
+        .map(t => t.id)
+    );
+    return activeForLoc
+      .filter((t, idx) => weekIds.has(t.id) || idx < 15)
+      .sort((a, b) => {
+        const timeA = Math.max(new Date(a.date).getTime(), (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0);
+        const timeB = Math.max(new Date(b.date).getTime(), (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0);
+        return timeB - timeA;
+      });
+  })();
 
   const pendingRequestsCount = requests.filter(r => 
     !r.deletedAt && 
@@ -7019,11 +7108,11 @@ export default function App() {
                       </div>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2.5 py-1 rounded-full">
-                      Últimos 5 registros
+                      Últimos 7 dias ({recentTransactions.length})
                     </span>
                   </div>
 
-                  <div className="p-5 space-y-3 max-h-[480px] overflow-y-auto">
+                  <div className="p-5 space-y-3 max-h-[520px] overflow-y-auto">
                     {recentTransactions.length === 0 && (
                       <div className="py-14 text-center">
                         <History size={40} className="mx-auto text-slate-300 mb-3" />
@@ -7077,10 +7166,17 @@ export default function App() {
                               setDeletionReason('');
                               setShowDeleteModal({ show: true, transactionId: t.id });
                             }}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all self-center opacity-0 group-hover:opacity-100 focus:opacity-100 shrink-0"
-                            title="Excluir Movimentação"
+                            className="px-2.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-xl transition-all self-center shrink-0 flex items-center gap-1 text-[10px] font-extrabold"
+                            title={t.type === 'exit' ? "Cancelar Saída e Devolver ao Estoque" : "Cancelar Entrada"}
                           >
-                            <Trash2 size={15} />
+                            {t.type === 'exit' ? (
+                              <>
+                                <RotateCcw size={13} />
+                                <span>Estornar</span>
+                              </>
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
                           </button>
                         )}
                       </div>
@@ -7846,10 +7942,17 @@ export default function App() {
                                   setDeletionReason('');
                                   setShowDeleteModal({ show: true, transactionId: t.id });
                                 }}
-                                className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                                title="Apagar Movimentação"
+                                className="px-2.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-all flex items-center gap-1 text-xs font-bold"
+                                title={t.type === 'exit' ? "Cancelar Saída e Devolver ao Estoque" : "Apagar Movimentação"}
                               >
-                                <Trash2 size={20} />
+                                {t.type === 'exit' ? (
+                                  <>
+                                    <RotateCcw size={15} />
+                                    <span>Estornar</span>
+                                  </>
+                                ) : (
+                                  <Trash2 size={18} />
+                                )}
                               </button>
                             )}
                           </div>
@@ -11013,49 +11116,73 @@ export default function App() {
         </div>
       )}
 
-      {showDeleteModal.show && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl"
-          >
-            <h3 className="text-2xl font-bold mb-4 text-rose-600 flex items-center gap-2">
-              <Trash2 size={24} /> Excluir Movimentação
-            </h3>
-            <p className="text-[#78716C] mb-6">
-              Esta ação marcará a movimentação como excluída (ex: teste). Você poderá recuperá-la no histórico de excluídos.
-            </p>
-            
-            <div className="space-y-4">
-              <label className="block text-sm font-bold text-[#57534E]">Justificativa / Motivo</label>
-              <input 
-                type="text"
-                className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-rose-500/20"
-                placeholder="Ex: Lançamento de teste"
-                value={deletionReason}
-                onChange={e => setDeletionReason(e.target.value)}
-                autoFocus
-              />
-            </div>
+      {showDeleteModal.show && (() => {
+        const targetTrans = transactions.find(t => t.id === showDeleteModal.transactionId);
+        const isExitCancel = targetTrans?.type === 'exit';
+        return (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl"
+            >
+              <h3 className="text-2xl font-bold mb-3 text-rose-600 flex items-center gap-2">
+                {isExitCancel ? <RotateCcw size={24} /> : <Trash2 size={24} />}
+                {isExitCancel ? 'Cancelar Saída e Estornar' : 'Excluir Movimentação'}
+              </h3>
+              <p className="text-sm text-[#78716C] mb-4">
+                {isExitCancel
+                  ? 'Ao confirmar, esta saída será cancelada e a quantidade retirada voltará imediatamente para o estoque.'
+                  : 'Esta ação marcará a movimentação como excluída. Você poderá recuperá-la no histórico de excluídos.'}
+              </p>
 
-            <div className="flex gap-3 mt-8">
-              <button 
-                onClick={() => setShowDeleteModal({ show: false })}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-[#78716C] hover:bg-[#F5F5F4] transition-all"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={() => handleDeleteTransaction(showDeleteModal.transactionId!, deletionReason)}
-                className="flex-1 px-4 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all"
-              >
-                Confirmar Exclusão
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+              {targetTrans && (
+                <div className="bg-[#F5F5F4] border border-stone-200 rounded-2xl p-4 mb-5 space-y-1.5">
+                  <p className="text-xs font-extrabold text-[#1C1917]">{targetTrans.item_name}</p>
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#57534E]">
+                    <span><strong>Lote:</strong> {targetTrans.batch_number || 'S/N'}</span>
+                    {targetTrans.sector && <span>• <strong>Setor:</strong> {targetTrans.sector}</span>}
+                  </div>
+                  <div className="pt-1">
+                    <span className={`inline-block text-xs font-black px-2.5 py-1 rounded-lg ${isExitCancel ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800'}`}>
+                      {isExitCancel
+                        ? `+${targetTrans.quantity} un. voltarão ao estoque`
+                        : `-${targetTrans.quantity} un. serão removidas do estoque`}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-[#57534E]">Justificativa / Motivo do Cancelamento</label>
+                <input 
+                  type="text"
+                  className="w-full px-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-rose-500/20"
+                  placeholder={isExitCancel ? "Ex: Saída lançada por engano" : "Ex: Lançamento de teste"}
+                  value={deletionReason}
+                  onChange={e => setDeletionReason(e.target.value)}
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 mt-8">
+                <button 
+                  onClick={() => setShowDeleteModal({ show: false })}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-[#78716C] hover:bg-[#F5F5F4] transition-all"
+                >
+                  Voltar
+                </button>
+                <button 
+                  onClick={() => handleDeleteTransaction(showDeleteModal.transactionId!, deletionReason)}
+                  className="flex-1 px-4 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all"
+                >
+                  {isExitCancel ? 'Confirmar Estorno' : 'Confirmar Exclusão'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        );
+      })()}
 
       {showDetailModal.show && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6">
